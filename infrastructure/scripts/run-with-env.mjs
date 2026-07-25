@@ -27,8 +27,17 @@ if (args.length === 0) {
 }
 
 const pnpmScript = process.env.npm_execpath;
-const executable = pnpmScript === undefined ? (process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm') : process.execPath;
-const childArgs = pnpmScript === undefined ? args : [pnpmScript, ...args];
+const pnpmIsNodeScript =
+  pnpmScript !== undefined && /\.(?:cjs|mjs|js)$/i.test(pnpmScript);
+const executable =
+  pnpmScript === undefined
+    ? process.platform === 'win32'
+      ? 'pnpm.cmd'
+      : 'pnpm'
+    : pnpmIsNodeScript
+      ? process.execPath
+      : pnpmScript;
+const childArgs = pnpmIsNodeScript ? [pnpmScript, ...args] : args;
 const child = spawn(executable, childArgs, {
   cwd: workspaceRoot,
   env: {

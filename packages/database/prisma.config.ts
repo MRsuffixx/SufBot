@@ -5,13 +5,12 @@ import { loadDatabaseEnvironment } from './environment.js';
 
 const packageDirectory = dirname(fileURLToPath(import.meta.url));
 const environment = loadDatabaseEnvironment();
-const seedPath = join(packageDirectory, 'prisma', 'seed.ts').replaceAll('\\', '/');
 
 export default defineConfig({
   schema: join(packageDirectory, 'prisma', 'schema.prisma'),
   migrations: {
     path: join(packageDirectory, 'prisma', 'migrations'),
-    seed: `tsx "${seedPath}"`,
+    seed: 'tsx prisma/seed.ts',
   },
   datasource: {
     url: environment.migrationDatabaseUrl,
