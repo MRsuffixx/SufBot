@@ -22,37 +22,40 @@ const locales = [
 ] as const;
 
 export const seedDatabase = async (prisma: PrismaClient): Promise<void> => {
-  await prisma.$transaction([
-    ...featureFlags.map(({ key, enabled }) =>
-      prisma.featureFlag.upsert({
-        where: { key_scopeKey: { key, scopeKey: 'platform' } },
-        create: { key, scopeKey: 'platform', enabled },
-        update: { enabled },
-      }),
-    ),
-    ...moduleDefinitions.map(({ key, enabledByDefault }) =>
-      prisma.moduleDefinition.upsert({
-        where: { key },
-        create: { key, enabledByDefault, available: true },
-        update: { enabledByDefault, available: true },
-      }),
-    ),
-    ...locales.map(({ code, name, isDefault }) =>
-      prisma.localeDefinition.upsert({
-        where: { code },
-        create: { code, name, enabled: true, isDefault },
-        update: { name, enabled: true, isDefault },
-      }),
-    ),
-    prisma.platformConfiguration.upsert({
-      where: { key: 'defaults' },
-      create: {
-        key: 'defaults',
-        value: { locale: 'en', timezone: 'UTC', commandPrefix: '!' },
-      },
-      update: {
-        value: { locale: 'en', timezone: 'UTC', commandPrefix: '!' },
-      },
-    }),
-  ]);
+  await prisma.$transaction(
+    async (transaction) => {
+      for (const { key, enabled } of featureFlags) {
+        await transaction.featureFlag.upsert({
+          where: { key_scopeKey: { key, scopeKey: 'platform' } },
+          create: { key, scopeKey: 'platform', enabled },
+          update: { enabled },
+        });
+      }
+      for (const { key, enabledByDefault } of moduleDefinitions) {
+        await transaction.moduleDefinition.upsert({
+          where: { key },
+          create: { key, enabledByDefault, available: true },
+          update: { enabledByDefault, available: true },
+        });
+      }
+      for (const { code, name, isDefault } of locales) {
+        await transaction.localeDefinition.upsert({
+          where: { code },
+          create: { code, name, enabled: true, isDefault },
+          update: { name, enabled: true, isDefault },
+        });
+      }
+      await transaction.platformConfiguration.upsert({
+        where: { key: 'defaults' },
+        create: {
+          key: 'defaults',
+          value: { locale: 'en', timezone: 'UTC', commandPrefix: '!' },
+        },
+        update: {
+          value: { locale: 'en', timezone: 'UTC', commandPrefix: '!' },
+        },
+      });
+    },
+    { maxWait: 10_000, timeout: 30_000 },
+  );
 };

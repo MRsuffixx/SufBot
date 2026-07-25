@@ -2,6 +2,7 @@ import { Redis } from 'ioredis';
 import pg from 'pg';
 import { loadAppConfig, loadRootEnvironment } from '../../packages/config/src/index.js';
 import { loadDatabaseEnvironment } from '../../packages/database/environment.js';
+import { createPrismaClient } from '../../packages/database/src/client.js';
 
 const requiredTables = [
   'BackgroundJobRecord',
@@ -76,6 +77,14 @@ try {
     console.error(`Required database tables: missing (${missingTables.join(', ')})`);
   } else {
     console.info(`Required database tables: present (${requiredTables.length})`);
+  }
+
+  const prisma = createPrismaClient(databaseEnvironment.databaseUrl);
+  try {
+    await prisma.featureFlag.count();
+    console.info('Prisma Client: connected');
+  } finally {
+    await prisma.$disconnect();
   }
 
   console.info('Configuration loading: valid');
