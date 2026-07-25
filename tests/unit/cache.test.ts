@@ -1,93 +1,92 @@
 import { z } from 'zod';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DistributedCache } from '@sufbot/cache';
+import { createLogger } from '@sufbot/logger';
 
-const redisState = vi.hoisted(() => ({
+const redisState = {
   values: new Map<string, string>(),
   published: [] as Array<{ channel: string; value: string }>,
   failReads: false,
-}));
+};
 
-vi.mock('ioredis', () => {
-  class FakeRedis {
-    public status = 'wait';
+class FakeRedis {
+  public status = 'wait';
 
-    public on(): this {
-      return this;
-    }
-
-    public connect(): Promise<void> {
-      this.status = 'ready';
-      return Promise.resolve();
-    }
-
-    public get(key: string): Promise<string | null> {
-      if (redisState.failReads) return Promise.reject(new Error('redis unavailable'));
-      return Promise.resolve(redisState.values.get(key) ?? null);
-    }
-
-    public set(
-      key: string,
-      value: string,
-      _expiryMode: string,
-      _ttl: number,
-      condition?: string,
-    ): Promise<string | null> {
-      if (condition === 'NX' && redisState.values.has(key)) return Promise.resolve(null);
-      redisState.values.set(key, value);
-      return Promise.resolve('OK');
-    }
-
-    public del(key: string): Promise<number> {
-      return Promise.resolve(redisState.values.delete(key) ? 1 : 0);
-    }
-
-    public publish(channel: string, value: string): Promise<number> {
-      redisState.published.push({ channel, value });
-      return Promise.resolve(1);
-    }
-
-    public ping(): Promise<string> {
-      return Promise.resolve('PONG');
-    }
-
-    public duplicate(): FakeRedis {
-      return new FakeRedis();
-    }
-
-    public subscribe(): Promise<number> {
-      return Promise.resolve(1);
-    }
-
-    public unsubscribe(): Promise<number> {
-      return Promise.resolve(1);
-    }
-
-    public disconnect(): void {
-      this.status = 'end';
-    }
-
-    public quit(): Promise<string> {
-      this.status = 'end';
-      return Promise.resolve('OK');
-    }
+  public on(): this {
+    return this;
   }
 
-  return { Redis: FakeRedis };
-});
+  public connect(): Promise<void> {
+    this.status = 'ready';
+    return Promise.resolve();
+  }
 
-import { DistributedCache } from '@sufbot/cache';
-import { createLogger } from '@sufbot/logger';
+  public get(key: string): Promise<string | null> {
+    if (redisState.failReads) return Promise.reject(new Error('redis unavailable'));
+    return Promise.resolve(redisState.values.get(key) ?? null);
+  }
+
+  public set(
+    key: string,
+    value: string,
+    _expiryMode: string,
+    _ttl: number,
+    condition?: string,
+  ): Promise<string | null> {
+    if (condition === 'NX' && redisState.values.has(key)) return Promise.resolve(null);
+    redisState.values.set(key, value);
+    return Promise.resolve('OK');
+  }
+
+  public del(key: string): Promise<number> {
+    return Promise.resolve(redisState.values.delete(key) ? 1 : 0);
+  }
+
+  public publish(channel: string, value: string): Promise<number> {
+    redisState.published.push({ channel, value });
+    return Promise.resolve(1);
+  }
+
+  public ping(): Promise<string> {
+    return Promise.resolve('PONG');
+  }
+
+  public duplicate(): FakeRedis {
+    return new FakeRedis();
+  }
+
+  public subscribe(): Promise<number> {
+    return Promise.resolve(1);
+  }
+
+  public unsubscribe(): Promise<number> {
+    return Promise.resolve(1);
+  }
+
+  public disconnect(): void {
+    this.status = 'end';
+  }
+
+  public quit(): Promise<string> {
+    this.status = 'end';
+    return Promise.resolve('OK');
+  }
+}
 
 const ValueSchema = z.object({ version: z.number().int().positive() });
 
 const createCache = () =>
-  new DistributedCache('redis://localhost:6379/0', {
-    namespace: 'test',
-    localTtlSeconds: 60,
-    redisTtlSeconds: 60,
-    invalidationChannel: 'test:invalidate',
-    logger: createLogger({ app: 'test', environment: 'test' }, { level: 'silent' }),
-  });
+  new DistributedCache(
+    'redis://localhost:6379/0',
+    {
+      namespace: 'test',
+      localTtlSeconds: 60,
+      redisTtlSeconds: 60,
+      invalidationChannel: 'test:invalidate',
+      logger: createLogger({ app: 'test', environment: 'test' }, { level: 'silent' }),
+    },
+    new FakeRedis() as never,
+  );
 
 describe('distributed cache', () => {
   beforeEach(() => {

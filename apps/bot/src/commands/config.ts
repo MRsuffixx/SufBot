@@ -1,4 +1,4 @@
-import { Command } from '@sapphire/framework';
+import { type Command } from '@sapphire/framework';
 import { MessageFlags } from 'discord.js';
 import { requireCommandMetadata } from '@sufbot/discord';
 import { GuildRepository } from '@sufbot/database';

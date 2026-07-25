@@ -1,4 +1,4 @@
-import { Command } from '@sapphire/framework';
+import { type Command } from '@sapphire/framework';
 import {
   ActionRowBuilder,
   ButtonBuilder,

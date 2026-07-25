@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -32,7 +32,7 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
     connectionTimeout: dependencies.config.server.requestTimeoutMs,
     requestIdHeader: 'x-request-id',
     genReqId: () => createId('req'),
-    disableRequestLogging: true,
+    logController: new LogController({ disableRequestLogging: true }),
   });
   const metrics = new MetricsRegistry();
 
@@ -178,7 +178,9 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
             }),
         action: 'api.authorization.failed',
         resourceType: 'ApiRoute',
-        resourceId: request.routeOptions.url,
+        ...(request.routeOptions.url === undefined
+          ? {}
+          : { resourceId: request.routeOptions.url }),
         requestId: request.id,
         outcome: 'FAILURE',
         failureReason: isAppError(normalized) ? normalized.code : 'AUTHORIZATION_FAILURE',

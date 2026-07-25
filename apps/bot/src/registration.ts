@@ -1,4 +1,4 @@
-import { ApplicationCommandRegistry, container } from '@sapphire/framework';
+import { type ApplicationCommandRegistry, container } from '@sapphire/framework';
 
 export const registrationOptions = (): ApplicationCommandRegistry.RegisterOptions => {
   const { discord } = container.sufbot.config;

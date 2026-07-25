@@ -48,15 +48,18 @@ export class DistributedCache {
       logger: Logger;
       maxLocalEntries?: number;
     },
+    redisClient?: Redis,
   ) {
-    this.#redis = new Redis(redisUrl, {
-      lazyConnect: true,
-      enableReadyCheck: true,
-      maxRetriesPerRequest: 1,
-      connectTimeout: 5_000,
-      commandTimeout: 2_000,
-      retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
-    });
+    this.#redis =
+      redisClient ??
+      new Redis(redisUrl, {
+        lazyConnect: true,
+        enableReadyCheck: true,
+        maxRetriesPerRequest: 1,
+        connectTimeout: 5_000,
+        commandTimeout: 2_000,
+        retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
+      });
     this.#redis.on('error', (error) => {
       this.options.logger.warn(
         { err: error },

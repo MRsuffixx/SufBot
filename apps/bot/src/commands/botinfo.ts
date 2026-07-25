@@ -1,4 +1,4 @@
-import { Command } from '@sapphire/framework';
+import { type Command } from '@sapphire/framework';
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireCommandMetadata } from '@sufbot/discord';
 import { SufBotCommand } from '../base-command.js';

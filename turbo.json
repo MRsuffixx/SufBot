@@ -2,7 +2,26 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
   "globalDependencies": ["config.json", "config.*.json", ".env", ".env.*", "tsconfig.json"],
-  "globalEnv": ["NODE_ENV"],
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "DIRECT_DATABASE_URL",
+    "REDIS_URL",
+    "DISCORD_BOT_TOKEN",
+    "DISCORD_CLIENT_ID",
+    "DISCORD_CLIENT_SECRET",
+    "DISCORD_PUBLIC_KEY",
+    "AUTH_SECRET",
+    "AUTH_TRUST_HOST",
+    "INTERNAL_API_SECRET",
+    "WEBHOOK_SIGNING_SECRET",
+    "ENCRYPTION_KEY",
+    "SESSION_ENCRYPTION_KEY",
+    "BOT_OWNER_DISCORD_IDS",
+    "BOT_DEVELOPER_DISCORD_IDS",
+    "PLATFORM_ADMIN_DISCORD_IDS",
+    "SENTRY_DSN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

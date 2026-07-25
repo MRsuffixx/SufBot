@@ -43,6 +43,11 @@ export const baseConfig = tseslint.config(
   },
   {
     files: ['**/*.config.{js,mjs,ts}', '**/scripts/**/*.{js,mjs,ts}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
     rules: {
       'no-console': 'off',
     },

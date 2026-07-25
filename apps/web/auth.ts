@@ -144,7 +144,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               select: { id: true },
             })
           : null;
-      if (persistedUser !== null) {
+      if (persistedUser !== null && typeof discordId === 'string') {
         await appendAuditLog(prisma, {
           actorUserId: persistedUser.id,
           actorDiscordId: discordId,
