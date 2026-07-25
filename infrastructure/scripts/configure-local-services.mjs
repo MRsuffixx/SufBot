@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,6 +82,22 @@ const replacements = new Map([
   ['REDIS_URL_DOCKER', dockerRedisUrl.toString()],
 ]);
 
+const isValidEncryptionKey = (value) => {
+  if (value === undefined) return false;
+  try {
+    return Buffer.from(value, 'base64').length === 32;
+  } catch {
+    return false;
+  }
+};
+let regeneratedEncryptionKeys = false;
+for (const key of ['ENCRYPTION_KEY', 'SESSION_ENCRYPTION_KEY']) {
+  if (!isValidEncryptionKey(parsed[key])) {
+    replacements.set(key, randomBytes(32).toString('base64'));
+    regeneratedEncryptionKeys = true;
+  }
+}
+
 const seen = new Set();
 const updatedLines = original.split(/\r?\n/).map((line) => {
   const match = /^([A-Z][A-Z0-9_]*)=/.exec(line);
@@ -99,3 +116,6 @@ writeFileSync(environmentFile, `${updatedLines.join('\n').replace(/\n+$/, '')}\n
 });
 console.info('Root .env now targets local host services and Docker service DNS names.');
 console.info('Existing credential values were preserved and were not printed.');
+if (regeneratedEncryptionKeys) {
+  console.info('Invalid local encryption keys were replaced with independent secure 32-byte keys.');
+}

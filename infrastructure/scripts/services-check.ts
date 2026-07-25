@@ -47,15 +47,22 @@ try {
     `PostgreSQL: connected (${databaseIdentity.rows[0]?.database_name ?? 'unknown'} as ${databaseIdentity.rows[0]?.database_user ?? 'unknown'})`,
   );
 
-  const migrations = await pool.query<{ migration_name: string }>(
-    `SELECT "migration_name"
-       FROM "_prisma_migrations"
-      WHERE "finished_at" IS NOT NULL AND "rolled_back_at" IS NULL
-      ORDER BY "finished_at"`,
+  const migrationTable = await pool.query<{ relation: string | null }>(
+    `SELECT to_regclass('public."_prisma_migrations"')::text AS relation`,
   );
-  console.info(
-    `Prisma migrations: ${migrations.rows.length === 0 ? 'none applied' : migrations.rows.map((row) => row.migration_name).join(', ')}`,
-  );
+  if (migrationTable.rows[0]?.relation === null) {
+    console.info('Prisma migrations: database is not initialized');
+  } else {
+    const migrations = await pool.query<{ migration_name: string }>(
+      `SELECT "migration_name"
+         FROM "_prisma_migrations"
+        WHERE "finished_at" IS NOT NULL AND "rolled_back_at" IS NULL
+        ORDER BY "finished_at"`,
+    );
+    console.info(
+      `Prisma migrations: ${migrations.rows.length === 0 ? 'none applied' : migrations.rows.map((row) => row.migration_name).join(', ')}`,
+    );
+  }
 
   const tables = await pool.query<{ table_name: string }>(
     `SELECT table_name
@@ -71,6 +78,15 @@ try {
     console.info(`Required database tables: present (${requiredTables.length})`);
   }
 
+  console.info('Configuration loading: valid');
+} catch (error) {
+  failed = true;
+  console.error(
+    `PostgreSQL check failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+  );
+}
+
+try {
   await redis.connect();
   const pong = await redis.ping();
   if (pong !== 'PONG') {
@@ -79,10 +95,9 @@ try {
   } else {
     console.info('Redis: connected (PONG)');
   }
-  console.info('Configuration loading: valid');
 } catch (error) {
   failed = true;
-  console.error(`Service check failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+  console.error(`Redis check failed: ${error instanceof Error ? error.message : 'unknown error'}`);
 } finally {
   await pool.end();
   if (redis.status !== 'end') redis.disconnect();
