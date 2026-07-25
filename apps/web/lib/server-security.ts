@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { AuthorizationError } from '@sufbot/shared';
-import { appConfig, webEnvironment } from './runtime.js';
+import { appConfig, webEnvironment } from './runtime';
 
 export const validateMutationOrigin = async (): Promise<void> => {
   const requestHeaders = await headers();
