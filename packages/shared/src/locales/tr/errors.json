@@ -1,0 +1,6 @@
+{
+  "errors.unknown": "Bir hata oluştu. Referans: {reference}",
+  "errors.guildOnly": "Bu komut yalnızca bir sunucuda kullanılabilir.",
+  "errors.permissionDenied": "Bu komutu kullanma izniniz yok.",
+  "errors.moduleDisabled": "Bu sunucuda {module} modülü devre dışı."
+}

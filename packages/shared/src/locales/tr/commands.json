@@ -1,0 +1,5 @@
+{
+  "commands.ping.response": "Pong! Ağ geçidi: {gateway} ms · Gidiş dönüş: {roundtrip} ms",
+  "commands.config.languageUpdated": "Sunucu dili Türkçe olarak değiştirildi.",
+  "commands.timeout.success": "{user} kullanıcısına {minutes} dakika zaman aşımı uygulandı."
+}

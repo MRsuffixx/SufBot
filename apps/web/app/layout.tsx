@@ -18,8 +18,12 @@ export const metadata: Metadata = {
     title: 'SufBot — Discord operations, clearly controlled',
     description:
       'Moderation, configuration, permissions, and observability for Discord communities.',
+    images: [{ url: '/og.png', width: 1720, height: 907, alt: 'SufBot control plane' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/og.png'],
+  },
   robots: { index: true, follow: true },
 };
 
@@ -34,4 +38,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

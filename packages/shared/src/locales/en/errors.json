@@ -1,0 +1,6 @@
+{
+  "errors.unknown": "Something went wrong. Reference: {reference}",
+  "errors.guildOnly": "This command can only be used in a server.",
+  "errors.permissionDenied": "You do not have permission to use this command.",
+  "errors.moduleDisabled": "The {module} module is disabled in this server."
+}

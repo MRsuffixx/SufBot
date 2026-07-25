@@ -24,6 +24,7 @@
     "test": "pnpm db:generate && pnpm build:packages && vitest run",
     "test:watch": "vitest",
     "test:coverage": "pnpm db:generate && pnpm build:packages && vitest run --coverage",
+    "test:e2e": "playwright test",
     "db:generate": "pnpm --filter @sufbot/database generate",
     "db:validate": "pnpm --filter @sufbot/database validate",
     "db:migrate": "pnpm --filter @sufbot/database migrate",
@@ -35,6 +36,8 @@
     "security:audit": "pnpm audit --audit-level high"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@prisma/config": "7.9.0",
     "@sufbot/eslint-config": "workspace:*",
     "@sufbot/typescript-config": "workspace:*",
     "@types/node": "24.13.3",
@@ -46,4 +49,3 @@
     "vitest": "4.1.10"
   }
 }
-

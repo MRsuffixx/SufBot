@@ -1,31 +1,17 @@
 import type { Locale } from './schemas.js';
+import enCommon from './locales/en/common.json' with { type: 'json' };
+import enCommands from './locales/en/commands.json' with { type: 'json' };
+import enErrors from './locales/en/errors.json' with { type: 'json' };
+import trCommon from './locales/tr/common.json' with { type: 'json' };
+import trCommands from './locales/tr/commands.json' with { type: 'json' };
+import trErrors from './locales/tr/errors.json' with { type: 'json' };
 
-const messages = {
-  en: {
-    'common.saved': 'Your changes were saved.',
-    'common.cancelled': 'The operation was cancelled.',
-    'errors.unknown': 'Something went wrong. Reference: {reference}',
-    'errors.guildOnly': 'This command can only be used in a server.',
-    'errors.permissionDenied': 'You do not have permission to use this command.',
-    'errors.moduleDisabled': 'The {module} module is disabled in this server.',
-    'commands.ping.response': 'Pong! Gateway: {gateway} ms · Round trip: {roundtrip} ms',
-    'commands.config.languageUpdated': 'Server language changed to English.',
-    'commands.timeout.success': '{user} was timed out for {minutes} minute(s).',
-  },
-  tr: {
-    'common.saved': 'Değişiklikleriniz kaydedildi.',
-    'common.cancelled': 'İşlem iptal edildi.',
-    'errors.unknown': 'Bir hata oluştu. Referans: {reference}',
-    'errors.guildOnly': 'Bu komut yalnızca bir sunucuda kullanılabilir.',
-    'errors.permissionDenied': 'Bu komutu kullanma izniniz yok.',
-    'errors.moduleDisabled': 'Bu sunucuda {module} modülü devre dışı.',
-    'commands.ping.response': 'Pong! Ağ geçidi: {gateway} ms · Gidiş dönüş: {roundtrip} ms',
-    'commands.config.languageUpdated': 'Sunucu dili Türkçe olarak değiştirildi.',
-    'commands.timeout.success': '{user} kullanıcısına {minutes} dakika zaman aşımı uygulandı.',
-  },
-} as const;
-
-type MessageKey = keyof (typeof messages)['en'];
+const english = { ...enCommon, ...enCommands, ...enErrors };
+type MessageKey = keyof typeof english;
+const messages: Record<Locale, Record<MessageKey, string>> = {
+  en: english,
+  tr: { ...trCommon, ...trCommands, ...trErrors },
+};
 
 export const translate = (
   locale: Locale,
@@ -40,4 +26,3 @@ export const translate = (
 };
 
 export const isSupportedMessageKey = (key: string): key is MessageKey => key in messages.en;
-

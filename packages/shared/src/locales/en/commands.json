@@ -1,0 +1,5 @@
+{
+  "commands.ping.response": "Pong! Gateway: {gateway} ms · Round trip: {roundtrip} ms",
+  "commands.config.languageUpdated": "Server language changed to English.",
+  "commands.timeout.success": "{user} was timed out for {minutes} minute(s)."
+}
