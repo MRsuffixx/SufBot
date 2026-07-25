@@ -1,21 +1,11 @@
-import { getPrismaClient, disconnectPrisma } from '../src/index.js';
+import { disconnectPrisma, getPrismaClient, seedDatabase } from '../src/index.js';
+import { loadDatabaseEnvironment } from '../environment.js';
 
 const main = async (): Promise<void> => {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (databaseUrl === undefined) {
-    throw new Error('DATABASE_URL is required to seed the database.');
-  }
-  const prisma = getPrismaClient(databaseUrl);
-  await prisma.featureFlag.upsert({
-    where: { key_scopeKey: { key: 'module:general', scopeKey: 'platform' } },
-    create: { key: 'module:general', scopeKey: 'platform', enabled: true },
-    update: { enabled: true },
-  });
-  await prisma.featureFlag.upsert({
-    where: { key_scopeKey: { key: 'module:moderation', scopeKey: 'platform' } },
-    create: { key: 'module:moderation', scopeKey: 'platform', enabled: true },
-    update: { enabled: true },
-  });
+  const environment = loadDatabaseEnvironment();
+  const prisma = getPrismaClient(environment.databaseUrl);
+  await seedDatabase(prisma);
+  console.info('Required platform data is initialized.');
 };
 
 main()

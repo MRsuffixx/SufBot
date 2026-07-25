@@ -1,18 +1,19 @@
-import 'dotenv/config';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'prisma/config';
+import { loadDatabaseEnvironment } from './environment.js';
 
-const cliDatabaseUrl =
-  process.env.DIRECT_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  'postgresql://invalid:invalid@127.0.0.1:5432/sufbot';
+const packageDirectory = dirname(fileURLToPath(import.meta.url));
+const environment = loadDatabaseEnvironment();
+const seedPath = join(packageDirectory, 'prisma', 'seed.ts').replaceAll('\\', '/');
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: join(packageDirectory, 'prisma', 'schema.prisma'),
   migrations: {
-    path: 'prisma/migrations',
-    seed: 'tsx prisma/seed.ts',
+    path: join(packageDirectory, 'prisma', 'migrations'),
+    seed: `tsx "${seedPath}"`,
   },
   datasource: {
-    url: cliDatabaseUrl,
+    url: environment.migrationDatabaseUrl,
   },
 });

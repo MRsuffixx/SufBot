@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { AppError, ValidationError } from '@sufbot/shared';
+import { join } from 'node:path';
+import { ValidationError } from '@sufbot/shared';
+import { findWorkspaceRoot, loadRootEnvironment } from './environment.js';
 import {
   ApiEnvironmentSchema,
   AppConfigSchema,
@@ -14,32 +14,6 @@ import {
   type WebEnvironment,
   type WorkerEnvironment,
 } from './schema.js';
-
-const packageDirectory = dirname(fileURLToPath(import.meta.url));
-
-const findWorkspaceRoot = (start = process.cwd()): string => {
-  let current = resolve(start);
-  for (let depth = 0; depth < 8; depth += 1) {
-    if (
-      existsSync(join(current, 'config.json')) &&
-      existsSync(join(current, 'pnpm-workspace.yaml'))
-    ) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-
-  const fromPackage = resolve(packageDirectory, '../../../');
-  if (existsSync(join(fromPackage, 'config.json'))) return fromPackage;
-  throw new AppError({
-    code: 'CONFIG_NOT_FOUND',
-    message: 'Unable to locate config.json from the current working directory.',
-    statusCode: 500,
-    expose: true,
-  });
-};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -75,6 +49,7 @@ export const loadAppConfig = (options?: {
 }): AppConfig => {
   if (cachedConfig !== undefined && options?.reload !== true) return cachedConfig;
   const root = options?.rootDirectory ?? findWorkspaceRoot();
+  loadRootEnvironment({ rootDirectory: root });
   const environment =
     options?.environment ??
     (process.env.NODE_ENV === 'production'
@@ -120,6 +95,7 @@ const parseEnvironment = <T>(schema: {
         error: { issues: ReadonlyArray<{ path: PropertyKey[]; message: string }> };
       };
 }): T => {
+  loadRootEnvironment();
   const parsed = schema.safeParse(process.env);
   if (!parsed.success) {
     const summary = parsed.error.issues
