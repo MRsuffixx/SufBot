@@ -8,7 +8,10 @@ import {
 } from 'discord.js';
 
 export class SettingsPrefixButtonHandler extends InteractionHandler {
-  public constructor(context: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
+  public constructor(
+    context: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options,
+  ) {
     super(context, { ...options, interactionHandlerType: InteractionHandlerTypes.Button });
   }
 
@@ -38,4 +41,3 @@ export class SettingsPrefixButtonHandler extends InteractionHandler {
     return interaction.showModal(modal);
   }
 }
-

@@ -36,7 +36,9 @@ export function ActionForm({
         {state.status !== 'idle' ? (
           <p
             role="status"
-            className={state.status === 'error' ? 'text-sm text-red-500' : 'text-sm text-emerald-500'}
+            className={
+              state.status === 'error' ? 'text-sm text-red-500' : 'text-sm text-emerald-500'
+            }
           >
             {state.message}
           </p>
@@ -45,4 +47,3 @@ export function ActionForm({
     </form>
   );
 }
-

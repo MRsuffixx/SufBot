@@ -41,4 +41,3 @@ export class GuildCreateListener extends Listener {
     this.container.sufbot.logger.info({ guildId: guild.id }, 'guild installed');
   }
 }
-

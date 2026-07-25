@@ -86,10 +86,7 @@ const createCache = () =>
     localTtlSeconds: 60,
     redisTtlSeconds: 60,
     invalidationChannel: 'test:invalidate',
-    logger: createLogger(
-      { app: 'test', environment: 'test' },
-      { level: 'silent' },
-    ),
+    logger: createLogger({ app: 'test', environment: 'test' }, { level: 'silent' }),
   });
 
 describe('distributed cache', () => {
@@ -128,11 +125,8 @@ describe('distributed cache', () => {
     redisState.failReads = true;
     const cache = createCache();
     await expect(
-      cache.getOrLoad(
-        '123456789012345678',
-        'config',
-        ValueSchema,
-        () => Promise.resolve({ version: 4 }),
+      cache.getOrLoad('123456789012345678', 'config', ValueSchema, () =>
+        Promise.resolve({ version: 4 }),
       ),
     ).resolves.toEqual({ version: 4 });
     expect(cache.metrics.misses).toBe(1);

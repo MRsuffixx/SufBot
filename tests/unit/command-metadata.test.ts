@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  builtInModules,
-  commandMetadata,
-  requireCommandMetadata,
-} from '@sufbot/discord';
+import { builtInModules, commandMetadata, requireCommandMetadata } from '@sufbot/discord';
 
 describe('command metadata registry', () => {
   it('contains unique command names with safe cooldowns', () => {
@@ -17,8 +13,6 @@ describe('command metadata registry', () => {
       guildOnly: true,
       requiredModule: 'moderation',
     });
-    expect(() => requireCommandMetadata('unknown')).toThrowError(
-      /metadata is missing/,
-    );
+    expect(() => requireCommandMetadata('unknown')).toThrowError(/metadata is missing/);
   });
 });

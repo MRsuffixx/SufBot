@@ -25,4 +25,3 @@ main()
     await disconnectPrisma();
     process.exitCode = 1;
   });
-

@@ -7,8 +7,10 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-violet-600 px-4 py-2.5 text-white shadow-lg shadow-violet-600/20 hover:bg-violet-500',
-        secondary: 'border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 hover:bg-[var(--surface-strong)]',
+        default:
+          'bg-violet-600 px-4 py-2.5 text-white shadow-lg shadow-violet-600/20 hover:bg-violet-500',
+        secondary:
+          'border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 hover:bg-[var(--surface-strong)]',
         ghost: 'px-3 py-2 hover:bg-[var(--surface)]',
         danger: 'bg-red-600 px-4 py-2.5 text-white hover:bg-red-500',
       },
@@ -28,4 +30,3 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
 export function Button({ className, variant, size, ...props }: ButtonProps) {
   return <button className={cn(buttonVariants({ variant, size }), className)} {...props} />;
 }
-

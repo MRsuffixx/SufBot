@@ -90,4 +90,3 @@ export class ConfigCommand extends SufBotCommand {
     );
   }
 }
-

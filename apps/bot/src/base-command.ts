@@ -13,4 +13,3 @@ export abstract class SufBotCommand extends Command {
     this.metadata = metadata;
   }
 }
-

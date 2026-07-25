@@ -20,7 +20,10 @@ const packageDirectory = dirname(fileURLToPath(import.meta.url));
 const findWorkspaceRoot = (start = process.cwd()): string => {
   let current = resolve(start);
   for (let depth = 0; depth < 8; depth += 1) {
-    if (existsSync(join(current, 'config.json')) && existsSync(join(current, 'pnpm-workspace.yaml'))) {
+    if (
+      existsSync(join(current, 'config.json')) &&
+      existsSync(join(current, 'pnpm-workspace.yaml'))
+    ) {
       return current;
     }
     const parent = dirname(current);
@@ -84,13 +87,16 @@ export const loadAppConfig = (options?: {
 
   const overridePath = join(root, `config.${environment}.json`);
   const merged = existsSync(overridePath)
-    ? deepMerge(base, (() => {
-        const override = readJson(overridePath);
-        if (!isObject(override)) {
-          throw new ValidationError(`${overridePath} must contain a JSON object.`);
-        }
-        return override;
-      })())
+    ? deepMerge(
+        base,
+        (() => {
+          const override = readJson(overridePath);
+          if (!isObject(override)) {
+            throw new ValidationError(`${overridePath} must contain a JSON object.`);
+          }
+          return override;
+        })(),
+      )
     : base;
 
   const parsed = AppConfigSchema.safeParse(merged);
@@ -106,7 +112,16 @@ export const loadAppConfig = (options?: {
   return cachedConfig;
 };
 
-const parseEnvironment = <T>(schema: { safeParse: (input: unknown) => { success: true; data: T } | { success: false; error: { issues: ReadonlyArray<{ path: PropertyKey[]; message: string }> } } }): T => {
+const parseEnvironment = <T>(schema: {
+  safeParse: (
+    input: unknown,
+  ) =>
+    | { success: true; data: T }
+    | {
+        success: false;
+        error: { issues: ReadonlyArray<{ path: PropertyKey[]; message: string }> };
+      };
+}): T => {
   const parsed = schema.safeParse(process.env);
   if (!parsed.success) {
     const summary = parsed.error.issues
@@ -126,4 +141,3 @@ export const loadWebEnvironment = (): WebEnvironment => parseEnvironment(WebEnvi
 export const clearConfigCacheForTests = (): void => {
   cachedConfig = undefined;
 };
-

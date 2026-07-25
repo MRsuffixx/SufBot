@@ -26,4 +26,3 @@ declare module 'fastify' {
     correlationId: string;
   }
 }
-

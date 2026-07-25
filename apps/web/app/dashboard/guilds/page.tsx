@@ -77,10 +77,11 @@ export default async function GuildSelectionPage() {
       {guilds.length === 0 ? (
         <Card className="mt-9 text-center">
           <p className="font-semibold">Discord returned no guilds for this account.</p>
-          <p className="mt-2 text-sm text-[var(--muted)]">Sign out and authorize the guilds scope again.</p>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Sign out and authorize the guilds scope again.
+          </p>
         </Card>
       ) : null}
     </div>
   );
 }
-

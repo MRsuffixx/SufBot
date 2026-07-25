@@ -11,4 +11,3 @@ export class GuildDeleteListener extends Listener {
     this.container.sufbot.logger.info({ guildId: guild.id }, 'guild uninstalled');
   }
 }
-

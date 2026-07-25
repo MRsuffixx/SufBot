@@ -14,23 +14,23 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CI: "true"
+  CI: 'true'
   NODE_ENV: production
   DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
   DIRECT_DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
   TEST_DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
   REDIS_URL: redis://127.0.0.1:6379/0
-  DISCORD_CLIENT_ID: "123456789012345678"
+  DISCORD_CLIENT_ID: '123456789012345678'
   DISCORD_CLIENT_SECRET: test-discord-client-secret-at-least-32-characters
   AUTH_SECRET: test-auth-secret-at-least-thirty-two-characters
-  AUTH_TRUST_HOST: "true"
+  AUTH_TRUST_HOST: 'true'
   INTERNAL_API_SECRET: test-internal-secret-at-least-thirty-two-characters
   WEBHOOK_SIGNING_SECRET: test-webhook-secret-at-least-thirty-two-characters
   ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
   SESSION_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-  BOT_OWNER_DISCORD_IDS: "123456789012345678"
-  BOT_DEVELOPER_DISCORD_IDS: ""
-  PLATFORM_ADMIN_DISCORD_IDS: ""
+  BOT_OWNER_DISCORD_IDS: '123456789012345678'
+  BOT_DEVELOPER_DISCORD_IDS: ''
+  PLATFORM_ADMIN_DISCORD_IDS: ''
 
 jobs:
   quality:
@@ -47,19 +47,14 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U sufbot -d sufbot_test"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
+          --health-cmd "pg_isready -U sufbot -d sufbot_test" --health-interval 5s --health-timeout
+          3s --health-retries 20
       redis:
         image: redis:8.2-alpine
         ports:
           - 6379:6379
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -150,10 +145,10 @@ jobs:
             build-args: SERVICE=worker
           - name: web
             dockerfile: infrastructure/docker/Dockerfile.web
-            build-args: ""
+            build-args: ''
           - name: migrate
             dockerfile: infrastructure/docker/Dockerfile.migrate
-            build-args: ""
+            build-args: ''
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v4

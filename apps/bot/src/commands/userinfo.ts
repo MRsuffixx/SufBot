@@ -32,9 +32,7 @@ export class UserinfoCommand extends SufBotCommand {
     );
   }
 
-  public override chatInputRun(
-    interaction: Command.ChatInputCommandInteraction,
-  ): Promise<unknown> {
+  public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {
     const user = interaction.options.getUser('user') ?? interaction.user;
     return interaction.reply({
       embeds: [this.embedFor(user)],
@@ -49,7 +47,12 @@ export class UserinfoCommand extends SufBotCommand {
     });
   }
 
-  private embedFor(user: { id: string; username: string; displayAvatarURL(): string; createdTimestamp: number }): EmbedBuilder {
+  private embedFor(user: {
+    id: string;
+    username: string;
+    displayAvatarURL(): string;
+    createdTimestamp: number;
+  }): EmbedBuilder {
     return new EmbedBuilder()
       .setTitle(user.username)
       .setThumbnail(user.displayAvatarURL())
@@ -60,4 +63,3 @@ export class UserinfoCommand extends SufBotCommand {
       );
   }
 }
-

@@ -22,4 +22,3 @@ export function GuildNav({ guildId }: { guildId: string }) {
     </nav>
   );
 }
-

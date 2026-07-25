@@ -8,4 +8,3 @@ export const requireDashboardSession = async () => {
   }
   return session;
 };
-

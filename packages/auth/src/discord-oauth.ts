@@ -1,10 +1,5 @@
 import type { PrismaClient } from '@sufbot/database/generated';
-import {
-  AuthenticationError,
-  DiscordApiError,
-  decryptString,
-  encryptString,
-} from '@sufbot/shared';
+import { AuthenticationError, DiscordApiError, decryptString, encryptString } from '@sufbot/shared';
 import { DiscordPermission } from '@sufbot/permissions';
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -210,7 +205,14 @@ export const syncGuildAccessGrants = async (
           id: guild.id,
           name: guild.name,
           iconHash: guild.icon,
-          ownerDiscordId: guild.owner ? (await transaction.user.findUniqueOrThrow({ where: { id: userId }, select: { discordId: true } })).discordId : '0',
+          ownerDiscordId: guild.owner
+            ? (
+                await transaction.user.findUniqueOrThrow({
+                  where: { id: userId },
+                  select: { discordId: true },
+                })
+              ).discordId
+            : '0',
           botInstalled: false,
         },
         update: { name: guild.name, iconHash: guild.icon },
@@ -235,4 +237,3 @@ export const syncGuildAccessGrants = async (
     }
   });
 };
-

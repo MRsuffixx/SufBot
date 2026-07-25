@@ -72,7 +72,11 @@ export class RateLimitError extends AppError {
 }
 
 export class InternalServiceError extends AppError {
-  public constructor(code = 'INTERNAL_ERROR', message = 'An internal service failed.', cause?: unknown) {
+  public constructor(
+    code = 'INTERNAL_ERROR',
+    message = 'An internal service failed.',
+    cause?: unknown,
+  ) {
     super({
       code,
       message,

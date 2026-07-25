@@ -16,9 +16,15 @@ export function DashboardNav({ session }: { session: Session }) {
           </div>
         </div>
         <nav className="grid gap-1 text-sm max-[900px]:grid-cols-3">
-          <DashboardLink href="/dashboard" icon={LayoutDashboard}>Overview</DashboardLink>
-          <DashboardLink href="/dashboard/guilds" icon={Server}>Guilds</DashboardLink>
-          <DashboardLink href="/dashboard/profile" icon={UserRound}>Profile</DashboardLink>
+          <DashboardLink href="/dashboard" icon={LayoutDashboard}>
+            Overview
+          </DashboardLink>
+          <DashboardLink href="/dashboard/guilds" icon={Server}>
+            Guilds
+          </DashboardLink>
+          <DashboardLink href="/dashboard/profile" icon={UserRound}>
+            Profile
+          </DashboardLink>
         </nav>
       </div>
     </aside>
@@ -35,10 +41,12 @@ function DashboardLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-medium hover:bg-[var(--surface-strong)]">
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-xl px-3 py-2.5 font-medium hover:bg-[var(--surface-strong)]"
+    >
       <Icon size={17} />
       <span>{children}</span>
     </Link>
   );
 }
-

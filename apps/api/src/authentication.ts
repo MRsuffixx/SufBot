@@ -43,7 +43,10 @@ export const createApiKeyAuthenticator =
     void dependencies.prisma.apiKey
       .update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } })
       .catch((error: unknown) => {
-        dependencies.logger.warn({ err: error, apiKeyId: apiKey.id }, 'API key usage timestamp failed');
+        dependencies.logger.warn(
+          { err: error, apiKeyId: apiKey.id },
+          'API key usage timestamp failed',
+        );
       });
   };
 
@@ -75,8 +78,10 @@ export const createGuildAccessGuard =
     if (context === undefined) throw new AuthenticationError();
     const guildId = readGuildId(request);
     if (context.guildId !== undefined && context.guildId !== guildId) {
-      throw new AuthorizationError('API key is scoped to another guild.', 'CROSS_GUILD_ACCESS_DENIED');
+      throw new AuthorizationError(
+        'API key is scoped to another guild.',
+        'CROSS_GUILD_ACCESS_DENIED',
+      );
     }
     await requireGuildAccess(dependencies.prisma, context.userId, guildId);
   };
-

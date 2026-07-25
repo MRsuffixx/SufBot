@@ -1,8 +1,8 @@
 # Authorization
 
-Authentication establishes identity; it never grants tenant access by itself. SufBot
-combines platform role, a current Discord permission grant, bot-installation state,
-explicit scopes, module availability, and command policy.
+Authentication establishes identity; it never grants tenant access by itself. SufBot combines
+platform role, a current Discord permission grant, bot-installation state, explicit scopes, module
+availability, and command policy.
 
 ## Roles and authority
 
@@ -12,9 +12,9 @@ Platform roles are ordered only for explicitly platform-scoped operations:
 OWNER > DEVELOPER > ADMIN > USER
 ```
 
-Owner/developer/admin membership comes from immutable Discord IDs in environment
-allowlists and is synchronized to `User.platformRole` at login. Usernames and display
-names are never authorization inputs.
+Owner/developer/admin membership comes from immutable Discord IDs in environment allowlists and is
+synchronized to `User.platformRole` at login. Usernames and display names are never authorization
+inputs.
 
 Guild authority is independent:
 
@@ -23,8 +23,8 @@ Guild authority is independent:
 - an explicitly modeled custom `guild.manage` permission;
 - a platform administrator for policy operations that deliberately allow it.
 
-Elevated platform roles do not make browser-provided guild IDs trustworthy. The server
-still loads the guild and scopes all data access to it.
+Elevated platform roles do not make browser-provided guild IDs trustworthy. The server still loads
+the guild and scopes all data access to it.
 
 ## Dashboard decision
 
@@ -42,15 +42,14 @@ flowchart TD
   Installed -- Yes --> Scoped["Run guild-scoped query/mutation"]
 ```
 
-Layouts protect rendering and server actions repeat authorization for mutations. This
-prevents a user from bypassing a hidden/disabled UI control by posting directly.
-Sensitive changes claim a unique mutation ID and write state plus audit in one
-transaction.
+Layouts protect rendering and server actions repeat authorization for mutations. This prevents a
+user from bypassing a hidden/disabled UI control by posting directly. Sensitive changes claim a
+unique mutation ID and write state plus audit in one transaction.
 
 ## API decision
 
-Public API routes require a syntactically valid bearer token whose hash matches an
-active, unexpired, non-revoked `ApiKey`. Middleware checks:
+Public API routes require a syntactically valid bearer token whose hash matches an active,
+unexpired, non-revoked `ApiKey`. Middleware checks:
 
 1. user is active;
 2. required scope or wildcard is present;
@@ -58,23 +57,23 @@ active, unexpired, non-revoked `ApiKey`. Middleware checks:
 4. a fresh `GuildAccessGrant` exists for the same user/guild;
 5. the route query uses that exact guild ID.
 
-Authentication and authorization failures return a safe envelope and create a
-best-effort redacted failure audit. API key creation/revocation is intentionally a
-future administrative surface; no endpoint creates a key in this foundation.
+Authentication and authorization failures return a safe envelope and create a best-effort redacted
+failure audit. API key creation/revocation is intentionally a future administrative surface; no
+endpoint creates a key in this foundation.
 
-Internal endpoints use HMAC-signed requests. The signature covers timestamp, nonce,
-HTTP method, exact path, and SHA-256 body hash. Timestamp skew is bounded and Redis
-atomically claims the nonce. Network location alone is not authority.
+Internal endpoints use HMAC-signed requests. The signature covers timestamp, nonce, HTTP method,
+exact path, and SHA-256 body hash. Timestamp skew is bounded and Redis atomically claims the nonce.
+Network location alone is not authority.
 
 ## TOCTOU policy
 
-Discord permissions may change between a check and an external action. Dashboard
-writes refresh permissions immediately before the local transaction. Bot commands use
-the gateway interaction member permissions at execution time. Moderation then relies
-on Discord to enforce role hierarchy and bot permissions atomically at its API.
+Discord permissions may change between a check and an external action. Dashboard writes refresh
+permissions immediately before the local transaction. Bot commands use the gateway interaction
+member permissions at execution time. Moderation then relies on Discord to enforce role hierarchy
+and bot permissions atomically at its API.
 
-For future long-running workflows, include the actor/policy snapshot for audit but
-re-authorize immediately before every security-sensitive effect.
+For future long-running workflows, include the actor/policy snapshot for audit but re-authorize
+immediately before every security-sensitive effect.
 
 ## Tenant-safe data access checklist
 
@@ -87,5 +86,5 @@ re-authorize immediately before every security-sensitive effect.
 - Add success and negative cross-guild tests.
 - Write failure audits without storing tokens, headers, or raw IP addresses.
 
-See [permissions](permissions.md) for command policy details and
-[the threat model](threat-model.md) for residual risks.
+See [permissions](permissions.md) for command policy details and [the threat model](threat-model.md)
+for residual risks.

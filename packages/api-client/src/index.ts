@@ -12,14 +12,7 @@ export class SufBotInternalApiClient {
     const body = JSON.stringify(payload);
     const timestamp = new Date().toISOString();
     const nonce = createOpaqueToken(18);
-    const signature = signInternalRequest(
-      this.secret,
-      'POST',
-      path,
-      body,
-      timestamp,
-      nonce,
-    );
+    const signature = signInternalRequest(this.secret, 'POST', path, body, timestamp, nonce);
     const response = await fetch(new URL(path, this.baseUrl), {
       method: 'POST',
       headers: {
@@ -35,4 +28,3 @@ export class SufBotInternalApiClient {
     return (await response.json()) as TResponse;
   }
 }
-

@@ -8,9 +8,7 @@ import {
   type CommandPolicy,
 } from '@sufbot/permissions';
 
-const context = (
-  overrides: Partial<AuthorizationContext> = {},
-): AuthorizationContext => ({
+const context = (overrides: Partial<AuthorizationContext> = {}): AuthorizationContext => ({
   userId: 'user-1',
   discordUserId: '111111111111111111',
   platformRole: 'USER',
@@ -36,15 +34,9 @@ const policy = (overrides: Partial<CommandPolicy> = {}): CommandPolicy => ({
 
 describe('permission policies', () => {
   it('allows guild owners, Manage Guild holders, and platform administrators', () => {
+    expect(canManageGuild(context({ discordUserId: '333333333333333333' })).allowed).toBe(true);
     expect(
-      canManageGuild(
-        context({ discordUserId: '333333333333333333' }),
-      ).allowed,
-    ).toBe(true);
-    expect(
-      canManageGuild(
-        context({ userPermissions: DiscordPermission.ManageGuild }),
-      ).allowed,
+      canManageGuild(context({ userPermissions: DiscordPermission.ManageGuild })).allowed,
     ).toBe(true);
     expect(canManageGuild(context({ platformRole: 'ADMIN' })).allowed).toBe(true);
   });
@@ -57,15 +49,18 @@ describe('permission policies', () => {
   });
 
   it('fails closed for command module, premium, feature, and permission requirements', () => {
-    expect(
-      canExecuteCommand(context(), policy({ requiredModule: 'moderation' })),
-    ).toMatchObject({ allowed: false, code: 'MODULE_DISABLED' });
-    expect(
-      canExecuteCommand(context(), policy({ premiumOnly: true })),
-    ).toMatchObject({ allowed: false, code: 'PREMIUM_REQUIRED' });
-    expect(
-      canExecuteCommand(context(), policy({ featureFlag: 'beta-command' })),
-    ).toMatchObject({ allowed: false, code: 'FEATURE_DISABLED' });
+    expect(canExecuteCommand(context(), policy({ requiredModule: 'moderation' }))).toMatchObject({
+      allowed: false,
+      code: 'MODULE_DISABLED',
+    });
+    expect(canExecuteCommand(context(), policy({ premiumOnly: true }))).toMatchObject({
+      allowed: false,
+      code: 'PREMIUM_REQUIRED',
+    });
+    expect(canExecuteCommand(context(), policy({ featureFlag: 'beta-command' }))).toMatchObject({
+      allowed: false,
+      code: 'FEATURE_DISABLED',
+    });
     expect(
       canExecuteCommand(
         context(),
@@ -85,16 +80,13 @@ describe('permission policies', () => {
       canExecuteCommand(context({ platformRole: 'USER' }), policy({ developerOnly: true })),
     ).toMatchObject({ allowed: false, code: 'DEVELOPER_ONLY' });
     expect(
-      canExecuteCommand(
-        context({ platformRole: 'DEVELOPER' }),
-        policy({ developerOnly: true }),
-      ),
+      canExecuteCommand(context({ platformRole: 'DEVELOPER' }), policy({ developerOnly: true })),
     ).toEqual({ allowed: true });
   });
 
   it('rejects cross-tenant access', () => {
-    expect(() =>
-      assertTenantScope('111111111111111111', '222222222222222222'),
-    ).toThrowError(/Cross-guild access/);
+    expect(() => assertTenantScope('111111111111111111', '222222222222222222')).toThrowError(
+      /Cross-guild access/,
+    );
   });
 });

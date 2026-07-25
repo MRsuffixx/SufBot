@@ -38,9 +38,12 @@ export const encryptString = (plaintext: string, encodedKey: string): string => 
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return [ENCRYPTION_VERSION, iv.toString('base64url'), tag.toString('base64url'), ciphertext.toString('base64url')].join(
-    '.',
-  );
+  return [
+    ENCRYPTION_VERSION,
+    iv.toString('base64url'),
+    tag.toString('base64url'),
+    ciphertext.toString('base64url'),
+  ].join('.');
 };
 
 export const decryptString = (envelope: string, encodedKey: string): string => {
@@ -61,4 +64,3 @@ export const decryptString = (envelope: string, encodedKey: string): string => {
     decipher.final(),
   ]).toString('utf8');
 };
-

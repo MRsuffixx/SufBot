@@ -2,11 +2,7 @@ import { Activity, Blocks, Command, ShieldCheck } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { prisma } from '@/lib/runtime';
 
-export default async function GuildOverview({
-  params,
-}: {
-  params: Promise<{ guildId: string }>;
-}) {
+export default async function GuildOverview({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
   const [settings, enabledModules, overrides, recentAudit] = await Promise.all([
     prisma.guildSettings.findUnique({ where: { guildId } }),
@@ -23,7 +19,11 @@ export default async function GuildOverview({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Metric icon={Blocks} label="Enabled modules" value={String(enabledModules)} />
         <Metric icon={Command} label="Command overrides" value={String(overrides)} />
-        <Metric icon={ShieldCheck} label="Settings version" value={String(settings?.version ?? 1)} />
+        <Metric
+          icon={ShieldCheck}
+          label="Settings version"
+          value={String(settings?.version ?? 1)}
+        />
         <Metric icon={Activity} label="Locale" value={(settings?.locale ?? 'en').toUpperCase()} />
       </div>
       <Card className="mt-6">
@@ -38,7 +38,9 @@ export default async function GuildOverview({
                   <p className="font-semibold">{event.action}</p>
                   <p className="mt-1 text-xs text-[var(--muted)]">{event.resourceType}</p>
                 </div>
-                <span className="text-xs text-[var(--muted)]">{event.createdAt.toLocaleString()}</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {event.createdAt.toLocaleString()}
+                </span>
               </div>
             ))
           )}
@@ -48,7 +50,15 @@ export default async function GuildOverview({
   );
 }
 
-function Metric({ icon: Icon, label, value }: { icon: typeof Blocks; label: string; value: string }) {
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Blocks;
+  label: string;
+  value: string;
+}) {
   return (
     <Card>
       <Icon size={19} className="text-violet-600" />
@@ -57,4 +67,3 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Blocks; label: stri
     </Card>
   );
 }
-

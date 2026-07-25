@@ -63,17 +63,19 @@ client.on(SapphireEvents.ChatInputCommandRun, (interaction) => {
 client.on(SapphireEvents.ChatInputCommandFinish, (interaction, command) => {
   const startedAt = startedInteractions.get(interaction.id) ?? performance.now();
   startedInteractions.delete(interaction.id);
-  void prisma.commandUsage.create({
-    data: {
-      guildId: interaction.guildId,
-      discordUserId: interaction.user.id,
-      commandName: command.name,
-      correlationId: interaction.id,
-      success: true,
-      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      shardId: interaction.guild?.shardId ?? null,
-    },
-  }).catch((error: unknown) => logger.warn({ err: error }, 'command usage logging failed'));
+  void prisma.commandUsage
+    .create({
+      data: {
+        guildId: interaction.guildId,
+        discordUserId: interaction.user.id,
+        commandName: command.name,
+        correlationId: interaction.id,
+        success: true,
+        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+        shardId: interaction.guild?.shardId ?? null,
+      },
+    })
+    .catch((error: unknown) => logger.warn({ err: error }, 'command usage logging failed'));
 });
 client.on(SapphireEvents.ChatInputCommandDenied, (error, { interaction }) => {
   logger.warn(

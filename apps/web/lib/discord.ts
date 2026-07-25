@@ -77,4 +77,3 @@ export const botInviteUrl = (guildId?: string): string => {
   }
   return url.toString();
 };
-

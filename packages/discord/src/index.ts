@@ -45,7 +45,15 @@ export type BotModuleDefinition<TConfig> = {
 };
 
 const command = (
-  metadata: Omit<CommandMetadata, 'guildOnly' | 'ownerOnly' | 'developerOnly' | 'requiredUserPermissions' | 'requiredBotPermissions' | 'cooldownSeconds'> &
+  metadata: Omit<
+    CommandMetadata,
+    | 'guildOnly'
+    | 'ownerOnly'
+    | 'developerOnly'
+    | 'requiredUserPermissions'
+    | 'requiredBotPermissions'
+    | 'cooldownSeconds'
+  > &
     Partial<
       Pick<
         CommandMetadata,
@@ -80,9 +88,24 @@ export const generalModule = {
   }),
   defaultConfig: { showBranding: true },
   commands: [
-    command({ name: 'ping', description: 'Check bot latency.', category: 'General', requiredModule: 'general' }),
-    command({ name: 'help', description: 'Browse available commands.', category: 'General', requiredModule: 'general' }),
-    command({ name: 'botinfo', description: 'Show bot information.', category: 'General', requiredModule: 'general' }),
+    command({
+      name: 'ping',
+      description: 'Check bot latency.',
+      category: 'General',
+      requiredModule: 'general',
+    }),
+    command({
+      name: 'help',
+      description: 'Browse available commands.',
+      category: 'General',
+      requiredModule: 'general',
+    }),
+    command({
+      name: 'botinfo',
+      description: 'Show bot information.',
+      category: 'General',
+      requiredModule: 'general',
+    }),
     command({
       name: 'serverinfo',
       description: 'Show server information.',
@@ -90,7 +113,12 @@ export const generalModule = {
       guildOnly: true,
       requiredModule: 'general',
     }),
-    command({ name: 'userinfo', description: 'Show user information.', category: 'General', requiredModule: 'general' }),
+    command({
+      name: 'userinfo',
+      description: 'Show user information.',
+      category: 'General',
+      requiredModule: 'general',
+    }),
     command({
       name: 'settings',
       description: 'Open server settings.',
@@ -140,7 +168,10 @@ export const moderationModule = {
     premium: false,
   },
   configSchema: z.object({
-    auditChannelId: z.string().regex(/^\d{17,20}$/).nullable(),
+    auditChannelId: z
+      .string()
+      .regex(/^\d{17,20}$/)
+      .nullable(),
     defaultTimeoutMinutes: z.number().int().min(1).max(40_320),
   }),
   defaultConfig: { auditChannelId: null, defaultTimeoutMinutes: 10 },
@@ -193,4 +224,3 @@ export const requireCommandMetadata = (name: string): CommandMetadata => {
   if (metadata === undefined) throw new TypeError(`Command metadata is missing for ${name}.`);
   return metadata;
 };
-

@@ -5,18 +5,14 @@ import { appendAuditLog } from '@sufbot/database';
 import { createId } from '@sufbot/shared';
 import { appConfig, prisma, webEnvironment, webLogger } from '@/lib/runtime';
 
-const platformRoleFor = (
-  discordId: string,
-): 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER' => {
+const platformRoleFor = (discordId: string): 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER' => {
   if (webEnvironment.BOT_OWNER_DISCORD_IDS.includes(discordId)) return 'OWNER';
   if (webEnvironment.BOT_DEVELOPER_DISCORD_IDS.includes(discordId)) return 'DEVELOPER';
   if (webEnvironment.PLATFORM_ADMIN_DISCORD_IDS.includes(discordId)) return 'ADMIN';
   return 'USER';
 };
 
-const isPlatformRole = (
-  value: unknown,
-): value is 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER' =>
+const isPlatformRole = (value: unknown): value is 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER' =>
   value === 'USER' || value === 'ADMIN' || value === 'DEVELOPER' || value === 'OWNER';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -110,9 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: { sessionVersion: true, platformRole: true, deletedAt: true },
         });
         token.revoked =
-          user === null ||
-          user.deletedAt !== null ||
-          user.sessionVersion !== token.sessionVersion;
+          user === null || user.deletedAt !== null || user.sessionVersion !== token.sessionVersion;
         if (user !== null) token.platformRole = user.platformRole;
       }
       return token;
@@ -161,10 +155,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           outcome: 'SUCCESS',
         });
       }
-      webLogger.info(
-        { authUserId: persistedUser?.id },
-        'dashboard authentication succeeded',
-      );
+      webLogger.info({ authUserId: persistedUser?.id }, 'dashboard authentication succeeded');
     },
   },
   debug: false,

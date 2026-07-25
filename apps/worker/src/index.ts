@@ -22,9 +22,12 @@ const logger = createLogger(
 );
 const prisma = getPrismaClient(env.DATABASE_URL);
 const registry = new QueueRegistry(env.REDIS_URL, config.queue);
-const deadLetterQueue = new Queue(createWorkerQueueName(config.queue.prefix, QueueName.DeadLetter), {
-  connection: registry.connection,
-});
+const deadLetterQueue = new Queue(
+  createWorkerQueueName(config.queue.prefix, QueueName.DeadLetter),
+  {
+    connection: registry.connection,
+  },
+);
 
 const auditWorker = new Worker(
   createWorkerQueueName(config.queue.prefix, QueueName.Audit),
@@ -103,7 +106,9 @@ auditWorker.on('failed', (job, error) => {
         errorCode: 'AUDIT_JOB_FAILED',
       },
     })
-    .catch((databaseError: unknown) => logger.error({ err: databaseError }, 'job failure tracking failed'));
+    .catch((databaseError: unknown) =>
+      logger.error({ err: databaseError }, 'job failure tracking failed'),
+    );
   if (job.attemptsMade >= configuredAttempts) {
     const deadLetter = DeadLetterJobSchema.parse({
       sourceQueue: QueueName.Audit,

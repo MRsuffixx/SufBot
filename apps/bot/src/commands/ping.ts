@@ -31,4 +31,3 @@ export class PingCommand extends SufBotCommand {
     );
   }
 }
-

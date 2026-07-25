@@ -17,4 +17,3 @@ export class ReadyListener extends Listener {
     );
   }
 }
-

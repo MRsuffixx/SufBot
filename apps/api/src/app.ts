@@ -41,11 +41,14 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
       if (origin === undefined || dependencies.config.server.corsAllowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new AppError({
-          code: 'CORS_ORIGIN_DENIED',
-          message: 'Origin is not allowed.',
-          statusCode: 403,
-        }), false);
+        callback(
+          new AppError({
+            code: 'CORS_ORIGIN_DENIED',
+            message: 'Origin is not allowed.',
+            statusCode: 403,
+          }),
+          false,
+        );
       }
     },
     credentials: false,
@@ -96,10 +99,7 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
       },
     },
   });
-  if (
-    dependencies.config.server.openApiEnabled &&
-    dependencies.env.NODE_ENV !== 'production'
-  ) {
+  if (dependencies.config.server.openApiEnabled && dependencies.env.NODE_ENV !== 'production') {
     await app.register(swaggerUi, { routePrefix: '/documentation' });
   }
 
@@ -164,8 +164,7 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
           ? (request.params as { guildId?: unknown })
           : {};
       const guildId =
-        typeof params.guildId === 'string' &&
-        /^\d{17,20}$/.test(params.guildId)
+        typeof params.guildId === 'string' && /^\d{17,20}$/.test(params.guildId)
           ? params.guildId
           : undefined;
       const auth = request.authContext;
@@ -182,12 +181,8 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
         resourceId: request.routeOptions.url,
         requestId: request.id,
         outcome: 'FAILURE',
-        failureReason: isAppError(normalized)
-          ? normalized.code
-          : 'AUTHORIZATION_FAILURE',
-        ipAddressHash: sha256(
-          `${dependencies.env.WEBHOOK_SIGNING_SECRET}:${request.ip}`,
-        ),
+        failureReason: isAppError(normalized) ? normalized.code : 'AUTHORIZATION_FAILURE',
+        ipAddressHash: sha256(`${dependencies.env.WEBHOOK_SIGNING_SECRET}:${request.ip}`),
         ...(request.headers['user-agent'] === undefined
           ? {}
           : { userAgent: request.headers['user-agent'] }),

@@ -35,9 +35,7 @@ export const registerSystemRoutes = async (
     schema: { tags: ['system'], summary: 'Dependency readiness probe' },
     handler: async (_request, reply) => {
       const [database, redis] = await Promise.all([
-        dependencies.prisma.$queryRaw`SELECT 1`
-          .then(() => true)
-          .catch(() => false),
+        dependencies.prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false),
         dependencies.cache.ping(),
       ]);
       const ready = database && redis;
@@ -61,4 +59,3 @@ export const registerSystemRoutes = async (
     },
   });
 };
-

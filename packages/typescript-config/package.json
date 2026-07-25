@@ -2,11 +2,12 @@
   "name": "@sufbot/typescript-config",
   "version": "0.1.0",
   "private": true,
-  "files": ["*.json"],
+  "files": [
+    "*.json"
+  ],
   "exports": {
     "./base.json": "./base.json",
     "./node.json": "./node.json",
     "./nextjs.json": "./nextjs.json"
   }
 }
-

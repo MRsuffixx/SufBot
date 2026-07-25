@@ -22,9 +22,7 @@ export class SettingsCommand extends SufBotCommand {
     );
   }
 
-  public override chatInputRun(
-    interaction: Command.ChatInputCommandInteraction,
-  ): Promise<unknown> {
+  public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {
     if (interaction.guildId === null) throw new TypeError('Guild-only command reached a DM.');
     const suffix = `${interaction.guildId}:${interaction.user.id}`;
     const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -43,10 +41,10 @@ export class SettingsCommand extends SufBotCommand {
         ),
     );
     return interaction.reply({
-      content: 'Choose a setting. Changes are validated, audited, and published to every bot process.',
+      content:
+        'Choose a setting. Changes are validated, audited, and published to every bot process.',
       components: [buttonRow, selectRow],
       flags: MessageFlags.Ephemeral,
     });
   }
 }
-

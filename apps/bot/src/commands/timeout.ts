@@ -72,4 +72,3 @@ export class TimeoutCommand extends SufBotCommand {
     );
   }
 }
-

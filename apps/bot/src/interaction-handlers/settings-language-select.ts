@@ -1,13 +1,12 @@
 import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework';
-import {
-  MessageFlags,
-  PermissionFlagsBits,
-  type StringSelectMenuInteraction,
-} from 'discord.js';
+import { MessageFlags, PermissionFlagsBits, type StringSelectMenuInteraction } from 'discord.js';
 import { GuildRepository } from '@sufbot/database';
 
 export class SettingsLanguageSelectHandler extends InteractionHandler {
-  public constructor(context: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
+  public constructor(
+    context: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options,
+  ) {
     super(context, { ...options, interactionHandlerType: InteractionHandlerTypes.SelectMenu });
   }
 
@@ -28,7 +27,10 @@ export class SettingsLanguageSelectHandler extends InteractionHandler {
       (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild) &&
         interaction.guild?.ownerId !== interaction.user.id)
     ) {
-      return interaction.reply({ content: 'Manage Server is required.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        content: 'Manage Server is required.',
+        flags: MessageFlags.Ephemeral,
+      });
     }
     const locale = interaction.values[0];
     if (locale !== 'en' && locale !== 'tr') {
@@ -52,4 +54,3 @@ export class SettingsLanguageSelectHandler extends InteractionHandler {
     });
   }
 }
-

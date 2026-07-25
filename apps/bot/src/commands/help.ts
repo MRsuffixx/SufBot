@@ -22,9 +22,7 @@ export class HelpCommand extends SufBotCommand {
     );
   }
 
-  public override chatInputRun(
-    interaction: Command.ChatInputCommandInteraction,
-  ): Promise<unknown> {
+  public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {
     const embed = new EmbedBuilder()
       .setTitle('SufBot command center')
       .setDescription('Commands are checked against server modules and permissions at runtime.')
@@ -41,7 +39,10 @@ export class HelpCommand extends SufBotCommand {
         .setLabel('How permissions work')
         .setStyle(ButtonStyle.Secondary),
     );
-    return interaction.reply({ embeds: [embed], components: [components], flags: MessageFlags.Ephemeral });
+    return interaction.reply({
+      embeds: [embed],
+      components: [components],
+      flags: MessageFlags.Ephemeral,
+    });
   }
 }
-

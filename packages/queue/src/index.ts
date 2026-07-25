@@ -14,7 +14,10 @@ export const QueueName = {
 
 export const AuditJobSchema = z.object({
   idempotencyKey: z.string().min(8).max(128),
-  guildId: z.string().regex(/^\d{17,20}$/).optional(),
+  guildId: z
+    .string()
+    .regex(/^\d{17,20}$/)
+    .optional(),
   auditLogId: z.uuid(),
   requestedAt: z.iso.datetime(),
 });
@@ -114,4 +117,3 @@ export const createWorkerQueueName = (
   prefix: string,
   name: (typeof QueueName)[keyof typeof QueueName],
 ): string => `${prefix}:${name}`;
-

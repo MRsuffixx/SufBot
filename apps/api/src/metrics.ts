@@ -26,4 +26,3 @@ export class MetricsRegistry {
       .concat('\n');
   }
 }
-

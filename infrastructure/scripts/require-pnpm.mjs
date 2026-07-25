@@ -4,4 +4,3 @@ if (!userAgent.startsWith('pnpm/')) {
   console.error('SufBot uses pnpm. Run `corepack enable` and then `pnpm install`.');
   process.exit(1);
 }
-

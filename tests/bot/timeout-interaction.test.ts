@@ -42,14 +42,9 @@ describe('timeout Discord interaction', () => {
 
     await TimeoutCommand.prototype.chatInputRun.call(command, interaction);
 
-    expect(timeout).toHaveBeenCalledWith(
-      15 * 60_000,
-      expect.stringContaining('Repeated spam'),
-    );
+    expect(timeout).toHaveBeenCalledWith(15 * 60_000, expect.stringContaining('Repeated spam'));
     expect(deferReply).toHaveBeenCalledOnce();
     expect(auditCreate).toHaveBeenCalledOnce();
-    expect(editReply).toHaveBeenCalledWith(
-      expect.stringContaining('<@423456789012345678>'),
-    );
+    expect(editReply).toHaveBeenCalledWith(expect.stringContaining('<@423456789012345678>'));
   });
 });

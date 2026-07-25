@@ -46,8 +46,8 @@ export default function LandingPage() {
               <span className="block text-violet-600">clearly controlled.</span>
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-[var(--muted)] sm:text-xl">
-              SufBot gives communities a secure command layer, a permission-aware dashboard, and
-              an architecture ready to grow without turning server management into guesswork.
+              SufBot gives communities a secure command layer, a permission-aware dashboard, and an
+              architecture ready to grow without turning server management into guesswork.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/login" className={buttonVariants({ size: 'lg' })}>
@@ -75,7 +75,9 @@ export default function LandingPage() {
               <div className="flex items-center justify-between border-b p-5">
                 <div>
                   <p className="text-sm font-semibold">Community operations</p>
-                  <p className="text-xs text-[var(--muted)]">MRsuffix Workshop · live configuration</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    MRsuffix Workshop · live configuration
+                  </p>
                 </div>
                 <span className="rounded-full bg-emerald-500/12 px-3 py-1 text-xs font-semibold text-emerald-500">
                   Healthy
@@ -109,7 +111,9 @@ export default function LandingPage() {
 
       <section className="mx-auto max-w-7xl px-5 py-24">
         <div className="max-w-2xl">
-          <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">Control plane</p>
+          <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">
+            Control plane
+          </p>
           <h2 className="mt-4 text-balance text-4xl font-black tracking-tight sm:text-5xl">
             The safe foundation beneath every command.
           </h2>
@@ -145,4 +149,3 @@ function Metric({
     </div>
   );
 }
-

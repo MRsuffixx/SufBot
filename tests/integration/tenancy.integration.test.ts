@@ -1,10 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { requireGuildAccess } from '@sufbot/auth';
-import {
-  GuildRepository,
-  createPrismaClient,
-  type PrismaClient,
-} from '@sufbot/database';
+import { GuildRepository, createPrismaClient, type PrismaClient } from '@sufbot/database';
 import { DiscordPermission } from '@sufbot/permissions';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -72,9 +68,9 @@ run('PostgreSQL tenant isolation', () => {
     const user = await prisma.user.findUniqueOrThrow({
       where: { discordId: userDiscordId },
     });
-    await expect(
-      requireGuildAccess(prisma, user.id, guildA),
-    ).resolves.toMatchObject({ guildId: guildA });
+    await expect(requireGuildAccess(prisma, user.id, guildA)).resolves.toMatchObject({
+      guildId: guildA,
+    });
     await expect(requireGuildAccess(prisma, user.id, guildB)).rejects.toMatchObject({
       code: 'GUILD_ACCESS_STALE',
     });

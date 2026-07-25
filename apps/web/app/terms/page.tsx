@@ -1,10 +1,25 @@
 export default function TermsPage() {
   const sections = [
-    ['Responsible use', 'Do not use SufBot to harass users, evade Discord enforcement, automate abuse, or violate applicable law or Discord policies.'],
-    ['Administrator authority', 'You must have legitimate authority to install or configure SufBot in a guild. Dashboard access is continuously tied to Discord guild permissions.'],
-    ['Service availability', 'The platform is provided without a guarantee of uninterrupted availability. Operational limits may be applied to protect users and infrastructure.'],
-    ['Configuration responsibility', 'Guild administrators are responsible for reviewing role hierarchy, bot permissions, modules, and command overrides before enabling moderation functions.'],
-    ['Changes', 'These terms may be revised as the platform adds modules, premium capabilities, or additional integrations.'],
+    [
+      'Responsible use',
+      'Do not use SufBot to harass users, evade Discord enforcement, automate abuse, or violate applicable law or Discord policies.',
+    ],
+    [
+      'Administrator authority',
+      'You must have legitimate authority to install or configure SufBot in a guild. Dashboard access is continuously tied to Discord guild permissions.',
+    ],
+    [
+      'Service availability',
+      'The platform is provided without a guarantee of uninterrupted availability. Operational limits may be applied to protect users and infrastructure.',
+    ],
+    [
+      'Configuration responsibility',
+      'Guild administrators are responsible for reviewing role hierarchy, bot permissions, modules, and command overrides before enabling moderation functions.',
+    ],
+    [
+      'Changes',
+      'These terms may be revised as the platform adds modules, premium capabilities, or additional integrations.',
+    ],
   ] as const;
   return (
     <main className="mx-auto max-w-3xl px-5 py-20">
@@ -23,4 +38,3 @@ export default function TermsPage() {
     </main>
   );
 }
-

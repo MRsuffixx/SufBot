@@ -16,9 +16,7 @@ export class BotinfoCommand extends SufBotCommand {
     );
   }
 
-  public override chatInputRun(
-    interaction: Command.ChatInputCommandInteraction,
-  ): Promise<unknown> {
+  public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {
     const config = this.container.sufbot.config;
     const embed = new EmbedBuilder()
       .setTitle(config.application.name)
@@ -33,4 +31,3 @@ export class BotinfoCommand extends SufBotCommand {
     return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
   }
 }
-

@@ -28,10 +28,7 @@ const createDependencies = () => ({
     metrics: { localHits: 0, redisHits: 0, misses: 0, loadErrors: 0 },
     ping: () => Promise.resolve(true),
   } as unknown as DistributedCache,
-  logger: createLogger(
-    { app: 'test', environment: 'test' },
-    { level: 'silent' },
-  ),
+  logger: createLogger({ app: 'test', environment: 'test' }, { level: 'silent' }),
 });
 
 describe('Fastify API boundary', () => {

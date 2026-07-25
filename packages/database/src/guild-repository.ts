@@ -1,4 +1,9 @@
-import { ConflictError, NotFoundError, type GuildModuleInput, type GuildSettingsInput } from '@sufbot/shared';
+import {
+  ConflictError,
+  NotFoundError,
+  type GuildModuleInput,
+  type GuildSettingsInput,
+} from '@sufbot/shared';
 import { appendAuditLog, sanitizeAuditValue } from './audit.js';
 import type { PrismaClient } from './generated/prisma/client.js';
 

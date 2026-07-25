@@ -6,17 +6,11 @@ import { requireCommandMetadata } from '@sufbot/discord';
 type SupportedInteraction = ChatInputCommandInteraction | ContextMenuCommandInteraction;
 
 export class AuthorizedPrecondition extends Precondition {
-  public override chatInputRun(
-    interaction: ChatInputCommandInteraction,
-    command: Command,
-  ) {
+  public override chatInputRun(interaction: ChatInputCommandInteraction, command: Command) {
     return this.authorize(interaction, command.name);
   }
 
-  public override contextMenuRun(
-    interaction: ContextMenuCommandInteraction,
-    command: Command,
-  ) {
+  public override contextMenuRun(interaction: ContextMenuCommandInteraction, command: Command) {
     return this.authorize(interaction, command.name);
   }
 
@@ -39,10 +33,7 @@ export class AuthorizedPrecondition extends Precondition {
       ...(interaction.guild === null ? {} : { guildOwnerDiscordId: interaction.guild.ownerId }),
       userPermissions: interaction.memberPermissions?.bitfield ?? 0n,
       botPermissions: interaction.guild?.members.me?.permissions.bitfield ?? 0n,
-      customPermissions: this.container.sufbot.rolePermissions(
-        interaction,
-        state.rolePermissions,
-      ),
+      customPermissions: this.container.sufbot.rolePermissions(interaction, state.rolePermissions),
       enabledModules: new Set(state.enabledModules),
       premium: state.premium,
       featureFlags: new Set(state.featureFlags),
@@ -77,4 +68,3 @@ export class AuthorizedPrecondition extends Precondition {
     return this.ok();
   }
 }
-

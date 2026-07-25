@@ -44,7 +44,11 @@ export const AppConfigSchema = z
       apiPort: z.number().int().min(1).max(65_535),
       apiHost: z.string().min(1),
       corsAllowedOrigins: z.array(UrlSchema).min(1),
-      bodyLimitBytes: z.number().int().min(1024).max(10 * 1024 * 1024),
+      bodyLimitBytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(10 * 1024 * 1024),
       requestTimeoutMs: z.number().int().min(1000).max(120_000),
       openApiEnabled: z.boolean(),
     }),
@@ -90,14 +94,18 @@ export const AppConfigSchema = z
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
-const RuntimeEnvironmentSchema = z.enum(['development', 'test', 'production']).default('development');
+const RuntimeEnvironmentSchema = z
+  .enum(['development', 'test', 'production'])
+  .default('development');
 const SecretSchema = z.string().min(32);
 const DatabaseUrlSchema = z.string().refine((value) => value.startsWith('postgresql://'), {
   message: 'must be a PostgreSQL connection URL',
 });
-const RedisUrlSchema = z.string().refine((value) => value.startsWith('redis://') || value.startsWith('rediss://'), {
-  message: 'must be a Redis connection URL',
-});
+const RedisUrlSchema = z
+  .string()
+  .refine((value) => value.startsWith('redis://') || value.startsWith('rediss://'), {
+    message: 'must be a Redis connection URL',
+  });
 const EncryptionKeySchema = z.string().refine(
   (value) => {
     try {
@@ -169,4 +177,3 @@ export type ApiEnvironment = z.infer<typeof ApiEnvironmentSchema>;
 export type BotEnvironment = z.infer<typeof BotEnvironmentSchema>;
 export type WorkerEnvironment = z.infer<typeof WorkerEnvironmentSchema>;
 export type WebEnvironment = z.infer<typeof WebEnvironmentSchema>;
-

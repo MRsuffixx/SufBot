@@ -101,14 +101,22 @@ export const canExecuteCommand = (
       reason: 'The command requires bot developer access.',
     };
   }
-  if (policy.requiredUserPermissions.some((permission) => !hasPermission(context.userPermissions, permission))) {
+  if (
+    policy.requiredUserPermissions.some(
+      (permission) => !hasPermission(context.userPermissions, permission),
+    )
+  ) {
     return {
       allowed: false,
       code: 'USER_PERMISSION_MISSING',
       reason: 'One or more Discord user permissions are missing.',
     };
   }
-  if (policy.requiredBotPermissions.some((permission) => !hasPermission(context.botPermissions, permission))) {
+  if (
+    policy.requiredBotPermissions.some(
+      (permission) => !hasPermission(context.botPermissions, permission),
+    )
+  ) {
     return {
       allowed: false,
       code: 'BOT_PERMISSION_MISSING',
@@ -149,10 +157,7 @@ export const requirePolicy = (decision: PolicyDecision): void => {
 
 export const assertTenantScope = (authorizedGuildId: string, requestedGuildId: string): void => {
   if (authorizedGuildId !== requestedGuildId) {
-    throw new AuthorizationError(
-      'Cross-guild access was rejected.',
-      'CROSS_GUILD_ACCESS_DENIED',
-    );
+    throw new AuthorizationError('Cross-guild access was rejected.', 'CROSS_GUILD_ACCESS_DENIED');
   }
 };
 
@@ -162,7 +167,10 @@ export const canEditGuildModule = (
 ): PolicyDecision => {
   const manage = canManageGuild(context);
   if (!manage.allowed) return manage;
-  if (!context.featureFlags.has(`module:${moduleName}`) && !context.enabledModules.has(moduleName)) {
+  if (
+    !context.featureFlags.has(`module:${moduleName}`) &&
+    !context.enabledModules.has(moduleName)
+  ) {
     return {
       allowed: false,
       code: 'FEATURE_DISABLED',
@@ -180,4 +188,3 @@ export const canViewAuditLogs = (context: AuthorizationContext): PolicyDecision 
   }
   return manage;
 };
-

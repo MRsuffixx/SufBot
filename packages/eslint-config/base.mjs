@@ -48,4 +48,3 @@ export const baseConfig = tseslint.config(
     },
   },
 );
-

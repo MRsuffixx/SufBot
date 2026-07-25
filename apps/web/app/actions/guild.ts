@@ -14,13 +14,7 @@ import { appendAuditLog, GuildRepository } from '@sufbot/database';
 import { builtInModules, commandMetadata } from '@sufbot/discord';
 import { requireDashboardSession } from '@/lib/session';
 import { requireLiveGuildAccess } from '@/lib/discord';
-import {
-  appConfig,
-  cache,
-  ensureCacheConnection,
-  prisma,
-  webEnvironment,
-} from '@/lib/runtime';
+import { appConfig, cache, ensureCacheConnection, prisma, webEnvironment } from '@/lib/runtime';
 
 export type ActionState = {
   status: 'idle' | 'success' | 'error';
@@ -53,7 +47,8 @@ const claimMutation = async (formData: FormData): Promise<string> => {
   const idempotencyKey = IdempotencyKeySchema.parse(formData.get('idempotencyKey'));
   await ensureCacheConnection();
   const claimed = await cache.claimOnce('dashboard-mutation', idempotencyKey, 600);
-  if (!claimed) throw new AuthorizationError('Duplicate submission rejected.', 'DUPLICATE_SUBMISSION');
+  if (!claimed)
+    throw new AuthorizationError('Duplicate submission rejected.', 'DUPLICATE_SUBMISSION');
   return idempotencyKey;
 };
 
@@ -132,17 +127,12 @@ export const updateGuildModuleAction = async (
       expectedVersion: Number(formData.get('expectedVersion')),
     });
     const metadata = await actorMetadata();
-    const updated = await new GuildRepository(prisma).updateModule(
-      guildId,
-      moduleKey,
-      input,
-      {
-        userId: session.user.id,
-        discordUserId: access.discordUserId,
-        requestId: metadata.requestId,
-        ...(metadata.userAgent === undefined ? {} : { userAgent: metadata.userAgent }),
-      },
-    );
+    const updated = await new GuildRepository(prisma).updateModule(guildId, moduleKey, input, {
+      userId: session.user.id,
+      discordUserId: access.discordUserId,
+      requestId: metadata.requestId,
+      ...(metadata.userAgent === undefined ? {} : { userAgent: metadata.userAgent }),
+    });
     await ensureCacheConnection();
     await cache.publish({
       type: 'guild.config.updated',

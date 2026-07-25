@@ -36,10 +36,14 @@ export default async function GuildLayout({
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">Guild control</p>
+        <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">
+          Guild control
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-black tracking-tight">{guild.name}</h1>
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${guild.botInstalled && guild.leftAt === null ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${guild.botInstalled && guild.leftAt === null ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}
+          >
             {guild.botInstalled && guild.leftAt === null ? 'Connected' : 'Bot not installed'}
           </span>
         </div>
@@ -49,4 +53,3 @@ export default async function GuildLayout({
     </div>
   );
 }
-

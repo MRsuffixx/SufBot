@@ -46,4 +46,3 @@ export const GuildModuleInputSchema = z
 
 export type GuildSettingsInput = z.infer<typeof GuildSettingsInputSchema>;
 export type GuildModuleInput = z.infer<typeof GuildModuleInputSchema>;
-

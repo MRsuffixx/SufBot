@@ -31,13 +31,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sufbot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sufbot_dev_password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -51,21 +51,17 @@ services:
     command:
       - redis-server
       - --appendonly
-      - "yes"
+      - 'yes'
       - --requirepass
       - ${REDIS_PASSWORD:-sufbot_dev_password}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis-data:/data
     networks:
       - internal
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "redis-cli -a \"$${REDIS_PASSWORD:-sufbot_dev_password}\" ping | grep PONG",
-        ]
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD:-sufbot_dev_password}" ping | grep PONG']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -74,7 +70,7 @@ services:
       - no-new-privileges:true
 
   migrate:
-    profiles: ["application"]
+    profiles: ['application']
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.migrate
@@ -88,11 +84,11 @@ services:
       - internal
     security_opt:
       - no-new-privileges:true
-    restart: "no"
+    restart: 'no'
 
   api:
     <<: *runtime
-    profiles: ["application"]
+    profiles: ['application']
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.service
@@ -105,14 +101,14 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
     ports:
-      - "${API_PORT:-3001}:3001"
+      - '${API_PORT:-3001}:3001'
     depends_on: *dependencies
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://127.0.0.1:3001/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 15s
@@ -122,7 +118,7 @@ services:
 
   web:
     <<: *runtime
-    profiles: ["application"]
+    profiles: ['application']
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.web
@@ -141,14 +137,14 @@ services:
       BOT_DEVELOPER_DISCORD_IDS: ${BOT_DEVELOPER_DISCORD_IDS:-}
       PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - '${WEB_PORT:-3000}:3000'
     depends_on: *dependencies
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://127.0.0.1:3000/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 15s
@@ -158,7 +154,7 @@ services:
 
   bot:
     <<: *runtime
-    profiles: ["application"]
+    profiles: ['application']
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.service
@@ -175,7 +171,7 @@ services:
       PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
     depends_on: *dependencies
     healthcheck:
-      test: ["CMD", "node", "-e", "process.kill(1,0)"]
+      test: ['CMD', 'node', '-e', 'process.kill(1,0)']
       interval: 30s
       timeout: 5s
       retries: 3
@@ -183,7 +179,7 @@ services:
 
   worker:
     <<: *runtime
-    profiles: ["application"]
+    profiles: ['application']
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.service
@@ -195,7 +191,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
     depends_on: *dependencies
     healthcheck:
-      test: ["CMD", "node", "-e", "process.kill(1,0)"]
+      test: ['CMD', 'node', '-e', 'process.kill(1,0)']
       interval: 30s
       timeout: 5s
       retries: 3

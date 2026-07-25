@@ -20,9 +20,7 @@ export default defineConfig({
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ??
         'postgresql://sufbot:sufbot_test_password@127.0.0.1:5433/sufbot_test',
-      REDIS_URL:
-        process.env.REDIS_URL ??
-        'redis://:sufbot_dev_password@127.0.0.1:6379/0',
+      REDIS_URL: process.env.REDIS_URL ?? 'redis://:sufbot_dev_password@127.0.0.1:6379/0',
       DISCORD_CLIENT_ID: '123456789012345678',
       DISCORD_CLIENT_SECRET: 'test-discord-client-secret-at-least-32-characters',
       AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
@@ -32,7 +30,7 @@ export default defineConfig({
       SESSION_ENCRYPTION_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
       BOT_OWNER_DISCORD_IDS: '123456789012345678',
       BOT_DEVELOPER_DISCORD_IDS: '',
-      PLATFORM_ADMIN_DISCORD_IDS: ''
-    }
-  }
+      PLATFORM_ADMIN_DISCORD_IDS: '',
+    },
+  },
 });

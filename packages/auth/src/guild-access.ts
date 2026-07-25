@@ -17,7 +17,10 @@ export const requireGuildAccess = async (
   now = new Date(),
 ): Promise<GuildAccess> => {
   const [user, guild, grant] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { discordId: true, platformRole: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { discordId: true, platformRole: true },
+    }),
     prisma.guild.findUnique({ where: { id: guildId }, select: { ownerDiscordId: true } }),
     prisma.guildAccessGrant.findUnique({ where: { userId_guildId: { userId, guildId } } }),
   ]);
@@ -67,4 +70,3 @@ export const requireBotInGuild = async (prisma: PrismaClient, guildId: string): 
     throw new NotFoundError('Installed guild');
   }
 };
-

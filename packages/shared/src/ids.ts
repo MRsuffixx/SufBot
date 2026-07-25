@@ -14,4 +14,3 @@ export const createOpaqueToken = (bytes = 32): string => randomBytes(bytes).toSt
 export const discordSnowflakePattern = /^\d{17,20}$/;
 
 export const isDiscordSnowflake = (value: string): boolean => discordSnowflakePattern.test(value);
-

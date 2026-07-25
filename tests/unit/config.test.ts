@@ -1,9 +1,4 @@
-import {
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -23,9 +18,7 @@ const validCommonEnvironment = {
 
 describe('configuration validation', () => {
   it('accepts the committed application configuration', () => {
-    const raw = JSON.parse(
-      readFileSync(resolve(process.cwd(), 'config.json'), 'utf8'),
-    ) as unknown;
+    const raw = JSON.parse(readFileSync(resolve(process.cwd(), 'config.json'), 'utf8')) as unknown;
     expect(AppConfigSchema.safeParse(raw).success).toBe(true);
   });
 

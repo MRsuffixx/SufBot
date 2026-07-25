@@ -30,4 +30,3 @@ export const revokeAllSessionsAction = async (): Promise<void> => {
   });
   await signOut({ redirectTo: '/' });
 };
-

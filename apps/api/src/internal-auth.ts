@@ -37,4 +37,3 @@ const shaNonce = (nonce: string): string => {
   for (const character of nonce) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
   return hash.toString(16).padStart(8, '0');
 };
-

@@ -2,7 +2,10 @@ import { InteractionHandler, InteractionHandlerTypes } from '@sapphire/framework
 import { MessageFlags, type ButtonInteraction } from 'discord.js';
 
 export class HelpDetailsHandler extends InteractionHandler {
-  public constructor(context: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
+  public constructor(
+    context: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options,
+  ) {
     super(context, { ...options, interactionHandlerType: InteractionHandlerTypes.Button });
   }
 
@@ -20,4 +23,3 @@ export class HelpDetailsHandler extends InteractionHandler {
     });
   }
 }
-

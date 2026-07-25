@@ -58,7 +58,10 @@ export class DistributedCache {
       retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
     });
     this.#redis.on('error', (error) => {
-      this.options.logger.warn({ err: error }, 'Redis cache error; database fallback remains active');
+      this.options.logger.warn(
+        { err: error },
+        'Redis cache error; database fallback remains active',
+      );
     });
   }
 

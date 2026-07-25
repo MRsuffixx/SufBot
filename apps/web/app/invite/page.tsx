@@ -9,4 +9,3 @@ export default async function InvitePage({
   const { guildId } = await searchParams;
   redirect(botInviteUrl(guildId));
 }
-

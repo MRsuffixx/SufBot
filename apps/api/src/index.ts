@@ -55,4 +55,3 @@ process.on('uncaughtException', (error) => {
 
 await app.listen({ host: config.server.apiHost, port: config.server.apiPort });
 logger.info({ port: config.server.apiPort }, 'SufBot API is ready');
-

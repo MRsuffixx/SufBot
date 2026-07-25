@@ -18,7 +18,10 @@ type CommandInteraction = ChatInputCommandInteraction | ContextMenuCommandIntera
 export class CooldownService {
   readonly #expirations = new Map<string, number>();
 
-  public claim(key: string, seconds: number): { allowed: true } | { allowed: false; retryAfterMs: number } {
+  public claim(
+    key: string,
+    seconds: number,
+  ): { allowed: true } | { allowed: false; retryAfterMs: number } {
     const now = Date.now();
     const expiresAt = this.#expirations.get(key) ?? 0;
     if (expiresAt > now) return { allowed: false, retryAfterMs: expiresAt - now };
@@ -58,7 +61,9 @@ export class BotServices {
     return 'USER';
   }
 
-  public async authorizationState(guildId: string): Promise<z.infer<typeof AuthorizationStateSchema>> {
+  public async authorizationState(
+    guildId: string,
+  ): Promise<z.infer<typeof AuthorizationStateSchema>> {
     return this.cache.getOrLoad(guildId, 'authorization', AuthorizationStateSchema, async () => {
       const [modules, flags, subscription, rolePermissions] = await Promise.all([
         this.prisma.guildModule.findMany({
@@ -92,10 +97,7 @@ export class BotServices {
         featureFlags: flags.map((flag) => flag.key),
         premium: subscription !== null,
         rolePermissions: Object.fromEntries(
-          rolePermissions.map((permission) => [
-            permission.discordRoleId,
-            permission.permissions,
-          ]),
+          rolePermissions.map((permission) => [permission.discordRoleId, permission.permissions]),
         ),
       };
     });

@@ -3,7 +3,10 @@ import { MessageFlags, PermissionFlagsBits, type ModalSubmitInteraction } from '
 import { GuildRepository } from '@sufbot/database';
 
 export class SettingsPrefixModalHandler extends InteractionHandler {
-  public constructor(context: InteractionHandler.LoaderContext, options: InteractionHandler.Options) {
+  public constructor(
+    context: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options,
+  ) {
     super(context, { ...options, interactionHandlerType: InteractionHandlerTypes.ModalSubmit });
   }
 
@@ -26,11 +29,17 @@ export class SettingsPrefixModalHandler extends InteractionHandler {
       (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild) &&
         interaction.guild?.ownerId !== interaction.user.id)
     ) {
-      return interaction.reply({ content: 'Manage Server is required.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        content: 'Manage Server is required.',
+        flags: MessageFlags.Ephemeral,
+      });
     }
     const prefix = interaction.fields.getTextInputValue('prefix').trim();
     if (prefix.length < 1 || prefix.length > 5 || /[\r\n]/.test(prefix)) {
-      return interaction.reply({ content: 'Prefix must be 1–5 visible characters.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        content: 'Prefix must be 1–5 visible characters.',
+        flags: MessageFlags.Ephemeral,
+      });
     }
     const repository = new GuildRepository(this.container.sufbot.prisma);
     const updated = await repository.updateSettings(
@@ -44,7 +53,9 @@ export class SettingsPrefixModalHandler extends InteractionHandler {
       version: updated.version,
       timestamp: new Date().toISOString(),
     });
-    return interaction.reply({ content: `Prefix changed to \`${prefix}\`.`, flags: MessageFlags.Ephemeral });
+    return interaction.reply({
+      content: `Prefix changed to \`${prefix}\`.`,
+      flags: MessageFlags.Ephemeral,
+    });
   }
 }
-
