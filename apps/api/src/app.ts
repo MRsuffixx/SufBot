@@ -17,7 +17,7 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyInstance> => {
   const app = Fastify({
-    loggerInstance: dependencies.logger,
+    logger: false,
     trustProxy: 1,
     bodyLimit: dependencies.config.server.bodyLimitBytes,
     requestTimeout: dependencies.config.server.requestTimeoutMs,
@@ -102,19 +102,17 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
       typeof incoming === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(incoming)
         ? incoming
         : request.id;
-    request.log = dependencies.logger.child({
-      requestId: request.id,
-      correlationId: request.correlationId,
-    });
   });
   app.addHook('onResponse', async (request, reply) => {
     metrics.increment('sufbot_http_requests_total', {
       method: request.method,
-      route: request.routeOptions.url,
+      route: request.routeOptions.url ?? 'unknown',
       status: reply.statusCode,
     });
-    request.log.info(
+    dependencies.logger.info(
       {
+        requestId: request.id,
+        correlationId: request.correlationId,
         method: request.method,
         route: request.routeOptions.url,
         statusCode: reply.statusCode,
@@ -152,8 +150,10 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
           })
         : error;
     const statusCode = isAppError(normalized) ? normalized.statusCode : 500;
-    request.log.error(
+    dependencies.logger.error(
       {
+        requestId: request.id,
+        correlationId: request.correlationId,
         err: normalized,
         errorCode: isAppError(normalized) ? normalized.code : 'INTERNAL_ERROR',
         statusCode,
@@ -169,4 +169,3 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
   await registerInternalRoutes(app, dependencies);
   return app;
 };
-

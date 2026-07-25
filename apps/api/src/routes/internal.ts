@@ -20,9 +20,14 @@ export const registerInternalRoutes = async (
     schema: { hide: true },
     handler: async (request) => {
       const event = InvalidationInputSchema.parse(request.body);
-      await dependencies.cache.publish(event);
+      await dependencies.cache.publish({
+        type: event.type,
+        guildId: event.guildId,
+        version: event.version,
+        timestamp: event.timestamp,
+        ...(event.module === undefined ? {} : { module: event.module }),
+      });
       return { success: true, requestId: request.id };
     },
   });
 };
-

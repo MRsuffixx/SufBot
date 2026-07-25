@@ -17,11 +17,12 @@ const ModuleParamsSchema = GuildParamsSchema.extend({
 const actorFromRequest = (request: FastifyRequest) => {
   const context = request.authContext;
   if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+  const userAgent = request.headers['user-agent']?.slice(0, 255);
   return {
     userId: context.userId,
     discordUserId: context.discordUserId,
     requestId: request.id,
-    userAgent: request.headers['user-agent']?.slice(0, 255),
+    ...(userAgent === undefined ? {} : { userAgent }),
   };
 };
 
@@ -178,4 +179,3 @@ export const registerGuildRoutes = async (
     },
   });
 };
-

@@ -12,6 +12,11 @@ const platformRoleFor = (
   return 'USER';
 };
 
+const isPlatformRole = (
+  value: unknown,
+): value is 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER' =>
+  value === 'USER' || value === 'ADMIN' || value === 'DEVELOPER' || value === 'OWNER';
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: webEnvironment.AUTH_TRUST_HOST,
   secret: webEnvironment.AUTH_SECRET,
@@ -47,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account !== null && profile !== undefined && typeof profile.id === 'string') {
+      if (account != null && profile !== undefined && typeof profile.id === 'string') {
         const discordId = profile.id;
         const displayName =
           typeof profile.global_name === 'string'
@@ -97,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      if (token.userId !== undefined) {
+      if (typeof token.userId === 'string') {
         const user = await prisma.user.findUnique({
           where: { id: token.userId },
           select: { sessionVersion: true, platformRole: true, deletedAt: true },
@@ -112,9 +117,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     session({ session, token }) {
       if (
-        token.userId === undefined ||
-        token.discordId === undefined ||
-        token.platformRole === undefined
+        typeof token.userId !== 'string' ||
+        typeof token.discordId !== 'string' ||
+        !isPlatformRole(token.platformRole)
       ) {
         return session;
       }
@@ -140,4 +145,3 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   debug: false,
 });
-

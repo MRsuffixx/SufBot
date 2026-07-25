@@ -111,7 +111,7 @@ export class BotServices {
       });
       return { locale: stored?.locale === 'tr' ? 'tr' : 'en' };
     });
-    return settings.locale;
+    return settings.locale === 'tr' ? 'tr' : 'en';
   }
 
   public rolePermissions(
@@ -125,4 +125,3 @@ export class BotServices {
     return new Set(roleIds.flatMap((roleId) => rolePermissions[roleId] ?? []));
   }
 }
-

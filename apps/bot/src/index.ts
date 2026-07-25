@@ -4,8 +4,9 @@ import {
   GatewayIntentBits,
   MessageFlags,
   Partials,
+  type ChatInputCommandInteraction,
   type ClientOptions,
-  type Interaction,
+  type ContextMenuCommandInteraction,
 } from 'discord.js';
 import { loadAppConfig, loadBotEnvironment } from '@sufbot/config';
 import { DistributedCache } from '@sufbot/cache';
@@ -70,7 +71,7 @@ client.on(SapphireEvents.ChatInputCommandFinish, (interaction, command) => {
       correlationId: interaction.id,
       success: true,
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      shardId: interaction.guild?.shardId,
+      shardId: interaction.guild?.shardId ?? null,
     },
   }).catch((error: unknown) => logger.warn({ err: error }, 'command usage logging failed'));
 });
@@ -79,19 +80,22 @@ client.on(SapphireEvents.ChatInputCommandDenied, (error, { interaction }) => {
     { code: error.identifier, userId: interaction.user.id, guildId: interaction.guildId },
     'command authorization denied',
   );
-  const response = { content: error.message, flags: MessageFlags.Ephemeral };
+  const response = { content: error.message, flags: MessageFlags.Ephemeral as const };
   void (interaction.deferred || interaction.replied
     ? interaction.followUp(response)
     : interaction.reply(response));
 });
 client.on(SapphireEvents.ContextMenuCommandDenied, (error, { interaction }) => {
-  const response = { content: error.message, flags: MessageFlags.Ephemeral };
+  const response = { content: error.message, flags: MessageFlags.Ephemeral as const };
   void (interaction.deferred || interaction.replied
     ? interaction.followUp(response)
     : interaction.reply(response));
 });
 
-const handleInteractionError = async (error: unknown, interaction: Interaction): Promise<void> => {
+const handleInteractionError = async (
+  error: unknown,
+  interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction,
+): Promise<void> => {
   const reference = createId('err');
   logger.error(
     {
@@ -106,7 +110,7 @@ const handleInteractionError = async (error: unknown, interaction: Interaction):
   if (!interaction.isRepliable()) return;
   const response = {
     content: `Something went wrong. Reference: ${reference}`,
-    flags: MessageFlags.Ephemeral,
+    flags: MessageFlags.Ephemeral as const,
   };
   if (interaction.deferred || interaction.replied) await interaction.followUp(response);
   else await interaction.reply(response);
@@ -162,4 +166,3 @@ const loginWithRetry = async (): Promise<void> => {
 };
 
 await loginWithRetry();
-

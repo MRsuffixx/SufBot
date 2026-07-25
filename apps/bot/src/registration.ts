@@ -1,6 +1,6 @@
-import { container, type Command } from '@sapphire/framework';
+import { ApplicationCommandRegistry, container } from '@sapphire/framework';
 
-export const registrationOptions = (): Command.RegistryOptions => {
+export const registrationOptions = (): ApplicationCommandRegistry.RegisterOptions => {
   const { discord } = container.sufbot.config;
   const guildIds = discord.registerCommandsGlobally ? undefined : discord.developmentGuildIds;
   return {
@@ -9,4 +9,3 @@ export const registrationOptions = (): Command.RegistryOptions => {
       discord.registerCommandsGlobally || discord.developmentGuildIds.length > 0,
   };
 };
-

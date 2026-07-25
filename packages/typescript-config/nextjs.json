@@ -5,10 +5,11 @@
     "allowJs": false,
     "incremental": true,
     "jsx": "preserve",
+    "declaration": false,
+    "declarationMap": false,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "plugins": [{ "name": "next" }],
     "noEmit": true
   }
 }
-
