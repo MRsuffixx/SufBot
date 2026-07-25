@@ -1,0 +1,39 @@
+{
+  "name": "@sufbot/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sufbot/auth": "workspace:*",
+    "@sufbot/cache": "workspace:*",
+    "@sufbot/config": "workspace:*",
+    "@sufbot/database": "workspace:*",
+    "@sufbot/discord": "workspace:*",
+    "@sufbot/logger": "workspace:*",
+    "@sufbot/shared": "workspace:*",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.545.0",
+    "next": "16.2.11",
+    "next-auth": "5.0.0-beta.32",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tailwind-merge": "3.6.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@sufbot/typescript-config": "workspace:*",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
+  }
+}
+
