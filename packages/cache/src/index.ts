@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { z, type ZodType } from 'zod';
 import type { Logger } from '@sufbot/logger';
 
@@ -55,7 +55,7 @@ export class DistributedCache {
       maxRetriesPerRequest: 1,
       connectTimeout: 5_000,
       commandTimeout: 2_000,
-      retryStrategy: (attempt) => Math.min(attempt * 250, 3_000),
+      retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
     });
     this.#redis.on('error', (error) => {
       this.options.logger.warn({ err: error }, 'Redis cache error; database fallback remains active');
@@ -167,7 +167,14 @@ export class DistributedCache {
         this.options.logger.warn({ issues: parsed.error.issues }, 'Invalid cache event rejected');
         return;
       }
-      void this.invalidate(parsed.data.guildId, parsed.data.module).then(() => handler(parsed.data));
+      const event: CacheInvalidationEvent = {
+        type: parsed.data.type,
+        guildId: parsed.data.guildId,
+        version: parsed.data.version,
+        timestamp: parsed.data.timestamp,
+        ...(parsed.data.module === undefined ? {} : { module: parsed.data.module }),
+      };
+      void this.invalidate(event.guildId, event.module).then(() => handler(event));
     });
     return async () => {
       await subscriber.unsubscribe(this.options.invalidationChannel);

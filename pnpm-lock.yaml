@@ -12,6 +12,9 @@ importers:
       '@playwright/test':
         specifier: 1.62.0
         version: 1.62.0
+      '@prisma/config':
+        specifier: 7.9.0
+        version: 7.9.0(magicast@0.5.3)
       '@sufbot/eslint-config':
         specifier: workspace:*
         version: file:packages/eslint-config(eslint@9.39.5(jiti@2.7.0))(typescript@6.0.3)
@@ -68,7 +71,7 @@ importers:
         version: link:../../packages/config
       '@sufbot/database':
         specifier: workspace:*
-        version: file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: link:../../packages/database
       '@sufbot/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -105,7 +108,7 @@ importers:
         version: link:../../packages/config
       '@sufbot/database':
         specifier: workspace:*
-        version: file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: link:../../packages/database
       '@sufbot/discord':
         specifier: workspace:*
         version: link:../../packages/discord
@@ -148,7 +151,7 @@ importers:
         version: link:../../packages/config
       '@sufbot/database':
         specifier: workspace:*
-        version: file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: link:../../packages/database
       '@sufbot/discord':
         specifier: workspace:*
         version: link:../../packages/discord
@@ -212,7 +215,7 @@ importers:
         version: link:../../packages/config
       '@sufbot/database':
         specifier: workspace:*
-        version: file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: link:../../packages/database
       '@sufbot/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -240,7 +243,7 @@ importers:
     dependencies:
       '@sufbot/auth':
         specifier: workspace:*
-        version: file:packages/auth(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: file:packages/auth(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
       '@sufbot/shared':
         specifier: workspace:*
         version: link:../shared
@@ -259,7 +262,7 @@ importers:
     dependencies:
       '@sufbot/database':
         specifier: workspace:*
-        version: file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+        version: link:../database
       '@sufbot/permissions':
         specifier: workspace:*
         version: link:../permissions
@@ -5257,13 +5260,6 @@ snapshots:
       prisma: 7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
       typescript: 6.0.3
 
-  '@prisma/client@7.9.0(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)':
-    dependencies:
-      '@prisma/client-runtime-utils': 7.9.0
-    optionalDependencies:
-      prisma: 7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3)
-      typescript: 6.0.3
-
   '@prisma/config@7.9.0(magicast@0.5.3)':
     dependencies:
       c12: 3.3.4(magicast@0.5.3)
@@ -5596,9 +5592,9 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@sufbot/auth@file:packages/auth(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)':
+  '@sufbot/auth@file:packages/auth(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
-      '@sufbot/database': file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+      '@sufbot/database': file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
       '@sufbot/permissions': file:packages/permissions
       '@sufbot/shared': file:packages/shared
       zod: 4.4.3
@@ -5607,10 +5603,10 @@ snapshots:
       - prisma
       - typescript
 
-  '@sufbot/database@file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)':
+  '@sufbot/database@file:packages/database(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)':
     dependencies:
       '@prisma/adapter-pg': 7.9.0
-      '@prisma/client': 7.9.0(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+      '@prisma/client': 7.9.0(prisma@7.9.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
       '@sufbot/shared': file:packages/shared
       pg: 8.22.0
     transitivePeerDependencies:

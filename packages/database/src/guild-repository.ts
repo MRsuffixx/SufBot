@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError, type GuildModuleInput, type GuildSettingsInput } from '@sufbot/shared';
-import { appendAuditLog } from './audit.js';
+import { appendAuditLog, sanitizeAuditValue } from './audit.js';
 import type { PrismaClient } from './generated/prisma/client.js';
 
 export type ActorContext = {
@@ -96,11 +96,11 @@ export class GuildRepository {
           guildId,
           moduleKey,
           enabled: input.enabled,
-          config: input.config,
+          config: sanitizeAuditValue(input.config),
         },
         update: {
           enabled: input.enabled,
-          config: input.config,
+          config: sanitizeAuditValue(input.config),
           version: { increment: 1 },
         },
       });
@@ -122,4 +122,3 @@ export class GuildRepository {
     });
   }
 }
-

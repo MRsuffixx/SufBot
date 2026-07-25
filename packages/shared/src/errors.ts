@@ -29,7 +29,12 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
   public constructor(message = 'The request is invalid.', details?: ErrorDetails) {
-    super({ code: 'VALIDATION_ERROR', message, statusCode: 400, details });
+    super({
+      code: 'VALIDATION_ERROR',
+      message,
+      statusCode: 400,
+      ...(details === undefined ? {} : { details }),
+    });
   }
 }
 
@@ -68,7 +73,13 @@ export class RateLimitError extends AppError {
 
 export class InternalServiceError extends AppError {
   public constructor(code = 'INTERNAL_ERROR', message = 'An internal service failed.', cause?: unknown) {
-    super({ code, message, statusCode: 503, cause, expose: false });
+    super({
+      code,
+      message,
+      statusCode: 503,
+      ...(cause === undefined ? {} : { cause }),
+      expose: false,
+    });
   }
 }
 
@@ -118,4 +129,3 @@ export const toSafeError = (
   }
   return { success: false, error: payload };
 };
-

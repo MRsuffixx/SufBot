@@ -2,8 +2,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/prisma/client.js';
 
 type GlobalPrismaState = typeof globalThis & {
-  __sufbotPrisma?: PrismaClient;
-  __sufbotPrismaUrl?: string;
+  __sufbotPrisma: PrismaClient | undefined;
+  __sufbotPrismaUrl: string | undefined;
 };
 
 const globalState = globalThis as GlobalPrismaState;
@@ -41,4 +41,3 @@ export const disconnectPrisma = async (): Promise<void> => {
     globalState.__sufbotPrismaUrl = undefined;
   }
 };
-

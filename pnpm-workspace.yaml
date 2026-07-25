@@ -11,6 +11,7 @@ allowBuilds:
   unrs-resolver: true
 
 injectWorkspacePackages: true
+confirmModulesPurge: false
 
 minimumReleaseAgeExclude:
   - '@playwright/test@1.62.0'

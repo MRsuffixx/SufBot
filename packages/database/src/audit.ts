@@ -7,21 +7,22 @@ export type AuditEvent = {
   action: string;
   resourceType: string;
   resourceId?: string;
-  previousValue?: Prisma.InputJsonValue;
-  newValue?: Prisma.InputJsonValue;
+  previousValue?: unknown;
+  newValue?: unknown;
   ipAddressHash?: string;
   userAgent?: string;
   requestId: string;
   outcome: 'SUCCESS' | 'FAILURE';
   failureReason?: string;
-  metadata?: Prisma.InputJsonValue;
+  metadata?: unknown;
 };
 
 const forbiddenAuditKeys = /token|secret|password|authorization|cookie|credential|key$/i;
 
 export const sanitizeAuditValue = (value: unknown, depth = 0): Prisma.InputJsonValue => {
   if (depth > 8) return '[MAX_DEPTH]';
-  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (value === null) return '[NULL]';
+  if (typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
   if (typeof value === 'bigint') return value.toString();
   if (Array.isArray(value)) return value.map((item) => sanitizeAuditValue(item, depth + 1));
@@ -46,7 +47,7 @@ export const appendAuditLog = async (
       resourceType: event.resourceType,
       requestId: event.requestId,
       outcome: event.outcome,
-      metadata: event.metadata ?? {},
+      metadata: sanitizeAuditValue(event.metadata ?? {}),
       ...(event.guildId === undefined ? {} : { guildId: event.guildId }),
       ...(event.actorUserId === undefined ? {} : { actorUserId: event.actorUserId }),
       ...(event.actorDiscordId === undefined ? {} : { actorDiscordId: event.actorDiscordId }),
@@ -63,4 +64,3 @@ export const appendAuditLog = async (
     },
   });
 };
-
