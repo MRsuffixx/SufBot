@@ -1,15 +1,24 @@
-FROM node:24.13.0-alpine
+FROM node:24.13.0-alpine AS build
 
-ENV CI=true NODE_ENV=production
+ENV CI=true
 WORKDIR /workspace
 
-RUN corepack enable && corepack prepare pnpm@11.9.0 --activate \
-    && apk add --no-cache tini
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm db:generate
+RUN pnpm --filter @sufbot/database deploy --prod /output
+
+FROM node:24.13.0-alpine
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN apk add --no-cache tini \
+    && chown node:node /app
+
+COPY --from=build --chown=node:node /output ./
 
 USER node
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["pnpm", "db:deploy"]
+CMD ["./node_modules/.bin/prisma", "migrate", "deploy", "--config", "prisma.config.ts"]
