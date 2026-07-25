@@ -25,3 +25,4 @@ minimumReleaseAgeExclude:
   - bullmq@5.81.2
   - playwright-core@1.62.0
   - playwright@1.62.0
+  - postcss@8.5.23
