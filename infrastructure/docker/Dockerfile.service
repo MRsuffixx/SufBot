@@ -1,6 +1,5 @@
 FROM node:24.13.0-alpine AS build
 
-ARG SERVICE
 ENV CI=true
 WORKDIR /workspace
 
@@ -10,6 +9,8 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm db:generate
 RUN pnpm build:packages
+
+ARG SERVICE
 RUN pnpm --filter "@sufbot/${SERVICE}" build
 RUN pnpm --filter "@sufbot/${SERVICE}" deploy --prod /output
 
