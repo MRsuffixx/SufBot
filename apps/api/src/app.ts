@@ -104,7 +104,8 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
   }
 
   app.decorateRequest('correlationId', '');
-  app.addHook('onRequest', async (request) => {
+  app.addHook('onRequest', async (request, reply) => {
+    void reply.header('x-request-id', request.id);
     const incoming = request.headers['x-correlation-id'];
     request.correlationId =
       typeof incoming === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(incoming)

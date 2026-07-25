@@ -38,6 +38,7 @@ describe('Fastify API boundary', () => {
     await app.close();
 
     expect(response.statusCode).toBe(200);
+    expect(response.headers['x-request-id']).toMatch(/^req_[a-f0-9]{32}$/);
     expect(response.json()).toMatchObject({
       status: 'ok',
       service: 'sufbot-api',
