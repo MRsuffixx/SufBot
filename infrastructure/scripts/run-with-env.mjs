@@ -27,8 +27,7 @@ if (args.length === 0) {
 }
 
 const pnpmScript = process.env.npm_execpath;
-const pnpmIsNodeScript =
-  pnpmScript !== undefined && /\.(?:cjs|mjs|js)$/i.test(pnpmScript);
+const pnpmIsNodeScript = pnpmScript !== undefined && /\.(?:cjs|mjs|js)$/i.test(pnpmScript);
 const executable =
   pnpmScript === undefined
     ? process.platform === 'win32'

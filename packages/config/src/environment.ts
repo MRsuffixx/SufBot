@@ -8,8 +8,7 @@ const packageDirectory = dirname(fileURLToPath(import.meta.url));
 
 const hasWorkspaceMarkers = (directory: string): boolean =>
   existsSync(join(directory, 'config.json')) &&
-  (existsSync(join(directory, 'pnpm-workspace.yaml')) ||
-    process.env.SUFBOT_ROOT === directory);
+  (existsSync(join(directory, 'pnpm-workspace.yaml')) || process.env.SUFBOT_ROOT === directory);
 
 const searchParents = (start: string): string | undefined => {
   let current = resolve(start);
@@ -56,6 +55,27 @@ export type RootEnvironmentResult = {
   environmentFilePath: string;
   found: boolean;
   loadedKeys: string[];
+};
+
+export type SafeConnectionMetadata = {
+  protocol: string;
+  host: string;
+  port: string;
+  database: string;
+  username: string;
+  password: '[REDACTED]';
+};
+
+export const getSafeConnectionMetadata = (value: string): SafeConnectionMetadata => {
+  const parsed = new URL(value);
+  return {
+    protocol: parsed.protocol.replace(/:$/, ''),
+    host: parsed.hostname,
+    port: parsed.port,
+    database: parsed.pathname.replace(/^\/+/, ''),
+    username: decodeURIComponent(parsed.username),
+    password: '[REDACTED]',
+  };
 };
 
 export const loadRootEnvironment = (options?: {

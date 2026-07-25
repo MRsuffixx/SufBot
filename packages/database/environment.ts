@@ -22,8 +22,11 @@ const findRootFrom = (start: string): string | undefined => {
   return undefined;
 };
 
-export const resolveDatabaseWorkspaceRoot = (startDirectory = process.cwd()): string => {
-  const explicitRoot = process.env.SUFBOT_ROOT;
+export const resolveDatabaseWorkspaceRoot = (
+  startDirectory = process.cwd(),
+  environment: NodeJS.ProcessEnv = process.env,
+): string => {
+  const explicitRoot = environment.SUFBOT_ROOT;
   if (explicitRoot !== undefined) return resolve(explicitRoot);
   return (
     findRootFrom(startDirectory) ??
@@ -64,7 +67,8 @@ export const loadDatabaseEnvironment = (options?: {
   requireEnvironmentFile?: boolean;
 }): DatabaseEnvironment => {
   const environment = options?.environment ?? process.env;
-  const rootDirectory = options?.rootDirectory ?? resolveDatabaseWorkspaceRoot();
+  const rootDirectory =
+    options?.rootDirectory ?? resolveDatabaseWorkspaceRoot(process.cwd(), environment);
   const environmentFilePath = join(rootDirectory, '.env');
   const environmentFileFound = existsSync(environmentFilePath);
 

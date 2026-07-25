@@ -8,8 +8,12 @@ const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const environmentFile = join(workspaceRoot, '.env');
 
 if (!process.argv.includes('--yes')) {
-  console.error('This rewrites only the PostgreSQL and Redis entries in the root .env for local Docker.');
-  console.error('Existing database and Redis credentials are preserved; service hostnames are changed.');
+  console.error(
+    'This rewrites only the PostgreSQL and Redis entries in the root .env for local Docker.',
+  );
+  console.error(
+    'Existing database and Redis credentials are preserved; service hostnames are changed.',
+  );
   console.error('To confirm, run: pnpm env:configure-local -- --yes');
   process.exit(1);
 }

@@ -5,6 +5,7 @@ import {
   BotEnvironmentSchema,
   WebEnvironmentSchema,
   WorkerEnvironmentSchema,
+  getSafeConnectionMetadata,
   loadAppConfig,
   loadRootEnvironment,
 } from '../../packages/config/src/index.js';
@@ -62,10 +63,7 @@ const parseUrl = (
 };
 
 const redisUrl = parseUrl('REDIS_URL', new Set(['redis:', 'rediss:']));
-const dockerDatabaseUrl = parseUrl(
-  'DATABASE_URL_DOCKER',
-  new Set(['postgres:', 'postgresql:']),
-);
+const dockerDatabaseUrl = parseUrl('DATABASE_URL_DOCKER', new Set(['postgres:', 'postgresql:']));
 const dockerRedisUrl = parseUrl('REDIS_URL_DOCKER', new Set(['redis:', 'rediss:']));
 
 const requiredValues = [
@@ -83,7 +81,11 @@ const requiredValues = [
   'REDIS_PASSWORD',
 ] as const;
 for (const name of requiredValues) {
-  check(name, (process.env[name]?.length ?? 0) > 0, (process.env[name]?.length ?? 0) > 0 ? 'defined' : 'missing');
+  check(
+    name,
+    (process.env[name]?.length ?? 0) > 0,
+    (process.env[name]?.length ?? 0) > 0 ? 'defined' : 'missing',
+  );
 }
 
 const environmentSchemas = [
@@ -111,17 +113,19 @@ try {
 }
 
 if (databaseUrl !== undefined) {
-  console.info(`Database host: ${databaseUrl.hostname}`);
-  console.info(`Database port: ${databaseUrl.port || '5432'}`);
-  console.info(`Database name: ${databaseUrl.pathname.replace(/^\/+/, '')}`);
-  console.info(`Database username: ${decodeURIComponent(databaseUrl.username)}`);
-  console.info('Database password: [REDACTED]');
+  const metadata = getSafeConnectionMetadata(databaseUrl.toString());
+  console.info(`Database host: ${metadata.host}`);
+  console.info(`Database port: ${metadata.port || '5432'}`);
+  console.info(`Database name: ${metadata.database}`);
+  console.info(`Database username: ${metadata.username}`);
+  console.info(`Database password: ${metadata.password}`);
 }
 if (redisUrl !== undefined) {
-  console.info(`Redis host: ${redisUrl.hostname}`);
-  console.info(`Redis port: ${redisUrl.port || '6379'}`);
-  console.info(`Redis database: ${redisUrl.pathname.replace(/^\/+/, '') || '0'}`);
-  console.info('Redis password: [REDACTED]');
+  const metadata = getSafeConnectionMetadata(redisUrl.toString());
+  console.info(`Redis host: ${metadata.host}`);
+  console.info(`Redis port: ${metadata.port || '6379'}`);
+  console.info(`Redis database: ${metadata.database || '0'}`);
+  console.info(`Redis password: ${metadata.password}`);
 }
 
 const sameSecret = (first: string | undefined, second: string | undefined): boolean => {
@@ -132,8 +136,16 @@ const sameSecret = (first: string | undefined, second: string | undefined): bool
 };
 
 if (databaseUrl !== undefined && dockerDatabaseUrl !== undefined) {
-  check('Host database hostname', ['127.0.0.1', 'localhost'].includes(databaseUrl.hostname), databaseUrl.hostname);
-  check('Docker database hostname', dockerDatabaseUrl.hostname === 'postgres', dockerDatabaseUrl.hostname);
+  check(
+    'Host database hostname',
+    ['127.0.0.1', 'localhost'].includes(databaseUrl.hostname),
+    databaseUrl.hostname,
+  );
+  check(
+    'Docker database hostname',
+    dockerDatabaseUrl.hostname === 'postgres',
+    dockerDatabaseUrl.hostname,
+  );
   check(
     'PostgreSQL username consistency',
     decodeURIComponent(databaseUrl.username) === process.env.POSTGRES_USER &&
@@ -160,7 +172,9 @@ if (redisUrl !== undefined && dockerRedisUrl !== undefined) {
 }
 
 for (const result of checks) {
-  console.info(`${result.label}: ${result.valid ? result.detail ?? 'valid' : `INVALID (${result.detail ?? 'failed'})`}`);
+  console.info(
+    `${result.label}: ${result.valid ? (result.detail ?? 'valid') : `INVALID (${result.detail ?? 'failed'})`}`,
+  );
 }
 
 if (checks.some((result) => !result.valid)) {

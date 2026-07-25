@@ -25,7 +25,7 @@
     "format:check": "node infrastructure/scripts/run-with-env.mjs exec prettier --check .",
     "lint": "node infrastructure/scripts/run-with-env.mjs exec eslint . --max-warnings=0",
     "typecheck": "node infrastructure/scripts/run-with-env.mjs run typecheck:workspace",
-    "typecheck:workspace": "pnpm --filter @sufbot/database generate && turbo run typecheck",
+    "typecheck:workspace": "pnpm --filter @sufbot/database generate && turbo run typecheck && tsc -p tsconfig.json --noEmit",
     "test": "node infrastructure/scripts/run-with-env.mjs run test:workspace",
     "test:workspace": "pnpm --filter @sufbot/database generate && pnpm build:packages:workspace && vitest run",
     "test:watch": "node infrastructure/scripts/run-with-env.mjs exec vitest",
