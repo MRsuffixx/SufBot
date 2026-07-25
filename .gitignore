@@ -30,11 +30,10 @@ npm-debug.log*
 
 # Next.js & Build Outputs
 # ------------------------------------------
-/.next/
+.next/
 /out/
-/build
-/dist
-*dist/
+build/
+dist/
 next-env.d.ts
 *.tsbuildinfo
 .wxt/
