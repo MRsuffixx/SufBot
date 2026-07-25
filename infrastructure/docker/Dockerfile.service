@@ -1,4 +1,4 @@
-FROM node:24.13.0-alpine AS build
+FROM node:26.5.0-alpine AS build
 
 ENV CI=true \
     DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
@@ -17,7 +17,7 @@ RUN pnpm --filter "@sufbot/${SERVICE}" build
 RUN pnpm --filter "@sufbot/${SERVICE}" deploy --prod /output
 RUN cp config.json /output/config.json
 
-FROM node:24.13.0-alpine AS runtime
+FROM node:26.5.0-alpine AS runtime
 
 ENV NODE_ENV=production \
     SUFBOT_ROOT=/app
