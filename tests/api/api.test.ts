@@ -73,4 +73,24 @@ describe('Fastify API boundary', () => {
       error: { code: 'ROUTE_NOT_FOUND' },
     });
   });
+
+  it('reports dependency unavailability without claiming readiness', async () => {
+    const dependencies = createDependencies();
+    dependencies.prisma = {
+      $queryRaw: () => Promise.reject(new Error('database unavailable')),
+    } as unknown as PrismaClient;
+    dependencies.cache = {
+      metrics: { localHits: 0, redisHits: 0, misses: 0, loadErrors: 0 },
+      ping: () => Promise.resolve(false),
+    } as unknown as DistributedCache;
+    const app = await buildApi(dependencies);
+    const response = await app.inject({ method: 'GET', url: '/v1/ready' });
+    await app.close();
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      status: 'not_ready',
+      dependencies: { database: false, redis: false },
+    });
+  });
 });

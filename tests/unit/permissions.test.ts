@@ -74,6 +74,24 @@ describe('permission policies', () => {
     ).toMatchObject({ allowed: false, code: 'USER_PERMISSION_MISSING' });
   });
 
+  it('keeps owner-only and developer-only policies distinct', () => {
+    expect(
+      canExecuteCommand(context({ platformRole: 'DEVELOPER' }), policy({ ownerOnly: true })),
+    ).toMatchObject({ allowed: false, code: 'OWNER_ONLY' });
+    expect(
+      canExecuteCommand(context({ platformRole: 'OWNER' }), policy({ ownerOnly: true })),
+    ).toEqual({ allowed: true });
+    expect(
+      canExecuteCommand(context({ platformRole: 'USER' }), policy({ developerOnly: true })),
+    ).toMatchObject({ allowed: false, code: 'DEVELOPER_ONLY' });
+    expect(
+      canExecuteCommand(
+        context({ platformRole: 'DEVELOPER' }),
+        policy({ developerOnly: true }),
+      ),
+    ).toEqual({ allowed: true });
+  });
+
   it('rejects cross-tenant access', () => {
     expect(() =>
       assertTenantScope('111111111111111111', '222222222222222222'),

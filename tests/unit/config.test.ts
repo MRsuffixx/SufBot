@@ -1,10 +1,18 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ApiEnvironmentSchema,
   AppConfigSchema,
   WebEnvironmentSchema,
+  clearConfigCacheForTests,
+  loadAppConfig,
 } from '@sufbot/config';
 
 const validCommonEnvironment = {
@@ -46,5 +54,27 @@ describe('configuration validation', () => {
       PLATFORM_ADMIN_DISCORD_IDS: '',
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it('fails clearly when config.json itself is invalid', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'sufbot-config-'));
+    try {
+      writeFileSync(join(directory, 'pnpm-workspace.yaml'), 'packages: []\n');
+      writeFileSync(
+        join(directory, 'config.json'),
+        JSON.stringify({ $schemaVersion: 1, application: {} }),
+      );
+      clearConfigCacheForTests();
+      expect(() =>
+        loadAppConfig({
+          rootDirectory: directory,
+          environment: 'test',
+          reload: true,
+        }),
+      ).toThrowError(/configuration is invalid/i);
+    } finally {
+      clearConfigCacheForTests();
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
