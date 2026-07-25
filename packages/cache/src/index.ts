@@ -183,6 +183,16 @@ export class DistributedCache {
     }
   }
 
+  public async claimOnce(scope: string, identifier: string, ttlSeconds: number): Promise<boolean> {
+    const key = `${this.options.namespace}:${scope}:${identifier}`;
+    try {
+      return (await this.#redis.set(key, '1', 'EX', ttlSeconds, 'NX')) === 'OK';
+    } catch (error) {
+      this.options.logger.error({ err: error, scope }, 'Redis uniqueness claim failed closed');
+      return false;
+    }
+  }
+
   public async close(): Promise<void> {
     this.#local.clear();
     if (this.#redis.status !== 'end') await this.#redis.quit();
@@ -200,4 +210,3 @@ export class DistributedCache {
     });
   }
 }
-

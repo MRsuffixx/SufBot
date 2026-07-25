@@ -1,0 +1,29 @@
+{
+  "name": "@sufbot/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sufbot/auth": "workspace:*",
+    "@sufbot/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@sufbot/typescript-config": "workspace:*",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3"
+  }
+}
+

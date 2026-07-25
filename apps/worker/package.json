@@ -1,0 +1,27 @@
+{
+  "name": "@sufbot/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sufbot/config": "workspace:*",
+    "@sufbot/database": "workspace:*",
+    "@sufbot/logger": "workspace:*",
+    "@sufbot/queue": "workspace:*",
+    "@sufbot/shared": "workspace:*",
+    "bullmq": "5.81.2"
+  },
+  "devDependencies": {
+    "@sufbot/typescript-config": "workspace:*",
+    "tsx": "4.23.1",
+    "typescript": "6.0.3"
+  }
+}
+
