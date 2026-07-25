@@ -178,9 +178,7 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
             }),
         action: 'api.authorization.failed',
         resourceType: 'ApiRoute',
-        ...(request.routeOptions.url === undefined
-          ? {}
-          : { resourceId: request.routeOptions.url }),
+        ...(request.routeOptions.url === undefined ? {} : { resourceId: request.routeOptions.url }),
         requestId: request.id,
         outcome: 'FAILURE',
         failureReason: isAppError(normalized) ? normalized.code : 'AUTHORIZATION_FAILURE',
