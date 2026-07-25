@@ -1,0 +1,22 @@
+{
+  "extends": "@sufbot/typescript-config/node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "vitest.config.ts",
+    "infrastructure/**/*.ts",
+    "tests/**/*.ts",
+    "packages/**/*.test.ts",
+    "packages/database/environment.ts",
+    "packages/database/prisma-config.ts",
+    "packages/database/prisma.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/.next",
+    "tests/bot/**",
+    "packages/database/src/generated"
+  ]
+}

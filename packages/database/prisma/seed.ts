@@ -5,7 +5,6 @@ const main = async (): Promise<void> => {
   const environment = loadDatabaseEnvironment();
   const prisma = getPrismaClient(environment.databaseUrl);
   await seedDatabase(prisma);
-  console.info('Required platform data is initialized.');
 };
 
 main()

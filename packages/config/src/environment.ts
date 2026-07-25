@@ -98,6 +98,7 @@ export const loadRootEnvironment = (options?: {
   }
 
   const targetEnvironment = options?.environment ?? process.env;
+  const existingNodeEnvironment = targetEnvironment.NODE_ENV;
   const result = loadDotenv({
     path: environmentFilePath,
     processEnv: targetEnvironment,
@@ -108,6 +109,9 @@ export const loadRootEnvironment = (options?: {
     throw new ValidationError('Root .env file could not be loaded.', {
       reason: result.error.message,
     });
+  }
+  if (existingNodeEnvironment !== undefined) {
+    targetEnvironment.NODE_ENV = existingNodeEnvironment;
   }
 
   return {

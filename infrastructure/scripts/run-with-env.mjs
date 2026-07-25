@@ -20,7 +20,19 @@ if (existsSync(environmentFile)) {
   }
 }
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const nodeEnvironmentOption = rawArgs.find((argument) =>
+  argument.startsWith('--node-env='),
+);
+const args = rawArgs.filter((argument) => !argument.startsWith('--node-env='));
+if (nodeEnvironmentOption !== undefined) {
+  const nodeEnvironment = nodeEnvironmentOption.slice('--node-env='.length);
+  if (!['development', 'test', 'production'].includes(nodeEnvironment)) {
+    console.error('The --node-env option must be development, test, or production.');
+    process.exit(1);
+  }
+  process.env.NODE_ENV = nodeEnvironment;
+}
 if (args.length === 0) {
   console.error('No pnpm command was provided.');
   process.exit(1);
