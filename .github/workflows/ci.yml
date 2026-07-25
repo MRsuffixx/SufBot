@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  NODE_ENV: production
+  DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
+  DIRECT_DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
+  TEST_DATABASE_URL: postgresql://sufbot:sufbot_test_password@127.0.0.1:5432/sufbot_test
+  REDIS_URL: redis://127.0.0.1:6379/0
+  DISCORD_CLIENT_ID: "123456789012345678"
+  DISCORD_CLIENT_SECRET: test-discord-client-secret-at-least-32-characters
+  AUTH_SECRET: test-auth-secret-at-least-thirty-two-characters
+  AUTH_TRUST_HOST: "true"
+  INTERNAL_API_SECRET: test-internal-secret-at-least-thirty-two-characters
+  WEBHOOK_SIGNING_SECRET: test-webhook-secret-at-least-thirty-two-characters
+  ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  SESSION_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  BOT_OWNER_DISCORD_IDS: "123456789012345678"
+  BOT_DEVELOPER_DISCORD_IDS: ""
+  PLATFORM_ADMIN_DISCORD_IDS: ""
+
+jobs:
+  quality:
+    name: Quality, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.7-alpine
+        env:
+          POSTGRES_USER: sufbot
+          POSTGRES_PASSWORD: sufbot_test_password
+          POSTGRES_DB: sufbot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sufbot -d sufbot_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.0
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate schema and deploy migrations
+        run: |
+          pnpm db:validate
+          pnpm db:deploy
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Run unit and integration tests
+        run: pnpm test
+
+      - name: Build all applications
+        run: pnpm build
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  supply-chain:
+    name: Supply-chain audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.13.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level high
+
+  containers:
+    name: Container / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            dockerfile: infrastructure/docker/Dockerfile.service
+            build-args: SERVICE=api
+          - name: bot
+            dockerfile: infrastructure/docker/Dockerfile.service
+            build-args: SERVICE=bot
+          - name: worker
+            dockerfile: infrastructure/docker/Dockerfile.service
+            build-args: SERVICE=worker
+          - name: web
+            dockerfile: infrastructure/docker/Dockerfile.web
+            build-args: ""
+          - name: migrate
+            dockerfile: infrastructure/docker/Dockerfile.migrate
+            build-args: ""
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build-args }}
+          push: false
+          tags: sufbot/${{ matrix.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

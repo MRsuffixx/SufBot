@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 export default function ErrorPage({
@@ -10,9 +9,6 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
   return (
     <main className="mx-auto grid min-h-[620px] max-w-3xl place-items-center px-5 text-center">
       <div>
@@ -20,9 +16,10 @@ export default function ErrorPage({
         <p className="mt-4 text-[var(--muted)]">
           No partial change was applied. Reference: {error.digest ?? 'client-error'}
         </p>
-        <Button className="mt-8" onClick={reset}>Try again</Button>
+        <Button className="mt-8" onClick={reset}>
+          Try again
+        </Button>
       </div>
     </main>
   );
 }
-

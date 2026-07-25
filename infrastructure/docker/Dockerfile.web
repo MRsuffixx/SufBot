@@ -1,0 +1,44 @@
+FROM node:24.13.0-alpine AS build
+
+ENV CI=true \
+    NODE_ENV=production \
+    DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
+    REDIS_URL=redis://127.0.0.1:6379/0 \
+    DISCORD_CLIENT_ID=123456789012345678 \
+    DISCORD_CLIENT_SECRET=build-only-discord-client-secret \
+    AUTH_SECRET=build-only-auth-secret-000000000000 \
+    AUTH_TRUST_HOST=true \
+    INTERNAL_API_SECRET=build-only-internal-secret-000000 \
+    ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    SESSION_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    BOT_OWNER_DISCORD_IDS= \
+    BOT_DEVELOPER_DISCORD_IDS= \
+    PLATFORM_ADMIN_DISCORD_IDS=
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
+
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm db:generate
+RUN pnpm build:packages
+RUN pnpm --filter @sufbot/web build
+
+FROM node:24.13.0-alpine AS runtime
+
+ENV NODE_ENV=production \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+WORKDIR /app/apps/web
+
+RUN apk add --no-cache tini \
+    && chown -R node:node /app
+
+COPY --from=build --chown=node:node /workspace/apps/web/.next/standalone /app
+COPY --from=build --chown=node:node /workspace/apps/web/.next/static /app/apps/web/.next/static
+COPY --from=build --chown=node:node /workspace/apps/web/public /app/apps/web/public
+
+USER node
+EXPOSE 3000
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "server.js"]

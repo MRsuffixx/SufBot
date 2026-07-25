@@ -1,6 +1,8 @@
 import NextAuth from 'next-auth';
 import Discord from 'next-auth/providers/discord';
 import { storeDiscordCredential } from '@sufbot/auth';
+import { appendAuditLog } from '@sufbot/database';
+import { createId } from '@sufbot/shared';
 import { appConfig, prisma, webEnvironment, webLogger } from '@/lib/runtime';
 
 const platformRoleFor = (
@@ -140,7 +142,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async signIn({ user }) {
-      webLogger.info({ authUserId: user.id }, 'dashboard authentication succeeded');
+      const discordId = user.id;
+      const persistedUser =
+        typeof discordId === 'string'
+          ? await prisma.user.findUnique({
+              where: { discordId },
+              select: { id: true },
+            })
+          : null;
+      if (persistedUser !== null) {
+        await appendAuditLog(prisma, {
+          actorUserId: persistedUser.id,
+          actorDiscordId: discordId,
+          action: 'auth.sign-in.succeeded',
+          resourceType: 'UserSession',
+          resourceId: persistedUser.id,
+          requestId: createId('req'),
+          outcome: 'SUCCESS',
+        });
+      }
+      webLogger.info(
+        { authUserId: persistedUser?.id },
+        'dashboard authentication succeeded',
+      );
     },
   },
   debug: false,

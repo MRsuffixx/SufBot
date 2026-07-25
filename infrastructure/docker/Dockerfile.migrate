@@ -1,0 +1,15 @@
+FROM node:24.13.0-alpine
+
+ENV CI=true NODE_ENV=production
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate \
+    && apk add --no-cache tini
+
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm db:generate
+
+USER node
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["pnpm", "db:deploy"]

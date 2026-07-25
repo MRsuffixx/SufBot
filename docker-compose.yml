@@ -1,0 +1,210 @@
+name: sufbot
+
+x-runtime: &runtime
+  restart: unless-stopped
+  init: true
+  env_file:
+    - path: .env
+      required: false
+  networks:
+    - internal
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+
+x-dependencies: &dependencies
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17.7-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sufbot}
+      POSTGRES_USER: ${POSTGRES_USER:-sufbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sufbot_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:8.2-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-sufbot_dev_password}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a \"$${REDIS_PASSWORD:-sufbot_dev_password}\" ping | grep PONG",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    profiles: ["application"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
+  api:
+    <<: *runtime
+    profiles: ["application"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.service
+      args:
+        SERVICE: api
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on: *dependencies
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    <<: *runtime
+    profiles: ["application"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:-}
+      BOT_OWNER_DISCORD_IDS: ${BOT_OWNER_DISCORD_IDS:-}
+      BOT_DEVELOPER_DISCORD_IDS: ${BOT_DEVELOPER_DISCORD_IDS:-}
+      PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on: *dependencies
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  bot:
+    <<: *runtime
+    profiles: ["application"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.service
+      args:
+        SERVICE: bot
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      BOT_OWNER_DISCORD_IDS: ${BOT_OWNER_DISCORD_IDS:-}
+      BOT_DEVELOPER_DISCORD_IDS: ${BOT_DEVELOPER_DISCORD_IDS:-}
+      PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
+    depends_on: *dependencies
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.kill(1,0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  worker:
+    <<: *runtime
+    profiles: ["application"]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.service
+      args:
+        SERVICE: worker
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
+    depends_on: *dependencies
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.kill(1,0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

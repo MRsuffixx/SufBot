@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { join } from 'node:path';
 
 const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -12,6 +13,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingRoot: join(import.meta.dirname, '../..'),
   poweredByHeader: false,
   reactStrictMode: true,
   serverExternalPackages: ['@prisma/adapter-pg', 'pg'],
@@ -33,4 +35,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

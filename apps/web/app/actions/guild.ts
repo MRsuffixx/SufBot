@@ -8,6 +8,7 @@ import {
   GuildSettingsInputSchema,
   AuthorizationError,
   createId,
+  isAppError,
 } from '@sufbot/shared';
 import { appendAuditLog, GuildRepository } from '@sufbot/database';
 import { builtInModules, commandMetadata } from '@sufbot/discord';
@@ -71,7 +72,7 @@ const safeAction = async (operation: () => Promise<string>): Promise<ActionState
     return {
       status: 'error',
       message:
-        error instanceof Error && error.message.length <= 180
+        isAppError(error) && error.expose && error.message.length <= 180
           ? error.message
           : 'The change could not be saved.',
     };
@@ -227,4 +228,3 @@ export const updateCommandOverrideAction = async (
     revalidatePath(`/dashboard/guilds/${guildId}/commands`);
     return `The ${commandName} override was saved for role ${roleId}.`;
   });
-

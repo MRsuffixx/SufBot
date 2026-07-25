@@ -5,7 +5,15 @@ import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { ZodError } from 'zod';
-import { AppError, ValidationError, createId, isAppError, toSafeError } from '@sufbot/shared';
+import {
+  AppError,
+  ValidationError,
+  createId,
+  isAppError,
+  sha256,
+  toSafeError,
+} from '@sufbot/shared';
+import { appendAuditLog } from '@sufbot/database';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerGuildRoutes } from './routes/guilds.js';
@@ -150,6 +158,46 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
           })
         : error;
     const statusCode = isAppError(normalized) ? normalized.statusCode : 500;
+    if (statusCode === 401 || statusCode === 403) {
+      const params =
+        typeof request.params === 'object' && request.params !== null
+          ? (request.params as { guildId?: unknown })
+          : {};
+      const guildId =
+        typeof params.guildId === 'string' &&
+        /^\d{17,20}$/.test(params.guildId)
+          ? params.guildId
+          : undefined;
+      const auth = request.authContext;
+      void appendAuditLog(dependencies.prisma, {
+        ...(guildId === undefined ? {} : { guildId }),
+        ...(auth === undefined
+          ? {}
+          : {
+              actorUserId: auth.userId,
+              actorDiscordId: auth.discordUserId,
+            }),
+        action: 'api.authorization.failed',
+        resourceType: 'ApiRoute',
+        resourceId: request.routeOptions.url,
+        requestId: request.id,
+        outcome: 'FAILURE',
+        failureReason: isAppError(normalized)
+          ? normalized.code
+          : 'AUTHORIZATION_FAILURE',
+        ipAddressHash: sha256(
+          `${dependencies.env.WEBHOOK_SIGNING_SECRET}:${request.ip}`,
+        ),
+        ...(request.headers['user-agent'] === undefined
+          ? {}
+          : { userAgent: request.headers['user-agent'] }),
+      }).catch((auditError: unknown) => {
+        dependencies.logger.warn(
+          { err: auditError, requestId: request.id },
+          'failed authorization audit could not be persisted',
+        );
+      });
+    }
     dependencies.logger.error(
       {
         requestId: request.id,

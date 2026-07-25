@@ -17,8 +17,12 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       NODE_ENV: 'test',
-      DATABASE_URL: 'postgresql://sufbot:sufbot_test_password@127.0.0.1:5433/sufbot_test',
-      REDIS_URL: 'redis://:sufbot_dev_password@127.0.0.1:6379/0',
+      DATABASE_URL:
+        process.env.TEST_DATABASE_URL ??
+        'postgresql://sufbot:sufbot_test_password@127.0.0.1:5433/sufbot_test',
+      REDIS_URL:
+        process.env.REDIS_URL ??
+        'redis://:sufbot_dev_password@127.0.0.1:6379/0',
       DISCORD_CLIENT_ID: '123456789012345678',
       DISCORD_CLIENT_SECRET: 'test-discord-client-secret-at-least-32-characters',
       AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',

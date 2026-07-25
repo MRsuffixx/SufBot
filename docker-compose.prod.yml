@@ -1,0 +1,15 @@
+services:
+  postgres:
+    ports: []
+  redis:
+    ports: []
+  api:
+    ports: []
+    restart: always
+  web:
+    ports: []
+    restart: always
+  bot:
+    restart: always
+  worker:
+    restart: always
