@@ -26,7 +26,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "../../config.json"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
     "dev": {
       "dependsOn": ["^build"],

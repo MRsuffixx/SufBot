@@ -7,7 +7,7 @@ import {
   DeadLetterJobSchema,
   QueueName,
   QueueRegistry,
-  createWorkerQueueName,
+  createQueueIdentity,
 } from '@sufbot/queue';
 import { sha256 } from '@sufbot/shared';
 
@@ -22,15 +22,15 @@ const logger = createLogger(
 );
 const prisma = getPrismaClient(env.DATABASE_URL);
 const registry = new QueueRegistry(env.REDIS_URL, config.queue);
-const deadLetterQueue = new Queue(
-  createWorkerQueueName(config.queue.prefix, QueueName.DeadLetter),
-  {
-    connection: registry.connection,
-  },
-);
+const deadLetterIdentity = createQueueIdentity(config.queue.prefix, QueueName.DeadLetter);
+const auditIdentity = createQueueIdentity(config.queue.prefix, QueueName.Audit);
+const deadLetterQueue = new Queue(deadLetterIdentity.name, {
+  connection: registry.connection,
+  prefix: deadLetterIdentity.prefix,
+});
 
 const auditWorker = new Worker(
-  createWorkerQueueName(config.queue.prefix, QueueName.Audit),
+  auditIdentity.name,
   async (job: Job): Promise<void> => {
     const payload = AuditJobSchema.parse(job.data);
     const existing = await prisma.backgroundJobRecord.findUnique({
@@ -87,6 +87,7 @@ const auditWorker = new Worker(
   },
   {
     connection: registry.connection,
+    prefix: auditIdentity.prefix,
     concurrency: 10,
     lockDuration: 30_000,
   },

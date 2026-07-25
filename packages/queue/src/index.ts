@@ -90,8 +90,10 @@ export class QueueRegistry {
   public get(name: (typeof QueueName)[keyof typeof QueueName]): Queue {
     const existing = this.#queues.get(name);
     if (existing !== undefined) return existing;
-    const queue = new Queue(`${this.config.prefix}:${name}`, {
+    const identity = createQueueIdentity(this.config.prefix, name);
+    const queue = new Queue(identity.name, {
       connection: this.connection,
+      prefix: identity.prefix,
       defaultJobOptions: defaultJobOptions(this.config),
     });
     this.#queues.set(name, queue);
@@ -113,7 +115,10 @@ export class QueueRegistry {
   }
 }
 
-export const createWorkerQueueName = (
+export const createQueueIdentity = (
   prefix: string,
   name: (typeof QueueName)[keyof typeof QueueName],
-): string => `${prefix}:${name}`;
+): { name: (typeof QueueName)[keyof typeof QueueName]; prefix: string } => ({
+  name,
+  prefix,
+});

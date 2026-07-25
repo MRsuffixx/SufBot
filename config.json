@@ -18,7 +18,7 @@
     "registerCommandsGlobally": false,
     "developmentGuildIds": [],
     "requiredInvitePermissions": ["ModerateMembers", "ViewAuditLog", "SendMessages"],
-    "intents": ["Guilds", "GuildMembers"],
+    "intents": ["Guilds"],
     "partials": ["GuildMember", "User"],
     "sharding": {
       "enabled": false,
