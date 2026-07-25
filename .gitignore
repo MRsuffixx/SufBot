@@ -34,6 +34,7 @@ npm-debug.log*
 /out/
 /build
 /dist
+*dist/
 next-env.d.ts
 *.tsbuildinfo
 .wxt/

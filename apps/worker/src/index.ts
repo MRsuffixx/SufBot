@@ -30,6 +30,16 @@ const auditWorker = new Worker(
   createWorkerQueueName(config.queue.prefix, QueueName.Audit),
   async (job: Job): Promise<void> => {
     const payload = AuditJobSchema.parse(job.data);
+    const existing = await prisma.backgroundJobRecord.findUnique({
+      where: {
+        queueName_idempotencyKey: {
+          queueName: QueueName.Audit,
+          idempotencyKey: payload.idempotencyKey,
+        },
+      },
+      select: { status: true },
+    });
+    if (existing?.status === 'COMPLETED') return;
     const record = await prisma.backgroundJobRecord.upsert({
       where: {
         queueName_idempotencyKey: {
@@ -40,7 +50,7 @@ const auditWorker = new Worker(
       create: {
         queueName: QueueName.Audit,
         jobName: job.name,
-        bullJobId: job.id,
+        bullJobId: job.id ?? null,
         idempotencyKey: payload.idempotencyKey,
         status: 'ACTIVE',
         attempts: job.attemptsMade + 1,
@@ -48,14 +58,12 @@ const auditWorker = new Worker(
         startedAt: new Date(),
       },
       update: {
-        bullJobId: job.id,
+        bullJobId: job.id ?? null,
         status: 'ACTIVE',
         attempts: job.attemptsMade + 1,
         startedAt: new Date(),
       },
     });
-    if (record.status === 'COMPLETED') return;
-
     const auditLog = await prisma.guildAuditLog.findUnique({
       where: { id: payload.auditLogId },
       select: { id: true, guildId: true, action: true, outcome: true },
@@ -74,7 +82,6 @@ const auditWorker = new Worker(
   {
     connection: registry.connection,
     concurrency: 10,
-    prefix: undefined,
     lockDuration: 30_000,
   },
 );
@@ -131,4 +138,3 @@ const shutdown = async (signal: string): Promise<void> => {
 process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
 logger.info({ queues: [QueueName.Audit] }, 'SufBot worker is ready');
-
