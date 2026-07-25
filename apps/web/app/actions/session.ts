@@ -5,8 +5,10 @@ import { appendAuditLog } from '@sufbot/database';
 import { signOut } from '@/auth';
 import { requireDashboardSession } from '@/lib/session';
 import { prisma } from '@/lib/runtime';
+import { validateMutationOrigin } from '@/lib/server-security';
 
 export const revokeAllSessionsAction = async (): Promise<void> => {
+  await validateMutationOrigin();
   const session = await requireDashboardSession();
   await prisma.$transaction(async (transaction) => {
     await transaction.user.update({

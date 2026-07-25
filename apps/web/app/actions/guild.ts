@@ -14,7 +14,8 @@ import { appendAuditLog, GuildRepository } from '@sufbot/database';
 import { builtInModules, commandMetadata } from '@sufbot/discord';
 import { requireDashboardSession } from '@/lib/session';
 import { requireLiveGuildAccess } from '@/lib/discord';
-import { appConfig, cache, ensureCacheConnection, prisma, webEnvironment } from '@/lib/runtime';
+import { cache, ensureCacheConnection, prisma } from '@/lib/runtime';
+import { validateMutationOrigin } from '@/lib/server-security';
 
 export type ActionState = {
   status: 'idle' | 'success' | 'error';
@@ -24,24 +25,6 @@ export type ActionState = {
 const IdempotencyKeySchema = z.string().regex(/^mut_[a-f0-9]{32}$/);
 const GuildIdSchema = z.string().regex(/^\d{17,20}$/);
 const allowedModuleKeys = new Set(builtInModules.map((module) => module.metadata.key));
-
-const validateOrigin = async (): Promise<void> => {
-  const requestHeaders = await headers();
-  const origin = requestHeaders.get('origin');
-  if (origin === null) {
-    if (webEnvironment.NODE_ENV === 'production') {
-      throw new AuthorizationError('Request origin is missing.', 'CSRF_ORIGIN_MISSING');
-    }
-    return;
-  }
-  const allowed = new Set([
-    appConfig.application.websiteUrl,
-    ...appConfig.server.corsAllowedOrigins,
-  ]);
-  if (!allowed.has(origin)) {
-    throw new AuthorizationError('Request origin is not allowed.', 'CSRF_ORIGIN_DENIED');
-  }
-};
 
 const claimMutation = async (formData: FormData): Promise<string> => {
   const idempotencyKey = IdempotencyKeySchema.parse(formData.get('idempotencyKey'));
@@ -79,7 +62,7 @@ export const updateGuildSettingsAction = async (
   formData: FormData,
 ): Promise<ActionState> =>
   safeAction(async () => {
-    await validateOrigin();
+    await validateMutationOrigin();
     await claimMutation(formData);
     const session = await requireDashboardSession();
     const guildId = GuildIdSchema.parse(formData.get('guildId'));
@@ -114,7 +97,7 @@ export const updateGuildModuleAction = async (
   formData: FormData,
 ): Promise<ActionState> =>
   safeAction(async () => {
-    await validateOrigin();
+    await validateMutationOrigin();
     await claimMutation(formData);
     const session = await requireDashboardSession();
     const guildId = GuildIdSchema.parse(formData.get('guildId'));
@@ -150,7 +133,7 @@ export const updateCommandOverrideAction = async (
   formData: FormData,
 ): Promise<ActionState> =>
   safeAction(async () => {
-    await validateOrigin();
+    await validateMutationOrigin();
     await claimMutation(formData);
     const session = await requireDashboardSession();
     const guildId = GuildIdSchema.parse(formData.get('guildId'));

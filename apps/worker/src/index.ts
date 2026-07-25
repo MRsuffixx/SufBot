@@ -72,6 +72,9 @@ const auditWorker = new Worker(
       select: { id: true, guildId: true, action: true, outcome: true },
     });
     if (auditLog === null) throw new Error('AUDIT_LOG_NOT_FOUND');
+    if ((auditLog.guildId ?? undefined) !== payload.guildId) {
+      throw new Error('AUDIT_LOG_TENANT_MISMATCH');
+    }
 
     logger.info(
       { jobId: job.id, guildId: auditLog.guildId, action: auditLog.action },

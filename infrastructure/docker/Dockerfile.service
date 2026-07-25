@@ -1,6 +1,8 @@
 FROM node:24.13.0-alpine AS build
 
-ENV CI=true
+ENV CI=true \
+    DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
+    DIRECT_DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build
 WORKDIR /workspace
 
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate

@@ -45,11 +45,41 @@ export class TimeoutCommand extends SufBotCommand {
     if (interaction.guild === null) throw new TypeError('Guild-only command reached a DM.');
     const user = interaction.options.getUser('member', true);
     const minutes = interaction.options.getInteger('minutes', true);
-    const reason = interaction.options.getString('reason') ?? 'No reason provided';
-    const member = await interaction.guild.members.fetch(user.id);
-    if (!member.moderatable || member.id === interaction.guild.ownerId) {
+    const suppliedReason = interaction.options.getString('reason')?.trim();
+    const reason =
+      suppliedReason === undefined || suppliedReason.length === 0
+        ? 'No reason provided'
+        : suppliedReason;
+    if (user.id === interaction.user.id) {
       return interaction.reply({
-        content: 'I cannot timeout that member. Check role hierarchy and bot permissions.',
+        content: 'You cannot timeout yourself.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+    if (user.bot) {
+      return interaction.reply({
+        content: 'Bots cannot be targeted by this timeout command.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+    const member = await interaction.guild.members.fetch(user.id);
+    const actor = await interaction.guild.members.fetch(interaction.user.id);
+    const botMember = interaction.guild.members.me;
+    const actorOutranked =
+      actor.id !== interaction.guild.ownerId &&
+      actor.roles.highest.comparePositionTo(member.roles.highest) <= 0;
+    const botOutranked =
+      botMember === null ||
+      botMember.roles.highest.comparePositionTo(member.roles.highest) <= 0;
+    if (
+      !member.moderatable ||
+      member.id === interaction.guild.ownerId ||
+      actorOutranked ||
+      botOutranked
+    ) {
+      return interaction.reply({
+        content:
+          'That member cannot be timed out because of guild ownership, role hierarchy, or bot permissions.',
         flags: MessageFlags.Ephemeral,
       });
     }
