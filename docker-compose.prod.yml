@@ -1,13 +1,13 @@
 services:
   postgres:
-    ports: []
+    ports: !reset []
   redis:
-    ports: []
+    ports: !reset []
   api:
-    ports: []
+    ports: !reset []
     restart: always
   web:
-    ports: []
+    ports: !reset []
     restart: always
   bot:
     restart: always

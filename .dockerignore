@@ -3,6 +3,8 @@
 .next
 .turbo
 coverage
+playwright-report
+test-results
 node_modules
 **/node_modules
 **/dist
@@ -10,4 +12,3 @@ node_modules
 .env
 .env.*
 !.env.example
-

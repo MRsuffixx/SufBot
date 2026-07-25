@@ -14,6 +14,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: join(import.meta.dirname, '../..'),
+  allowedDevOrigins: ['127.0.0.1'],
   poweredByHeader: false,
   reactStrictMode: true,
   serverExternalPackages: ['@prisma/adapter-pg', 'pg'],
