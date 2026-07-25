@@ -40,15 +40,20 @@ if (args.length === 0) {
 
 const pnpmScript = process.env.npm_execpath;
 const pnpmIsNodeScript = pnpmScript !== undefined && /\.(?:cjs|mjs|js)$/i.test(pnpmScript);
+const useWindowsCommandShim = pnpmScript === undefined && process.platform === 'win32';
 const executable =
-  pnpmScript === undefined
-    ? process.platform === 'win32'
-      ? 'pnpm.cmd'
-      : 'pnpm'
+  useWindowsCommandShim
+    ? process.env.ComSpec ?? 'cmd.exe'
+    : pnpmScript === undefined
+      ? 'pnpm'
     : pnpmIsNodeScript
       ? process.execPath
       : pnpmScript;
-const childArgs = pnpmIsNodeScript ? [pnpmScript, ...args] : args;
+const childArgs = useWindowsCommandShim
+  ? ['/d', '/s', '/c', 'pnpm', ...args]
+  : pnpmIsNodeScript
+    ? [pnpmScript, ...args]
+    : args;
 const child = spawn(executable, childArgs, {
   cwd: workspaceRoot,
   env: {

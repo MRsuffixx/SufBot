@@ -111,7 +111,7 @@ export const loadRootEnvironment = (options?: {
     });
   }
   if (existingNodeEnvironment !== undefined) {
-    targetEnvironment.NODE_ENV = existingNodeEnvironment;
+    Reflect.set(targetEnvironment, 'NODE_ENV', existingNodeEnvironment);
   }
 
   return {
