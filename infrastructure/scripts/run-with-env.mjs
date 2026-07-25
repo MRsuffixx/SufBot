@@ -21,9 +21,7 @@ if (existsSync(environmentFile)) {
 }
 
 const rawArgs = process.argv.slice(2);
-const nodeEnvironmentOption = rawArgs.find((argument) =>
-  argument.startsWith('--node-env='),
-);
+const nodeEnvironmentOption = rawArgs.find((argument) => argument.startsWith('--node-env='));
 const args = rawArgs.filter((argument) => !argument.startsWith('--node-env='));
 if (nodeEnvironmentOption !== undefined) {
   const nodeEnvironment = nodeEnvironmentOption.slice('--node-env='.length);
@@ -41,11 +39,10 @@ if (args.length === 0) {
 const pnpmScript = process.env.npm_execpath;
 const pnpmIsNodeScript = pnpmScript !== undefined && /\.(?:cjs|mjs|js)$/i.test(pnpmScript);
 const useWindowsCommandShim = pnpmScript === undefined && process.platform === 'win32';
-const executable =
-  useWindowsCommandShim
-    ? process.env.ComSpec ?? 'cmd.exe'
-    : pnpmScript === undefined
-      ? 'pnpm'
+const executable = useWindowsCommandShim
+  ? (process.env.ComSpec ?? 'cmd.exe')
+  : pnpmScript === undefined
+    ? 'pnpm'
     : pnpmIsNodeScript
       ? process.execPath
       : pnpmScript;

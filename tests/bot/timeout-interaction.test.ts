@@ -30,12 +30,12 @@ describe('timeout Discord interaction', () => {
                     },
                   }
                 : {
-              id: '423456789012345678',
-              moderatable: true,
+                    id: '423456789012345678',
+                    moderatable: true,
                     roles: {
                       highest: {},
                     },
-              timeout,
+                    timeout,
                   },
             ),
         },

@@ -69,8 +69,7 @@ export class TimeoutCommand extends SufBotCommand {
       actor.id !== interaction.guild.ownerId &&
       actor.roles.highest.comparePositionTo(member.roles.highest) <= 0;
     const botOutranked =
-      botMember === null ||
-      botMember.roles.highest.comparePositionTo(member.roles.highest) <= 0;
+      botMember === null || botMember.roles.highest.comparePositionTo(member.roles.highest) <= 0;
     if (
       !member.moderatable ||
       member.id === interaction.guild.ownerId ||
