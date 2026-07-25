@@ -81,7 +81,7 @@ export const loadRootEnvironment = (options?: {
   const result = loadDotenv({
     path: environmentFilePath,
     processEnv: targetEnvironment,
-    override: options?.override ?? false,
+    override: options?.override ?? true,
     quiet: true,
   });
   if (result.error !== undefined) {

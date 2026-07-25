@@ -11,7 +11,7 @@ const environmentFile = join(workspaceRoot, '.env');
 if (existsSync(environmentFile)) {
   const result = loadDotenv({
     path: environmentFile,
-    override: false,
+    override: true,
     quiet: true,
   });
   if (result.error !== undefined) {

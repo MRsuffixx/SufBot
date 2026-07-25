@@ -72,7 +72,7 @@ export const loadDatabaseEnvironment = (options?: {
     const result = loadDotenv({
       path: environmentFilePath,
       processEnv: environment,
-      override: false,
+      override: true,
       quiet: true,
     });
     if (result.error !== undefined) {
