@@ -1,0 +1,49 @@
+{
+  "name": "sufbot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-grade multi-tenant Discord bot and server management platform.",
+  "license": "MIT",
+  "author": "MRsuffix <mrsuffix>",
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "preinstall": "node infrastructure/scripts/require-pnpm.mjs",
+    "dev": "pnpm build:packages && turbo run dev --parallel",
+    "build": "pnpm db:generate && turbo run build",
+    "build:packages": "turbo run build --filter=./packages/*",
+    "start": "turbo run start --parallel --filter=./apps/*",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm db:generate && turbo run typecheck",
+    "test": "pnpm db:generate && pnpm build:packages && vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "pnpm db:generate && pnpm build:packages && vitest run --coverage",
+    "db:generate": "pnpm --filter @sufbot/database generate",
+    "db:validate": "pnpm --filter @sufbot/database validate",
+    "db:migrate": "pnpm --filter @sufbot/database migrate",
+    "db:deploy": "pnpm --filter @sufbot/database migrate:deploy",
+    "db:seed": "pnpm --filter @sufbot/database seed",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:config": "docker compose config --quiet",
+    "security:audit": "pnpm audit --audit-level high"
+  },
+  "devDependencies": {
+    "@sufbot/eslint-config": "workspace:*",
+    "@sufbot/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "9.39.5",
+    "prettier": "3.9.6",
+    "turbo": "2.10.6",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}
+

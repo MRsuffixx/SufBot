@@ -1,0 +1,14 @@
+{
+  "extends": "@sufbot/typescript-config/base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["vitest.config.ts", "packages/**/*.ts", "apps/**/*.ts", "apps/**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/.next",
+    "packages/database/src/generated"
+  ]
+}
+

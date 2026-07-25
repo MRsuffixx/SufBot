@@ -1,0 +1,83 @@
+{
+  "$schemaVersion": 1,
+  "application": {
+    "name": "SufBot",
+    "description": "A highly advanced public Discord bot and server management platform.",
+    "ownerName": "MRsuffix",
+    "ownerDiscordUsername": "mrsuffix",
+    "ownerGitHubUrl": "https://github.com/MRsuffixx",
+    "websiteUrl": "https://sufbot.tr",
+    "apiUrl": "https://api.sufbot.tr",
+    "defaultLocale": "en",
+    "supportedLocales": ["en", "tr"]
+  },
+  "discord": {
+    "defaultPrefix": "!",
+    "enablePrefixCommands": false,
+    "enableSlashCommands": true,
+    "registerCommandsGlobally": false,
+    "developmentGuildIds": [],
+    "requiredInvitePermissions": ["ModerateMembers", "ViewAuditLog", "SendMessages"],
+    "intents": ["Guilds", "GuildMembers"],
+    "partials": ["GuildMember", "User"],
+    "sharding": {
+      "enabled": false,
+      "mode": "auto",
+      "totalShards": "auto"
+    }
+  },
+  "dashboard": {
+    "theme": "system",
+    "allowGuildOwnerAccess": true,
+    "allowManageGuildPermission": true,
+    "allowedAdministrativePermissions": ["Administrator"],
+    "itemsPerPage": 20
+  },
+  "server": {
+    "webPort": 3000,
+    "apiPort": 3001,
+    "apiHost": "0.0.0.0",
+    "corsAllowedOrigins": ["https://sufbot.tr", "http://localhost:3000"],
+    "bodyLimitBytes": 1048576,
+    "requestTimeoutMs": 15000,
+    "openApiEnabled": true
+  },
+  "security": {
+    "rateLimits": {
+      "enabled": true,
+      "windowSeconds": 60,
+      "maxRequests": 100
+    },
+    "session": {
+      "maxAgeSeconds": 86400,
+      "guildPermissionFreshnessSeconds": 300
+    },
+    "auditLogRetentionDays": 180,
+    "internalRequestMaxAgeSeconds": 60,
+    "maxPaginationSize": 100
+  },
+  "cache": {
+    "namespace": "sufbot",
+    "guildConfigTtlSeconds": 300,
+    "localTtlSeconds": 30,
+    "invalidationChannel": "config:invalidation"
+  },
+  "queue": {
+    "prefix": "sufbot",
+    "defaultAttempts": 5,
+    "backoffDelayMs": 1000,
+    "removeCompletedAfterSeconds": 86400,
+    "removeFailedAfterSeconds": 604800
+  },
+  "features": {
+    "premium": false,
+    "analytics": true,
+    "publicApi": true,
+    "backgroundJobs": true
+  },
+  "logging": {
+    "level": "info",
+    "prettyDevelopmentLogs": true
+  }
+}
+

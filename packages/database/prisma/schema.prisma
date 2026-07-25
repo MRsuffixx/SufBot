@@ -1,0 +1,355 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PlatformRole {
+  USER
+  ADMIN
+  DEVELOPER
+  OWNER
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
+enum CommandSubjectType {
+  EVERYONE
+  USER
+  ROLE
+  CHANNEL
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BackgroundJobStatus {
+  QUEUED
+  ACTIVE
+  COMPLETED
+  FAILED
+  DEAD_LETTERED
+}
+
+model User {
+  id              String        @id @default(uuid()) @db.Uuid
+  discordId       String        @unique @db.VarChar(20)
+  displayName     String        @db.VarChar(100)
+  avatarHash      String?       @db.VarChar(128)
+  platformRole    PlatformRole  @default(USER)
+  sessionVersion  Int           @default(1)
+  lastLoginAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  oauthCredential     OAuthCredential?
+  sessions            AuthSession[]
+  guildAccessGrants   GuildAccessGrant[]
+  auditActions        GuildAuditLog[]       @relation("AuditActor")
+  dashboardAccessLogs DashboardAccessLog[]
+  apiKeys             ApiKey[]
+  commandUsages       CommandUsage[]
+
+  @@index([platformRole])
+  @@index([deletedAt])
+}
+
+model OAuthCredential {
+  userId                 String   @id @db.Uuid
+  provider               String   @default("discord") @db.VarChar(32)
+  accessTokenCiphertext  String   @db.Text
+  refreshTokenCiphertext String?  @db.Text
+  expiresAt              DateTime
+  tokenType              String?  @db.VarChar(32)
+  scope                  String?  @db.VarChar(255)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique @db.Char(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([revokedAt])
+}
+
+model Guild {
+  id                     String   @id @db.VarChar(20)
+  name                   String   @db.VarChar(100)
+  iconHash               String?  @db.VarChar(128)
+  ownerDiscordId         String   @db.VarChar(20)
+  botInstalled           Boolean  @default(true)
+  joinedAt               DateTime @default(now())
+  leftAt                 DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  settings            GuildSettings?
+  modules             GuildModule[]
+  rolePermissions     GuildRolePermission[]
+  commandOverrides    GuildCommandOverride[]
+  auditLogs           GuildAuditLog[]
+  accessGrants        GuildAccessGrant[]
+  dashboardAccessLogs DashboardAccessLog[]
+  commandUsages       CommandUsage[]
+  apiKeys             ApiKey[]
+  subscriptions       Subscription[]
+  featureFlags        FeatureFlag[]
+
+  @@index([ownerDiscordId])
+  @@index([botInstalled, leftAt])
+}
+
+model GuildSettings {
+  guildId       String   @id @db.VarChar(20)
+  locale        String   @default("en") @db.VarChar(5)
+  timezone      String   @default("UTC") @db.VarChar(64)
+  commandPrefix String   @default("!") @db.VarChar(5)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+}
+
+model GuildModule {
+  id        String   @id @default(uuid()) @db.Uuid
+  guildId   String   @db.VarChar(20)
+  moduleKey String   @db.VarChar(64)
+  enabled   Boolean  @default(false)
+  config    Json     @default("{}")
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, moduleKey])
+  @@index([guildId, enabled])
+}
+
+model GuildRolePermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  guildId       String   @db.VarChar(20)
+  discordRoleId String   @db.VarChar(20)
+  permissions   String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, discordRoleId])
+  @@index([guildId])
+}
+
+model GuildCommandOverride {
+  id          String             @id @default(uuid()) @db.Uuid
+  guildId     String             @db.VarChar(20)
+  commandName String             @db.VarChar(64)
+  subjectType CommandSubjectType
+  subjectId   String             @db.VarChar(32)
+  allow       String[]
+  deny        String[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, commandName, subjectType, subjectId])
+  @@index([guildId, commandName])
+}
+
+model GuildAuditLog {
+  id             String       @id @default(uuid()) @db.Uuid
+  guildId        String?      @db.VarChar(20)
+  actorUserId    String?      @db.Uuid
+  actorDiscordId String?      @db.VarChar(20)
+  action         String       @db.VarChar(100)
+  resourceType   String       @db.VarChar(64)
+  resourceId     String?      @db.VarChar(128)
+  previousValue  Json?
+  newValue       Json?
+  ipAddressHash  String?      @db.Char(64)
+  userAgent      String?      @db.VarChar(255)
+  requestId      String       @db.VarChar(128)
+  outcome        AuditOutcome
+  failureReason  String?      @db.VarChar(255)
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  actor User?  @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([requestId])
+}
+
+model GuildAccessGrant {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  guildId            String   @db.VarChar(20)
+  isOwner            Boolean  @default(false)
+  permissionBitfield String   @db.VarChar(32)
+  source             String   @default("discord_oauth") @db.VarChar(32)
+  verifiedAt         DateTime
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, guildId])
+  @@index([guildId, expiresAt])
+  @@index([userId, expiresAt])
+}
+
+model DashboardAccessLog {
+  id            String       @id @default(uuid()) @db.Uuid
+  userId        String       @db.Uuid
+  guildId       String?      @db.VarChar(20)
+  route         String       @db.VarChar(255)
+  requestId     String       @db.VarChar(128)
+  outcome       AuditOutcome
+  failureReason String?      @db.VarChar(255)
+  ipAddressHash String?      @db.Char(64)
+  userAgent     String?      @db.VarChar(255)
+  createdAt     DateTime     @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([guildId, createdAt(sort: Desc)])
+}
+
+model CommandUsage {
+  id             String   @id @default(uuid()) @db.Uuid
+  guildId        String?  @db.VarChar(20)
+  userId         String?  @db.Uuid
+  discordUserId  String   @db.VarChar(20)
+  commandName    String   @db.VarChar(64)
+  correlationId  String   @db.VarChar(128)
+  success        Boolean
+  durationMs     Int
+  errorCode      String?  @db.VarChar(64)
+  shardId        Int?
+  createdAt      DateTime @default(now())
+
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, commandName, createdAt(sort: Desc)])
+  @@index([discordUserId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model ApiKey {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @db.Uuid
+  guildId     String?      @db.VarChar(20)
+  name        String       @db.VarChar(100)
+  keyPrefix   String       @db.VarChar(16)
+  keyHash     String       @unique @db.Char(64)
+  scopes      String[]
+  status      ApiKeyStatus @default(ACTIVE)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([guildId, status])
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  guildId              String             @db.VarChar(20)
+  provider             String             @db.VarChar(32)
+  providerReference    String             @unique @db.VarChar(128)
+  status               SubscriptionStatus
+  planKey              String             @db.VarChar(64)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Restrict)
+
+  @@index([guildId, status])
+  @@index([currentPeriodEnd])
+}
+
+model FeatureFlag {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @db.VarChar(100)
+  scopeKey  String   @db.VarChar(32)
+  guildId   String?  @db.VarChar(20)
+  enabled   Boolean  @default(false)
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guild Guild? @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([key, scopeKey])
+  @@index([guildId, enabled])
+}
+
+model BackgroundJobRecord {
+  id             String              @id @default(uuid()) @db.Uuid
+  queueName      String              @db.VarChar(64)
+  jobName        String              @db.VarChar(64)
+  bullJobId      String?             @db.VarChar(128)
+  idempotencyKey String              @db.VarChar(128)
+  status         BackgroundJobStatus @default(QUEUED)
+  attempts       Int                 @default(0)
+  payloadHash    String              @db.Char(64)
+  errorCode      String?             @db.VarChar(64)
+  lastError      String?             @db.VarChar(500)
+  scheduledFor   DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([queueName, idempotencyKey])
+  @@index([status, scheduledFor])
+  @@index([queueName, createdAt(sort: Desc)])
+}
+

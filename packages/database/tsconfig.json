@@ -1,0 +1,10 @@
+{
+  "extends": "@sufbot/typescript-config/node.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "prisma.config.ts"],
+  "exclude": ["dist"]
+}
+
