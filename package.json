@@ -40,6 +40,7 @@
     "db:studio": "node infrastructure/scripts/run-with-env.mjs --filter @sufbot/database studio",
     "db:reset": "node infrastructure/scripts/run-with-env.mjs --filter @sufbot/database migrate:reset",
     "env:check": "tsx infrastructure/scripts/env-check.ts",
+    "env:configure-local": "node infrastructure/scripts/configure-local-services.mjs",
     "services:check": "tsx infrastructure/scripts/services-check.ts",
     "docker:up": "docker compose up -d postgres redis",
     "docker:down": "docker compose down",
