@@ -113,9 +113,7 @@ export const loadAppConfig = (options?: {
 };
 
 const parseEnvironment = <T>(schema: {
-  safeParse: (
-    input: unknown,
-  ) =>
+  safeParse: (input: unknown) =>
     | { success: true; data: T }
     | {
         success: false;
