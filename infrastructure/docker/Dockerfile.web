@@ -2,7 +2,16 @@ FROM node:24.13.0-alpine AS build
 
 ENV CI=true \
     NODE_ENV=production \
-    DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
+    NEXT_TELEMETRY_DISABLED=1
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
+
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm db:generate
+RUN pnpm build:packages
+RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
     REDIS_URL=redis://127.0.0.1:6379/0 \
     DISCORD_CLIENT_ID=123456789012345678 \
     DISCORD_CLIENT_SECRET=build-only-discord-client-secret \
@@ -13,16 +22,8 @@ ENV CI=true \
     SESSION_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     BOT_OWNER_DISCORD_IDS= \
     BOT_DEVELOPER_DISCORD_IDS= \
-    PLATFORM_ADMIN_DISCORD_IDS=
-WORKDIR /workspace
-
-RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
-
-COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm db:generate
-RUN pnpm build:packages
-RUN pnpm --filter @sufbot/web build
+    PLATFORM_ADMIN_DISCORD_IDS= \
+    pnpm --filter @sufbot/web build
 
 FROM node:24.13.0-alpine AS runtime
 
