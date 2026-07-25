@@ -1,0 +1,11 @@
+{
+  "name": "@sufbot/migrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@prisma/config": "7.9.0",
+    "dotenv": "17.4.2",
+    "prisma": "7.9.0"
+  }
+}

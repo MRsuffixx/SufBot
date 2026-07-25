@@ -7,7 +7,9 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
 
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @sufbot/database deploy --prod /output
+RUN pnpm --filter @sufbot/migrator deploy --prod /output
+RUN cp packages/database/prisma.config.ts /output/prisma.config.ts \
+    && cp -r packages/database/prisma /output/prisma
 
 FROM node:24.13.0-alpine
 

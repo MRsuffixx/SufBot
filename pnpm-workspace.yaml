@@ -13,6 +13,13 @@ allowBuilds:
 injectWorkspacePackages: true
 confirmModulesPurge: false
 
+overrides:
+  '@fastify/static': 10.1.2
+  find-my-way: 9.7.0
+  postcss: 8.5.23
+  sharp: 0.35.3
+  valibot: 1.4.2
+
 minimumReleaseAgeExclude:
   - '@playwright/test@1.62.0'
   - bullmq@5.81.2

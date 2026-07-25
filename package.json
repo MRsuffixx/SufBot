@@ -36,6 +36,7 @@
     "security:audit": "pnpm audit --audit-level high"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@playwright/test": "1.62.0",
     "@prisma/config": "7.9.0",
     "@sufbot/auth": "workspace:*",
@@ -52,9 +53,12 @@
     "@vitest/coverage-v8": "4.1.10",
     "discord.js": "14.27.0",
     "eslint": "9.39.5",
+    "eslint-config-next": "16.2.11",
+    "globals": "16.5.0",
     "prettier": "3.9.6",
     "turbo": "2.10.6",
     "typescript": "6.0.3",
+    "typescript-eslint": "8.65.0",
     "vitest": "4.1.10",
     "zod": "4.4.3"
   }
