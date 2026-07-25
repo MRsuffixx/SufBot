@@ -48,13 +48,13 @@
     "@sufbot/permissions": "workspace:*",
     "@sufbot/shared": "workspace:*",
     "@sufbot/typescript-config": "workspace:*",
-    "@types/node": "24.13.3",
+    "@types/node": "26.1.1",
     "@vitest/coverage-v8": "4.1.10",
     "discord.js": "14.27.0",
-    "eslint": "9.39.5",
+    "eslint": "10.8.0",
     "prettier": "3.9.6",
     "turbo": "2.10.6",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitest": "4.1.10",
     "zod": "4.4.3"
   }
