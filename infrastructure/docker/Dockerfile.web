@@ -29,7 +29,8 @@ FROM node:24.13.0-alpine AS runtime
 
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    SUFBOT_ROOT=/app
 WORKDIR /app/apps/web
 
 RUN apk add --no-cache tini \
@@ -38,6 +39,7 @@ RUN apk add --no-cache tini \
 COPY --from=build --chown=node:node /workspace/apps/web/.next/standalone /app
 COPY --from=build --chown=node:node /workspace/apps/web/.next/static /app/apps/web/.next/static
 COPY --from=build --chown=node:node /workspace/apps/web/public /app/apps/web/public
+COPY --from=build --chown=node:node /workspace/config.json /app/config.json
 
 USER node
 EXPOSE 3000

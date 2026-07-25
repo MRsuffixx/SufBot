@@ -13,10 +13,12 @@ RUN pnpm build:packages
 ARG SERVICE
 RUN pnpm --filter "@sufbot/${SERVICE}" build
 RUN pnpm --filter "@sufbot/${SERVICE}" deploy --prod /output
+RUN cp config.json /output/config.json
 
 FROM node:24.13.0-alpine AS runtime
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    SUFBOT_ROOT=/app
 WORKDIR /app
 
 RUN apk add --no-cache tini \

@@ -3,9 +3,6 @@ name: sufbot
 x-runtime: &runtime
   restart: unless-stopped
   init: true
-  env_file:
-    - path: .env
-      required: false
   networks:
     - internal
   security_opt:
@@ -27,9 +24,9 @@ services:
     image: postgres:17.7-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sufbot}
-      POSTGRES_USER: ${POSTGRES_USER:-sufbot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sufbot_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -48,12 +45,14 @@ services:
   redis:
     image: redis:8.2-alpine
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     command:
       - redis-server
       - --appendonly
       - 'yes'
       - --requirepass
-      - ${REDIS_PASSWORD:-sufbot_dev_password}
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
       - '${REDIS_PORT:-6379}:6379'
     volumes:
@@ -61,7 +60,7 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD:-sufbot_dev_password}" ping | grep PONG']
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -75,8 +74,8 @@ services:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.migrate
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
-      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL_DOCKER:?DIRECT_DATABASE_URL_DOCKER is required}
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,11 +94,13 @@ services:
       args:
         SERVICE: api
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
-      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
-      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
+      NODE_ENV: production
+      SUFBOT_ROOT: /app
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      REDIS_URL: ${REDIS_URL_DOCKER:?REDIS_URL_DOCKER is required}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?WEBHOOK_SIGNING_SECRET is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - '${API_PORT:-3001}:3001'
     depends_on: *dependencies
@@ -123,19 +124,21 @@ services:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.web
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
-      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
-      AUTH_SECRET: ${AUTH_SECRET:-}
+      NODE_ENV: production
+      SUFBOT_ROOT: /app
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      REDIS_URL: ${REDIS_URL_DOCKER:?REDIS_URL_DOCKER is required}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID is required}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:?DISCORD_CLIENT_SECRET is required}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
-      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:-}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?INTERNAL_API_SECRET is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      SESSION_ENCRYPTION_KEY: ${SESSION_ENCRYPTION_KEY:?SESSION_ENCRYPTION_KEY is required}
       BOT_OWNER_DISCORD_IDS: ${BOT_OWNER_DISCORD_IDS:-}
       BOT_DEVELOPER_DISCORD_IDS: ${BOT_DEVELOPER_DISCORD_IDS:-}
       PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - '${WEB_PORT:-3000}:3000'
     depends_on: *dependencies
@@ -161,14 +164,16 @@ services:
       args:
         SERVICE: bot
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
-      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
-      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      NODE_ENV: production
+      SUFBOT_ROOT: /app
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      REDIS_URL: ${REDIS_URL_DOCKER:?REDIS_URL_DOCKER is required}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:?DISCORD_BOT_TOKEN is required}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:?DISCORD_CLIENT_ID is required}
       BOT_OWNER_DISCORD_IDS: ${BOT_OWNER_DISCORD_IDS:-}
       BOT_DEVELOPER_DISCORD_IDS: ${BOT_DEVELOPER_DISCORD_IDS:-}
       PLATFORM_ADMIN_DISCORD_IDS: ${PLATFORM_ADMIN_DISCORD_IDS:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on: *dependencies
     healthcheck:
       test: ['CMD', 'node', '-e', 'process.kill(1,0)']
@@ -186,9 +191,11 @@ services:
       args:
         SERVICE: worker
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sufbot:sufbot_dev_password@postgres:5432/sufbot}
-      REDIS_URL: ${REDIS_URL:-redis://:sufbot_dev_password@redis:6379/0}
+      NODE_ENV: production
+      SUFBOT_ROOT: /app
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?DATABASE_URL_DOCKER is required}
+      REDIS_URL: ${REDIS_URL_DOCKER:?REDIS_URL_DOCKER is required}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on: *dependencies
     healthcheck:
       test: ['CMD', 'node', '-e', 'process.kill(1,0)']
