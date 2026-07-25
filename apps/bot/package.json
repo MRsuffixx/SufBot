@@ -1,0 +1,31 @@
+{
+  "name": "@sufbot/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sapphire/framework": "5.5.0",
+    "@sufbot/cache": "workspace:*",
+    "@sufbot/config": "workspace:*",
+    "@sufbot/database": "workspace:*",
+    "@sufbot/discord": "workspace:*",
+    "@sufbot/logger": "workspace:*",
+    "@sufbot/permissions": "workspace:*",
+    "@sufbot/shared": "workspace:*",
+    "discord.js": "14.27.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@sufbot/typescript-config": "workspace:*",
+    "tsx": "4.23.1",
+    "typescript": "6.0.3"
+  }
+}
+
