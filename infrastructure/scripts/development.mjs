@@ -56,15 +56,13 @@ const targetRoots = {
   packages: [],
 };
 const uniqueFilters = (filters) => [...new Set(filters)];
-const applicationFilters = allApplications.map((name) => `--filter=${name}`);
-const webDevelopmentFilters = dependencyClosure(['@sufbot/web']);
 const runtimeFiltersByTarget = {
-  full: uniqueFilters([...applicationFilters, ...webDevelopmentFilters]),
-  web: webDevelopmentFilters,
-  api: ['--filter=@sufbot/api'],
-  bot: ['--filter=@sufbot/bot'],
-  worker: ['--filter=@sufbot/worker'],
-  apps: uniqueFilters([...applicationFilters, ...webDevelopmentFilters]),
+  full: uniqueFilters(dependencyClosure(allApplications)),
+  web: dependencyClosure(['@sufbot/web']),
+  api: dependencyClosure(['@sufbot/api']),
+  bot: dependencyClosure(['@sufbot/bot']),
+  worker: dependencyClosure(['@sufbot/worker']),
+  apps: uniqueFilters(dependencyClosure(allApplications)),
   packages: ['--filter=./packages/*'],
 };
 

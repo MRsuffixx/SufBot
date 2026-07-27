@@ -67,7 +67,7 @@ const clientOptions: ClientOptions = {
   ...(config.discord.sharding.enabled ? { shards: 'auto' as const } : {}),
 };
 const client = new SapphireClient(clientOptions);
-let guildStatus: GuildStatusService | undefined;
+const runtimeServices: { guildStatus?: GuildStatusService } = {};
 const startedInteractions = new Map<string, number>();
 
 client.on(SapphireEvents.ChatInputCommandRun, (interaction) => {
@@ -152,7 +152,7 @@ const shutdown = async (signal: string): Promise<void> => {
   const forceExit = setTimeout(() => process.exit(1), 20_000);
   forceExit.unref();
   client.destroy();
-  if (guildStatus !== undefined) await guildStatus.close();
+  if (runtimeServices.guildStatus !== undefined) await runtimeServices.guildStatus.close();
   await heartbeat.close();
   await stopInvalidation();
   await cache.close();
@@ -235,7 +235,8 @@ if (!config.discord.enableSlashCommands) {
     'Production startup inspected global commands without redeploying',
   );
 }
-guildStatus = new GuildStatusService(client, container.sufbot);
+const guildStatus = new GuildStatusService(client, container.sufbot);
+runtimeServices.guildStatus = guildStatus;
 container.sufbot.guildStatus = guildStatus;
 await guildStatus.start();
 await heartbeat.start();
