@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { DistributedCache } from '@sufbot/cache';
 import { loadAppConfig, loadWebEnvironment } from '@sufbot/config';
 import { getPrismaClient } from '@sufbot/database';
@@ -9,7 +11,6 @@ export const webLogger = createLogger(
   { app: 'web', environment: webEnvironment.NODE_ENV, version: '0.1.0' },
   {
     level: appConfig.logging.level,
-    pretty: webEnvironment.NODE_ENV === 'development' && appConfig.logging.prettyDevelopmentLogs,
   },
 );
 export const prisma = getPrismaClient(webEnvironment.DATABASE_URL);

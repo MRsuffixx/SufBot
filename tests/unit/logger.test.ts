@@ -1,6 +1,7 @@
 import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { createLogger } from '@sufbot/logger';
+import { createRuntimeLogger } from '@sufbot/logger/runtime';
 
 describe('structured logger redaction', () => {
   it('redacts database URLs, tokens, and encryption keys', () => {
@@ -32,5 +33,14 @@ describe('structured logger redaction', () => {
     expect(output).not.toContain(token);
     expect(output).not.toContain(key);
     expect(output).toContain('[REDACTED]');
+  });
+
+  it('creates local pretty output without a Pino transport worker', async () => {
+    const logger = await createRuntimeLogger(
+      { app: 'test', environment: 'development' },
+      { level: 'silent', pretty: true },
+    );
+
+    expect(typeof logger.info).toBe('function');
   });
 });

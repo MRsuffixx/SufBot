@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "dev:build": "tsup src/index.ts --format esm --sourcemap",
+    "dev": "tsup src/index.ts --format esm --watch --sourcemap",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

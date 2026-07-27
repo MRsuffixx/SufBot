@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { headers } from 'next/headers';
 import { AuthorizationError } from '@sufbot/shared';
 import { appConfig, webEnvironment } from './runtime';

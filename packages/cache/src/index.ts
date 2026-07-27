@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { z, type ZodType } from 'zod';
 import type { Logger } from '@sufbot/logger';
@@ -16,6 +17,124 @@ export type CacheInvalidationEvent = {
   version: number;
   timestamp: string;
 };
+
+export type ObservableService = 'bot' | 'worker';
+
+export const serviceHeartbeatRegistryKey = (
+  namespace: string,
+  service: ObservableService,
+): string => `${namespace}:runtime:${service}:instances`;
+
+export const serviceHeartbeatKey = (
+  namespace: string,
+  service: ObservableService,
+  instanceId: string,
+): string => `${namespace}:runtime:${service}:heartbeat:${instanceId}`;
+
+export class ServiceHeartbeat {
+  readonly #instanceId = randomUUID();
+  readonly #redis: Redis;
+  readonly #startedAt = new Date().toISOString();
+  #started = false;
+  #timer: NodeJS.Timeout | undefined;
+
+  public constructor(
+    redisUrl: string,
+    private readonly options: {
+      namespace: string;
+      service: ObservableService;
+      logger: Logger;
+      ttlSeconds?: number;
+      intervalSeconds?: number;
+    },
+  ) {
+    this.#redis = new Redis(redisUrl, {
+      lazyConnect: true,
+      enableReadyCheck: true,
+      maxRetriesPerRequest: 1,
+      connectTimeout: 5_000,
+      commandTimeout: 2_000,
+      retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
+    });
+    this.#redis.on('error', (error) => {
+      this.options.logger.warn({ err: error, service: this.options.service }, 'heartbeat error');
+    });
+  }
+
+  public async start(): Promise<void> {
+    if (this.#timer !== undefined) return;
+    if (this.#redis.status === 'wait') await this.#redis.connect();
+    await this.#write();
+    this.#started = true;
+    const intervalSeconds = this.options.intervalSeconds ?? 10;
+    this.#timer = setInterval(() => {
+      void this.#write().catch((error: unknown) => {
+        this.options.logger.warn(
+          { err: error, service: this.options.service },
+          'heartbeat update failed',
+        );
+      });
+    }, intervalSeconds * 1000);
+    this.#timer.unref();
+  }
+
+  public async close(): Promise<void> {
+    if (this.#timer !== undefined) {
+      clearInterval(this.#timer);
+      this.#timer = undefined;
+    }
+    if (!this.#started) {
+      this.#redis.disconnect();
+      return;
+    }
+    if (this.#redis.status !== 'end') {
+      const registryKey = serviceHeartbeatRegistryKey(this.options.namespace, this.options.service);
+      const heartbeatKey = serviceHeartbeatKey(
+        this.options.namespace,
+        this.options.service,
+        this.#instanceId,
+      );
+      await this.#redis
+        .multi()
+        .del(heartbeatKey)
+        .zrem(registryKey, this.#instanceId)
+        .exec()
+        .catch((error: unknown) => {
+          this.options.logger.warn(
+            { err: error, service: this.options.service },
+            'heartbeat cleanup failed',
+          );
+        });
+      await this.#redis.quit().catch(() => this.#redis.disconnect());
+    }
+    this.#started = false;
+  }
+
+  async #write(): Promise<void> {
+    const ttlSeconds = this.options.ttlSeconds ?? 30;
+    const now = Date.now();
+    const registryKey = serviceHeartbeatRegistryKey(this.options.namespace, this.options.service);
+    const heartbeatKey = serviceHeartbeatKey(
+      this.options.namespace,
+      this.options.service,
+      this.#instanceId,
+    );
+    const value = JSON.stringify({
+      service: this.options.service,
+      instanceId: this.#instanceId,
+      processId: process.pid,
+      startedAt: this.#startedAt,
+      updatedAt: new Date(now).toISOString(),
+    });
+    await this.#redis
+      .multi()
+      .set(heartbeatKey, value, 'EX', ttlSeconds)
+      .zadd(registryKey, now, this.#instanceId)
+      .zremrangebyscore(registryKey, 0, now - ttlSeconds * 1000)
+      .expire(registryKey, ttlSeconds * 2)
+      .exec();
+  }
+}
 
 const InvalidationSchema = z.object({
   type: z.literal('guild.config.updated'),

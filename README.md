@@ -134,21 +134,40 @@ permissions, module status, cooldown, feature flag, and premium requirements.
 
 ## Development commands
 
-| Command               | Purpose                                                      |
-| --------------------- | ------------------------------------------------------------ |
-| `pnpm dev`            | Build shared packages and run all applications in watch mode |
-| `pnpm build`          | Generate Prisma and build the complete monorepo              |
-| `pnpm format:check`   | Verify formatting                                            |
-| `pnpm lint`           | Run strict ESLint checks                                     |
-| `pnpm typecheck`      | Type-check every package and application                     |
-| `pnpm test`           | Run unit, API, and available database integration tests      |
-| `pnpm test:e2e`       | Run Playwright dashboard smoke tests                         |
-| `pnpm db:migrate`     | Create/apply a local development migration                   |
-| `pnpm db:deploy`      | Apply checked-in migrations non-interactively                |
-| `pnpm db:seed`        | Enable initial platform feature flags                        |
-| `pnpm docker:up`      | Start PostgreSQL and Redis                                   |
-| `pnpm docker:down`    | Stop local containers without deleting volumes               |
-| `pnpm security:audit` | Fail on high/critical dependency advisories                  |
+| Command               | Purpose                                                                |
+| --------------------- | ---------------------------------------------------------------------- |
+| `pnpm dev`            | Prepare package JavaScript and run web, API, bot, worker, and watchers |
+| `pnpm dev:web`        | Run Next.js and only its required package watchers                     |
+| `pnpm dev:api`        | Run Fastify and only its required package watchers                     |
+| `pnpm dev:bot`        | Run the Discord bot and only its required package watchers             |
+| `pnpm dev:worker`     | Run BullMQ and only its required package watchers                      |
+| `pnpm dev:apps`       | Run all four applications and their package watchers                   |
+| `pnpm dev:packages`   | Run shared-package watchers without applications                       |
+| `pnpm dev:services`   | Start local PostgreSQL and Redis containers                            |
+| `pnpm check:web`      | Require a non-error response from the local web root                   |
+| `pnpm check:api`      | Require healthy and ready API endpoints                                |
+| `pnpm check:dev`      | Check apps, dependencies, and bot/worker heartbeats                    |
+| `pnpm build`          | Generate Prisma and build the complete monorepo                        |
+| `pnpm format:check`   | Verify formatting                                                      |
+| `pnpm lint`           | Run strict ESLint checks                                               |
+| `pnpm typecheck`      | Type-check every package and application                               |
+| `pnpm test`           | Run unit, API, and available database integration tests                |
+| `pnpm test:e2e`       | Run Playwright dashboard smoke tests                                   |
+| `pnpm db:migrate`     | Create/apply a local development migration                             |
+| `pnpm db:deploy`      | Apply checked-in migrations non-interactively                          |
+| `pnpm db:seed`        | Enable initial platform feature flags                                  |
+| `pnpm docker:up`      | Start PostgreSQL and Redis                                             |
+| `pnpm docker:down`    | Stop local containers without deleting volumes                         |
+| `pnpm security:audit` | Fail on high/critical dependency advisories                            |
+
+Development preparation regenerates Prisma only when its inputs change and uses cached, declaration-
+free package builds before watch mode. Production builds still clean outputs and generate
+declarations and source maps.
+
+On Windows, a OneDrive workspace can make `.next` writes, Turbopack compilation, file watching, and
+TypeScript declaration output noticeably slower. For the best filesystem performance use a local
+path such as `C:\Projects\SufBot`. OneDrive affects performance; it does not explain dependency
+resolution errors, HTTP 500 responses, or unscheduled Turborepo tasks.
 
 Set `TEST_DATABASE_URL` to include the PostgreSQL-backed tenant and transaction tests. Without it
 those tests are explicitly skipped; unit and API-boundary tests still run.

@@ -28,13 +28,18 @@
       "inputs": ["$TURBO_DEFAULT$", "../../config.json"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
     },
+    "dev:build": {
+      "dependsOn": ["^dev:build"],
+      "inputs": ["$TURBO_DEFAULT$", "../../config.json"],
+      "outputs": ["dist/**"]
+    },
     "dev": {
-      "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "interruptible": true
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^typecheck"],
       "outputs": []
     },
     "test": {

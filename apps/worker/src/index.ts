@@ -1,7 +1,8 @@
 import { Queue, Worker, type Job } from 'bullmq';
+import { ServiceHeartbeat } from '@sufbot/cache';
 import { loadAppConfig, loadWorkerEnvironment } from '@sufbot/config';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
-import { createLogger } from '@sufbot/logger';
+import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import {
   AuditJobSchema,
   DeadLetterJobSchema,
@@ -13,7 +14,7 @@ import { sha256 } from '@sufbot/shared';
 
 const env = loadWorkerEnvironment();
 const config = loadAppConfig();
-const logger = createLogger(
+const logger = await createRuntimeLogger(
   { app: 'worker', environment: env.NODE_ENV, version: '0.1.0' },
   {
     level: config.logging.level,
@@ -22,6 +23,11 @@ const logger = createLogger(
 );
 const prisma = getPrismaClient(env.DATABASE_URL);
 const registry = new QueueRegistry(env.REDIS_URL, config.queue);
+const heartbeat = new ServiceHeartbeat(env.REDIS_URL, {
+  namespace: config.cache.namespace,
+  service: 'worker',
+  logger,
+});
 const deadLetterIdentity = createQueueIdentity(config.queue.prefix, QueueName.DeadLetter);
 const auditIdentity = createQueueIdentity(config.queue.prefix, QueueName.Audit);
 const deadLetterQueue = new Queue(deadLetterIdentity.name, {
@@ -136,6 +142,7 @@ const shutdown = async (signal: string): Promise<void> => {
   logger.info({ signal }, 'worker graceful shutdown started');
   const forceExit = setTimeout(() => process.exit(1), 20_000);
   forceExit.unref();
+  await heartbeat.close();
   await auditWorker.close();
   await deadLetterQueue.close();
   await registry.close();
@@ -146,4 +153,6 @@ const shutdown = async (signal: string): Promise<void> => {
 
 process.once('SIGINT', () => void shutdown('SIGINT'));
 process.once('SIGTERM', () => void shutdown('SIGTERM'));
+await auditWorker.waitUntilReady();
+await heartbeat.start();
 logger.info({ queues: [QueueName.Audit] }, 'SufBot worker is ready');

@@ -9,15 +9,15 @@ import {
   type ContextMenuCommandInteraction,
 } from 'discord.js';
 import { loadAppConfig, loadBotEnvironment } from '@sufbot/config';
-import { DistributedCache } from '@sufbot/cache';
+import { DistributedCache, ServiceHeartbeat } from '@sufbot/cache';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
-import { createLogger } from '@sufbot/logger';
+import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { createId } from '@sufbot/shared';
 import { BotServices } from './services.js';
 
 const env = loadBotEnvironment();
 const config = loadAppConfig();
-const logger = createLogger(
+const logger = await createRuntimeLogger(
   { app: 'bot', environment: env.NODE_ENV, version: '0.1.0' },
   {
     level: config.logging.level,
@@ -30,6 +30,11 @@ const cache = new DistributedCache(env.REDIS_URL, {
   localTtlSeconds: config.cache.localTtlSeconds,
   redisTtlSeconds: config.cache.guildConfigTtlSeconds,
   invalidationChannel: config.cache.invalidationChannel,
+  logger,
+});
+const heartbeat = new ServiceHeartbeat(env.REDIS_URL, {
+  namespace: config.cache.namespace,
+  service: 'bot',
   logger,
 });
 await cache.connect();
@@ -139,6 +144,7 @@ const shutdown = async (signal: string): Promise<void> => {
   const forceExit = setTimeout(() => process.exit(1), 20_000);
   forceExit.unref();
   client.destroy();
+  await heartbeat.close();
   await stopInvalidation();
   await cache.close();
   await disconnectPrisma();
@@ -168,3 +174,5 @@ const loginWithRetry = async (): Promise<void> => {
 };
 
 await loginWithRetry();
+await heartbeat.start();
+logger.info('SufBot bot is ready');

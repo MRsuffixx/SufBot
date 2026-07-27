@@ -5,8 +5,8 @@
 - API `/v1/health` proves the event loop can serve a response.
 - API `/v1/ready` verifies PostgreSQL and Redis; route traffic only when it is 200.
 - Web `/status` is a public product status page and a container liveness target.
-- Bot/worker container checks prove the process remains alive; alert from structured
-  connection/error logs for dependency health.
+- Bot/worker container checks prove the process remains alive. Each connected runtime also writes a
+  short-lived Redis heartbeat used by `pnpm check:dev`; an expired heartbeat is not ready.
 
 The API Prometheus text endpoint is `/v1/internal/metrics` and requires the same HMAC/replay
 protection as other internal routes. Scrape through a trusted collector that generates fresh signed
@@ -14,7 +14,10 @@ headers; do not make the endpoint public to simplify Prometheus configuration.
 
 ## Logging
 
-All services emit JSON in production with app/environment metadata. API logs include
+All services emit JSON in production with app/environment metadata. Next.js server logs remain
+structured in development because bundling Pino transport workers is unsafe. Plain Node.js
+applications use an in-process `pino-pretty` stream during local development and fall back to
+structured logs if that development-only package is unavailable. API logs include
 request/correlation ID, route, status, and duration. Bot/worker logs include interaction or job
 identifiers. Ship stdout to a restricted log platform and set retention separately from guild audit
 retention.

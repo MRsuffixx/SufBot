@@ -1,12 +1,12 @@
 import { loadApiEnvironment, loadAppConfig } from '@sufbot/config';
 import { DistributedCache } from '@sufbot/cache';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
-import { createLogger } from '@sufbot/logger';
+import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { buildApi } from './app.js';
 
 const env = loadApiEnvironment();
 const config = loadAppConfig();
-const logger = createLogger(
+const logger = await createRuntimeLogger(
   { app: 'api', environment: env.NODE_ENV, version: '0.1.0' },
   {
     level: config.logging.level,

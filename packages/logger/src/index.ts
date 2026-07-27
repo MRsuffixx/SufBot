@@ -1,9 +1,16 @@
 import pino, { type Logger, type LoggerOptions } from 'pino';
 
+export type DestinationStream = pino.DestinationStream;
+
 export type LoggerBindings = {
   app: 'api' | 'bot' | 'web' | 'worker' | 'database' | 'test';
   environment: string;
   version?: string;
+};
+
+export type CreateLoggerOptions = {
+  level?: string;
+  destination?: DestinationStream;
 };
 
 const redactionPaths = [
@@ -38,11 +45,7 @@ const redactionPaths = [
 
 export const createLogger = (
   bindings: LoggerBindings,
-  options: {
-    level?: string;
-    pretty?: boolean;
-    destination?: pino.DestinationStream;
-  } = {},
+  options: CreateLoggerOptions = {},
 ): Logger => {
   const loggerOptions: LoggerOptions = {
     level: options.level ?? 'info',
@@ -72,15 +75,6 @@ export const createLogger = (
     },
   };
 
-  if (options.pretty === true && options.destination === undefined) {
-    return pino(
-      loggerOptions,
-      pino.transport({
-        target: 'pino-pretty',
-        options: { colorize: true, singleLine: true, translateTime: 'SYS:standard' },
-      }),
-    );
-  }
   return pino(loggerOptions, options.destination);
 };
 

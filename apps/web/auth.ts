@@ -1,3 +1,5 @@
+import 'server-only';
+
 import NextAuth from 'next-auth';
 import Discord from 'next-auth/providers/discord';
 import { storeDiscordCredential } from '@sufbot/auth';

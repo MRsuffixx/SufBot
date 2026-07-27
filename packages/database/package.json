@@ -25,7 +25,8 @@
     "studio": "prisma studio --config prisma.config.ts",
     "test": "vitest run --root ../.. packages/database/environment.test.ts packages/database/database.integration.test.ts",
     "build": "pnpm generate && tsup src/index.ts src/generated.ts --format esm --dts --clean --sourcemap",
-    "dev": "tsup src/index.ts src/generated.ts --format esm --dts --watch",
+    "dev:build": "tsup src/index.ts src/generated.ts --format esm --sourcemap",
+    "dev": "tsup src/index.ts src/generated.ts --format esm --watch --sourcemap",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
