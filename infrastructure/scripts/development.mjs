@@ -109,9 +109,7 @@ try {
   await prepareDevelopment();
   const packageOnly = target === 'packages';
   const roots = targetRoots[target];
-  const preparationFilters = packageOnly
-    ? ['--filter=./packages/*']
-    : dependencyClosure(roots);
+  const preparationFilters = packageOnly ? ['--filter=./packages/*'] : dependencyClosure(roots);
   const runtimeFilters = runtimeFiltersByTarget[target];
   await runTurbo(['run', 'dev:build', ...preparationFilters]);
   console.info(`Development target "${target}" prepared; starting persistent tasks.`);
