@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { GuildNav } from '@/components/guild-nav';
 import { requireDashboardSession } from '@/lib/session';
-import { requireLiveGuildAccess } from '@/lib/discord';
+import { loadGuildInstallation, requireLiveGuildAccess } from '@/lib/discord';
 import { prisma } from '@/lib/runtime';
 
 export default async function GuildLayout({
@@ -19,11 +19,15 @@ export default async function GuildLayout({
   } catch {
     redirect('/unauthorized');
   }
-  const guild = await prisma.guild.findUnique({
-    where: { id: guildId },
-    select: { name: true, botInstalled: true, leftAt: true },
-  });
+  const [guild, installation] = await Promise.all([
+    prisma.guild.findUnique({
+      where: { id: guildId },
+      select: { name: true },
+    }),
+    loadGuildInstallation(guildId),
+  ]);
   if (guild === null) redirect('/unauthorized');
+  if (!installation.canOpenDashboard) redirect('/dashboard/guilds');
   await prisma.dashboardAccessLog.create({
     data: {
       userId: session.user.id,
@@ -42,9 +46,21 @@ export default async function GuildLayout({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-black tracking-tight">{guild.name}</h1>
           <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${guild.botInstalled && guild.leftAt === null ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              installation.state === 'configured' || installation.state === 'installed-online'
+                ? 'bg-emerald-500/10 text-emerald-500'
+                : installation.state === 'missing-permissions'
+                  ? 'bg-red-500/10 text-red-500'
+                  : 'bg-amber-500/10 text-amber-500'
+            }`}
           >
-            {guild.botInstalled && guild.leftAt === null ? 'Connected' : 'Bot not installed'}
+            {installation.state === 'configured'
+              ? 'Connected'
+              : installation.state === 'installed-online'
+                ? 'Online'
+                : installation.state === 'missing-permissions'
+                  ? 'Permissions required'
+                  : 'Bot offline'}
           </span>
         </div>
       </div>

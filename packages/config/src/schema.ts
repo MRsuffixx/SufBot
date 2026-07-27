@@ -146,34 +146,78 @@ export const ApiEnvironmentSchema = z.object({
   WEBHOOK_SIGNING_SECRET: SecretSchema,
 });
 
-export const BotEnvironmentSchema = z.object({
-  ...CommonEnvironmentShape,
-  DISCORD_BOT_TOKEN: SecretSchema,
-  DISCORD_CLIENT_ID: DiscordSnowflakeSchema,
-  BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
-  BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
-  PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
-});
+export const BotEnvironmentSchema = z
+  .object({
+    ...CommonEnvironmentShape,
+    DISCORD_BOT_TOKEN: SecretSchema,
+    DISCORD_APPLICATION_ID: DiscordSnowflakeSchema.optional(),
+    DISCORD_CLIENT_ID: DiscordSnowflakeSchema,
+    DISCORD_PUBLIC_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/),
+    DISCORD_DEVELOPMENT_GUILD_IDS: SnowflakeListSchema,
+    BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
+    BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
+    PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
+  })
+  .superRefine((environment, context) => {
+    if (
+      environment.DISCORD_APPLICATION_ID !== undefined &&
+      environment.DISCORD_APPLICATION_ID !== environment.DISCORD_CLIENT_ID
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DISCORD_APPLICATION_ID'],
+        message: 'must match DISCORD_CLIENT_ID',
+      });
+    }
+  });
 
 export const WorkerEnvironmentSchema = z.object({
   ...CommonEnvironmentShape,
 });
 
-export const WebEnvironmentSchema = z.object({
-  ...CommonEnvironmentShape,
-  DISCORD_CLIENT_ID: DiscordSnowflakeSchema,
-  DISCORD_CLIENT_SECRET: SecretSchema,
-  AUTH_SECRET: SecretSchema,
-  AUTH_TRUST_HOST: z.stringbool().default(true),
-  INTERNAL_API_SECRET: SecretSchema,
-  ENCRYPTION_KEY: EncryptionKeySchema,
-  SESSION_ENCRYPTION_KEY: EncryptionKeySchema,
-  BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
-  BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
-  PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
-});
+export const WebEnvironmentSchema = z
+  .object({
+    ...CommonEnvironmentShape,
+    DISCORD_APPLICATION_ID: DiscordSnowflakeSchema.optional(),
+    DISCORD_CLIENT_ID: DiscordSnowflakeSchema,
+    DISCORD_CLIENT_SECRET: SecretSchema,
+    DISCORD_PUBLIC_KEY: z.string().regex(/^[a-fA-F0-9]{64}$/),
+    AUTH_SECRET: SecretSchema,
+    AUTH_TRUST_HOST: z.stringbool().default(true),
+    INTERNAL_API_SECRET: SecretSchema,
+    ENCRYPTION_KEY: EncryptionKeySchema,
+    SESSION_ENCRYPTION_KEY: EncryptionKeySchema,
+    BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
+    BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
+    PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
+  })
+  .superRefine((environment, context) => {
+    if (
+      environment.DISCORD_APPLICATION_ID !== undefined &&
+      environment.DISCORD_APPLICATION_ID !== environment.DISCORD_CLIENT_ID
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DISCORD_APPLICATION_ID'],
+        message: 'must match DISCORD_CLIENT_ID',
+      });
+    }
+  });
 
 export type ApiEnvironment = z.infer<typeof ApiEnvironmentSchema>;
 export type BotEnvironment = z.infer<typeof BotEnvironmentSchema>;
 export type WorkerEnvironment = z.infer<typeof WorkerEnvironmentSchema>;
 export type WebEnvironment = z.infer<typeof WebEnvironmentSchema>;
+
+export const canonicalDiscordApplicationId = (environment: {
+  DISCORD_APPLICATION_ID?: string | undefined;
+  DISCORD_CLIENT_ID: string;
+}): string => environment.DISCORD_APPLICATION_ID ?? environment.DISCORD_CLIENT_ID;
+
+export const resolveDiscordDevelopmentGuildIds = (
+  environment: Pick<BotEnvironment, 'DISCORD_DEVELOPMENT_GUILD_IDS'>,
+  configuredGuildIds: readonly string[],
+): string[] =>
+  environment.DISCORD_DEVELOPMENT_GUILD_IDS.length > 0
+    ? environment.DISCORD_DEVELOPMENT_GUILD_IDS
+    : [...configuredGuildIds];

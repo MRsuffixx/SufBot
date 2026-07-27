@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { Bot, LockKeyhole, Settings, UserRoundCog } from 'lucide-react';
+import { Bot, LockKeyhole, Settings, ShieldAlert, UserRoundCog } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { loadDashboardGuilds, botInviteUrl } from '@/lib/discord';
+import { loadDashboardGuilds } from '@/lib/discord';
 import { requireDashboardSession } from '@/lib/session';
 
 export default async function GuildSelectionPage() {
@@ -43,33 +43,14 @@ export default async function GuildSelectionPage() {
             </div>
             <div className="mt-7 flex items-center justify-between gap-3">
               <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  guild.botInstalled
-                    ? 'bg-emerald-500/10 text-emerald-500'
-                    : 'bg-amber-500/10 text-amber-500'
-                }`}
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(
+                  guild.canManage,
+                  guild.installation.state,
+                )}`}
               >
-                {guild.botInstalled ? 'Bot installed' : 'Not installed'}
+                {statusLabel(guild.canManage, guild.installation.state)}
               </span>
-              {guild.canManage && guild.botInstalled ? (
-                <Link
-                  href={`/dashboard/guilds/${guild.id}`}
-                  className={buttonVariants({ size: 'sm' })}
-                >
-                  <Settings size={14} /> Manage
-                </Link>
-              ) : guild.canManage ? (
-                <a
-                  href={botInviteUrl(guild.id)}
-                  className={buttonVariants({ size: 'sm', variant: 'secondary' })}
-                >
-                  <Bot size={14} /> Invite
-                </a>
-              ) : (
-                <button className={buttonVariants({ size: 'sm', variant: 'secondary' })} disabled>
-                  Unavailable
-                </button>
-              )}
+              <GuildActions guild={guild} />
             </div>
           </Card>
         ))}
@@ -84,4 +65,83 @@ export default async function GuildSelectionPage() {
       ) : null}
     </div>
   );
+}
+
+function GuildActions({
+  guild,
+}: {
+  guild: Awaited<ReturnType<typeof loadDashboardGuilds>>[number];
+}) {
+  if (!guild.canManage) {
+    return (
+      <button className={buttonVariants({ size: 'sm', variant: 'secondary' })} disabled>
+        <LockKeyhole size={14} /> Insufficient permission
+      </button>
+    );
+  }
+  if (guild.installation.state === 'not-installed') {
+    return (
+      <a
+        href={`/invite?${new URLSearchParams({ guildId: guild.id, intent: 'install' })}`}
+        className={buttonVariants({ size: 'sm', variant: 'secondary' })}
+      >
+        <Bot size={14} /> Invite Bot
+      </a>
+    );
+  }
+  if (guild.installation.state === 'missing-permissions') {
+    return (
+      <div className="flex flex-wrap justify-end gap-2">
+        <Link href={`/dashboard/guilds/${guild.id}`} className={buttonVariants({ size: 'sm' })}>
+          <Settings size={14} /> Open Dashboard
+        </Link>
+        <a
+          href={`/invite?${new URLSearchParams({ guildId: guild.id, intent: 'repair' })}`}
+          className={buttonVariants({ size: 'sm', variant: 'secondary' })}
+        >
+          <ShieldAlert size={14} /> Fix Permissions
+        </a>
+      </div>
+    );
+  }
+  if (guild.installation.canOpenDashboard) {
+    return (
+      <Link href={`/dashboard/guilds/${guild.id}`} className={buttonVariants({ size: 'sm' })}>
+        <Settings size={14} /> Open Dashboard
+      </Link>
+    );
+  }
+  return (
+    <button className={buttonVariants({ size: 'sm', variant: 'secondary' })} disabled>
+      Status unavailable
+    </button>
+  );
+}
+
+function statusLabel(
+  canManage: boolean,
+  state: Awaited<ReturnType<typeof loadDashboardGuilds>>[number]['installation']['state'],
+): string {
+  if (!canManage) return 'Insufficient user permission';
+  const labels = {
+    'not-installed': 'Bot not installed',
+    'installed-online': 'Bot installed and online',
+    'installed-offline': 'Bot offline',
+    'missing-permissions': 'Administrator missing',
+    configured: 'Bot configured',
+    'status-unavailable': 'Status unavailable',
+  } as const;
+  return labels[state];
+}
+
+function statusClass(
+  canManage: boolean,
+  state: Awaited<ReturnType<typeof loadDashboardGuilds>>[number]['installation']['state'],
+): string {
+  if (!canManage) return 'bg-slate-500/10 text-slate-500';
+  if (state === 'configured' || state === 'installed-online') {
+    return 'bg-emerald-500/10 text-emerald-500';
+  }
+  if (state === 'missing-permissions') return 'bg-red-500/10 text-red-500';
+  return 'bg-amber-500/10 text-amber-500';
 }

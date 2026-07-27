@@ -14,6 +14,7 @@ import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { createId } from '@sufbot/shared';
 import { BotServices } from './services.js';
+import { GuildStatusService } from './guild-status.js';
 
 const env = loadBotEnvironment();
 const config = loadAppConfig();
@@ -60,6 +61,7 @@ const clientOptions: ClientOptions = {
   ...(config.discord.sharding.enabled ? { shards: 'auto' as const } : {}),
 };
 const client = new SapphireClient(clientOptions);
+let guildStatus: GuildStatusService | undefined;
 const startedInteractions = new Map<string, number>();
 
 client.on(SapphireEvents.ChatInputCommandRun, (interaction) => {
@@ -144,6 +146,7 @@ const shutdown = async (signal: string): Promise<void> => {
   const forceExit = setTimeout(() => process.exit(1), 20_000);
   forceExit.unref();
   client.destroy();
+  if (guildStatus !== undefined) await guildStatus.close();
   await heartbeat.close();
   await stopInvalidation();
   await cache.close();
@@ -174,5 +177,9 @@ const loginWithRetry = async (): Promise<void> => {
 };
 
 await loginWithRetry();
+if (!client.isReady()) throw new TypeError('Discord client did not become ready after login.');
+guildStatus = new GuildStatusService(client, container.sufbot);
+container.sufbot.guildStatus = guildStatus;
+await guildStatus.start();
 await heartbeat.start();
 logger.info('SufBot bot is ready');

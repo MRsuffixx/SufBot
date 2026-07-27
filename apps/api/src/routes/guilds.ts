@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { GuildModuleInputSchema, GuildSettingsInputSchema, PaginationSchema } from '@sufbot/shared';
 import { GuildRepository } from '@sufbot/database';
+import { BotGuildRuntimeStatusSchema, resolveGuildInstallation } from '@sufbot/discord';
 import {
   createApiKeyAuthenticator,
   createGuildAccessGuard,
@@ -88,6 +89,41 @@ export const registerGuildRoutes = async (
       const { guildId } = GuildParamsSchema.parse(request.params);
       const settings = await repository.getSettings(guildId);
       return { success: true, data: settings, requestId: request.id };
+    },
+  });
+
+  app.get('/v1/guilds/:guildId/bot-status', {
+    preHandler: [authenticate, guildRead],
+    schema: { tags: ['guilds'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      const [runtime, stored, liveBotInstances] = await Promise.all([
+        dependencies.cache.readRuntimeState('bot:guild', guildId, BotGuildRuntimeStatusSchema),
+        dependencies.prisma.guild.findUnique({
+          where: { id: guildId },
+          select: {
+            botInstalled: true,
+            leftAt: true,
+            botUserId: true,
+            botPermissionBitfield: true,
+            botHasAdministrator: true,
+            botHighestRolePosition: true,
+            botStatusUpdatedAt: true,
+            botLastSeenAt: true,
+            commandRegistrationMode: true,
+            commandRegistrationStatus: true,
+            registeredCommandCount: true,
+            commandSchemaHash: true,
+            commandRegistrationUpdatedAt: true,
+          },
+        }),
+        dependencies.cache.countLiveServiceInstances('bot'),
+      ]);
+      return {
+        success: true,
+        data: resolveGuildInstallation({ runtime, stored, liveBotInstances }),
+        requestId: request.id,
+      };
     },
   });
 

@@ -4,8 +4,14 @@ export const DiscordPermission = {
   Administrator: 1n << 3n,
   ManageGuild: 1n << 5n,
   ViewAuditLog: 1n << 7n,
+  ViewChannel: 1n << 10n,
+  SendMessages: 1n << 11n,
   ModerateMembers: 1n << 40n,
 } as const;
+
+export const hasDiscordPermission = (bitfield: bigint, permission: bigint): boolean =>
+  (bitfield & DiscordPermission.Administrator) === DiscordPermission.Administrator ||
+  (bitfield & permission) === permission;
 
 export type PlatformRole = 'USER' | 'ADMIN' | 'DEVELOPER' | 'OWNER';
 
@@ -53,10 +59,6 @@ export type PolicyDecision =
       reason: string;
     };
 
-const hasPermission = (bitfield: bigint, permission: bigint): boolean =>
-  (bitfield & DiscordPermission.Administrator) === DiscordPermission.Administrator ||
-  (bitfield & permission) === permission;
-
 export const isPlatformDeveloper = (role: PlatformRole): boolean =>
   role === 'OWNER' || role === 'DEVELOPER';
 
@@ -73,7 +75,7 @@ export const canManageGuild = (context: AuthorizationContext): PolicyDecision =>
     };
   }
   if (context.discordUserId === context.guildOwnerDiscordId) return { allowed: true };
-  if (hasPermission(context.userPermissions, DiscordPermission.ManageGuild)) {
+  if (hasDiscordPermission(context.userPermissions, DiscordPermission.ManageGuild)) {
     return { allowed: true };
   }
   if (context.customPermissions.has('guild.manage')) return { allowed: true };
@@ -103,7 +105,7 @@ export const canExecuteCommand = (
   }
   if (
     policy.requiredUserPermissions.some(
-      (permission) => !hasPermission(context.userPermissions, permission),
+      (permission) => !hasDiscordPermission(context.userPermissions, permission),
     )
   ) {
     return {
@@ -114,7 +116,7 @@ export const canExecuteCommand = (
   }
   if (
     policy.requiredBotPermissions.some(
-      (permission) => !hasPermission(context.botPermissions, permission),
+      (permission) => !hasDiscordPermission(context.botPermissions, permission),
     )
   ) {
     return {
@@ -183,7 +185,7 @@ export const canEditGuildModule = (
 export const canViewAuditLogs = (context: AuthorizationContext): PolicyDecision => {
   const manage = canManageGuild(context);
   if (manage.allowed) return manage;
-  if (hasPermission(context.userPermissions, DiscordPermission.ViewAuditLog)) {
+  if (hasDiscordPermission(context.userPermissions, DiscordPermission.ViewAuditLog)) {
     return { allowed: true };
   }
   return manage;

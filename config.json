@@ -17,7 +17,7 @@
     "enableSlashCommands": true,
     "registerCommandsGlobally": false,
     "developmentGuildIds": [],
-    "requiredInvitePermissions": ["ModerateMembers", "ViewAuditLog", "SendMessages"],
+    "requiredInvitePermissions": ["Administrator"],
     "intents": ["Guilds"],
     "partials": ["GuildMember", "User"],
     "sharding": {

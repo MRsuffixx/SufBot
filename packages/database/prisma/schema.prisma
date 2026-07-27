@@ -107,6 +107,17 @@ model Guild {
   iconHash               String?  @db.VarChar(128)
   ownerDiscordId         String   @db.VarChar(20)
   botInstalled           Boolean  @default(true)
+  botUserId              String?  @db.VarChar(20)
+  botPermissionBitfield  String?  @db.VarChar(32)
+  botHasAdministrator    Boolean?
+  botHighestRolePosition Int?
+  botStatusUpdatedAt     DateTime?
+  botLastSeenAt          DateTime?
+  commandRegistrationMode      String?  @db.VarChar(32)
+  commandRegistrationStatus    String?  @db.VarChar(32)
+  registeredCommandCount       Int?
+  commandSchemaHash            String?  @db.Char(64)
+  commandRegistrationUpdatedAt DateTime?
   joinedAt               DateTime @default(now())
   leftAt                 DateTime?
   createdAt              DateTime @default(now())
@@ -126,6 +137,7 @@ model Guild {
 
   @@index([ownerDiscordId])
   @@index([botInstalled, leftAt])
+  @@index([botUserId, botLastSeenAt])
 }
 
 model GuildSettings {

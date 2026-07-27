@@ -5,6 +5,8 @@ import { loadAppConfig, type AppConfig, type BotEnvironment } from '@sufbot/conf
 import type { PrismaClient } from '@sufbot/database/generated';
 import type { Logger } from '@sufbot/logger';
 import type { PlatformRole } from '@sufbot/permissions';
+import { CommandRegistrationStatusSchema, type CommandRegistrationStatus } from '@sufbot/discord';
+import type { GuildStatusService } from './guild-status.js';
 
 const AuthorizationStateSchema = z.object({
   enabledModules: z.array(z.string()),
@@ -38,6 +40,14 @@ export class CooldownService {
 export class BotServices {
   public readonly cooldowns = new CooldownService();
   public config: AppConfig;
+  public guildStatus: GuildStatusService | undefined;
+  #commandRegistrationStatus: CommandRegistrationStatus = CommandRegistrationStatusSchema.parse({
+    status: 'unknown',
+    mode: 'disabled',
+    discoveredCount: 0,
+    registeredCount: 0,
+    commandNames: [],
+  });
 
   public constructor(
     public readonly env: BotEnvironment,
@@ -52,6 +62,14 @@ export class BotServices {
   public reloadConfig(): AppConfig {
     this.config = loadAppConfig({ reload: true });
     return this.config;
+  }
+
+  public get commandRegistrationStatus(): CommandRegistrationStatus {
+    return this.#commandRegistrationStatus;
+  }
+
+  public setCommandRegistrationStatus(status: CommandRegistrationStatus): void {
+    this.#commandRegistrationStatus = CommandRegistrationStatusSchema.parse(status);
   }
 
   public platformRoleFor(discordUserId: string): PlatformRole {

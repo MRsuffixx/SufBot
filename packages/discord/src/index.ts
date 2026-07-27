@@ -1,5 +1,270 @@
 import { z, type ZodType } from 'zod';
-import { DiscordPermission } from '@sufbot/permissions';
+import { DiscordPermission, hasDiscordPermission } from '@sufbot/permissions';
+
+const DiscordSnowflakeSchema = z.string().regex(/^\d{17,20}$/);
+
+export const DiscordInstallationPermission = {
+  Administrator: DiscordPermission.Administrator,
+  ManageGuild: DiscordPermission.ManageGuild,
+  ModerateMembers: DiscordPermission.ModerateMembers,
+  SendMessages: DiscordPermission.SendMessages,
+  ViewAuditLog: DiscordPermission.ViewAuditLog,
+  ViewChannel: DiscordPermission.ViewChannel,
+} as const;
+
+export type DiscordInstallationPermissionName = keyof typeof DiscordInstallationPermission;
+
+export type DiscordInstallationUrlOptions = {
+  applicationId: string;
+  permissions?: bigint;
+  guildId?: string;
+  disableGuildSelect?: boolean;
+  redirectUri?: string;
+};
+
+export const buildDiscordInstallationUrl = (options: DiscordInstallationUrlOptions): string => {
+  const applicationId = DiscordSnowflakeSchema.parse(options.applicationId);
+  const url = new URL('https://discord.com/oauth2/authorize');
+  url.searchParams.set('client_id', applicationId);
+  url.searchParams.set(
+    'permissions',
+    (options.permissions ?? DiscordPermission.Administrator).toString(),
+  );
+  url.searchParams.set('scope', 'bot applications.commands');
+  if (options.guildId !== undefined) {
+    url.searchParams.set('guild_id', DiscordSnowflakeSchema.parse(options.guildId));
+    url.searchParams.set('disable_guild_select', String(options.disableGuildSelect ?? true));
+  }
+  if (options.redirectUri !== undefined) {
+    const redirectUri = new URL(options.redirectUri);
+    if (!['http:', 'https:'].includes(redirectUri.protocol)) {
+      throw new TypeError('Discord installation redirect URI must use HTTP or HTTPS.');
+    }
+    url.searchParams.set('redirect_uri', redirectUri.toString());
+  }
+  return url.toString();
+};
+
+export const resolveDiscordInstallationPermissions = (names: readonly string[]): bigint =>
+  names.reduce((bitfield, name) => {
+    const permission = DiscordInstallationPermission[name as DiscordInstallationPermissionName];
+    if (permission === undefined) {
+      throw new TypeError(`Unsupported Discord installation permission: ${name}.`);
+    }
+    return bitfield | permission;
+  }, 0n);
+
+export const CommandRegistrationStatusSchema = z.object({
+  status: z.enum(['unknown', 'disabled', 'pending', 'success', 'failure']),
+  mode: z.enum(['disabled', 'development-guild', 'global']),
+  discoveredCount: z.number().int().nonnegative(),
+  registeredCount: z.number().int().nonnegative(),
+  commandNames: z.array(z.string().min(1).max(32)).max(100),
+  schemaHash: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
+  updatedAt: z.iso.datetime().optional(),
+  errorCode: z.string().min(1).max(64).optional(),
+});
+
+export type CommandRegistrationStatus = z.infer<typeof CommandRegistrationStatusSchema>;
+
+export const BotGuildRuntimeStatusSchema = z.object({
+  version: z.literal(1),
+  guildId: DiscordSnowflakeSchema,
+  botUserId: DiscordSnowflakeSchema,
+  installed: z.literal(true),
+  online: z.literal(true),
+  administrator: z.boolean(),
+  permissionBitfield: z.string().regex(/^\d+$/),
+  missingPermissions: z.array(z.enum(['Administrator'])),
+  highestRolePosition: z.number().int().nonnegative(),
+  rolePositionWarning: z.boolean(),
+  configuredChannelCount: z.number().int().nonnegative(),
+  restrictedChannelCount: z.number().int().nonnegative(),
+  canSendInConfiguredChannels: z.boolean().nullable(),
+  canOpenDashboard: z.literal(true),
+  requiresReauthorization: z.boolean(),
+  commandRegistration: CommandRegistrationStatusSchema,
+  guild: z.object({
+    name: z.string().min(1).max(100),
+    iconHash: z.string().max(128).nullable(),
+    ownerDiscordId: DiscordSnowflakeSchema,
+    memberCount: z.number().int().nonnegative(),
+  }),
+  checkedAt: z.iso.datetime(),
+  lastConfigurationSyncAt: z.iso.datetime().nullable(),
+});
+
+export type BotGuildRuntimeStatus = z.infer<typeof BotGuildRuntimeStatusSchema>;
+
+export type GuildInstallationState =
+  | 'not-installed'
+  | 'installed-online'
+  | 'installed-offline'
+  | 'missing-permissions'
+  | 'configured'
+  | 'status-unavailable';
+
+export type StoredGuildInstallationState = {
+  botInstalled: boolean;
+  leftAt: Date | null;
+  botUserId: string | null;
+  botPermissionBitfield: string | null;
+  botHasAdministrator: boolean | null;
+  botHighestRolePosition: number | null;
+  botStatusUpdatedAt: Date | null;
+  botLastSeenAt: Date | null;
+  commandRegistrationMode: string | null;
+  commandRegistrationStatus: string | null;
+  registeredCommandCount: number | null;
+  commandSchemaHash: string | null;
+  commandRegistrationUpdatedAt: Date | null;
+};
+
+export type ResolvedGuildInstallation = {
+  state: GuildInstallationState;
+  installed: boolean;
+  online: boolean;
+  administrator: boolean | null;
+  missingPermissions: readonly string[];
+  rolePositionWarning: boolean | null;
+  canOpenDashboard: boolean;
+  requiresReauthorization: boolean;
+  commandRegistration: CommandRegistrationStatus | null;
+  lastBotHeartbeat: string | null;
+  lastConfigurationSyncAt: string | null;
+  source: 'bot-runtime' | 'database' | 'bot-runtime-absence' | 'unavailable';
+};
+
+export const resolveGuildInstallation = (input: {
+  runtime: BotGuildRuntimeStatus | null;
+  stored: StoredGuildInstallationState | null;
+  liveBotInstances: number;
+}): ResolvedGuildInstallation => {
+  if (input.runtime !== null) {
+    const state: GuildInstallationState = !input.runtime.administrator
+      ? 'missing-permissions'
+      : input.runtime.commandRegistration.status === 'success'
+        ? 'configured'
+        : 'installed-online';
+    return {
+      state,
+      installed: true,
+      online: true,
+      administrator: input.runtime.administrator,
+      missingPermissions: input.runtime.missingPermissions,
+      rolePositionWarning: input.runtime.rolePositionWarning,
+      canOpenDashboard: true,
+      requiresReauthorization: input.runtime.requiresReauthorization,
+      commandRegistration: input.runtime.commandRegistration,
+      lastBotHeartbeat: input.runtime.checkedAt,
+      lastConfigurationSyncAt: input.runtime.lastConfigurationSyncAt,
+      source: 'bot-runtime',
+    };
+  }
+
+  if (input.liveBotInstances > 0) {
+    return {
+      state: 'not-installed',
+      installed: false,
+      online: false,
+      administrator: null,
+      missingPermissions: [],
+      rolePositionWarning: null,
+      canOpenDashboard: false,
+      requiresReauthorization: false,
+      commandRegistration: null,
+      lastBotHeartbeat: null,
+      lastConfigurationSyncAt: null,
+      source: 'bot-runtime-absence',
+    };
+  }
+
+  if (input.stored?.botInstalled === true && input.stored.leftAt === null) {
+    return {
+      state: 'installed-offline',
+      installed: true,
+      online: false,
+      administrator: input.stored.botHasAdministrator,
+      missingPermissions: input.stored.botHasAdministrator === false ? ['Administrator'] : [],
+      rolePositionWarning:
+        input.stored.botHighestRolePosition === null
+          ? null
+          : input.stored.botHighestRolePosition <= 1,
+      canOpenDashboard: true,
+      requiresReauthorization: input.stored.botHasAdministrator === false,
+      commandRegistration: null,
+      lastBotHeartbeat: input.stored.botLastSeenAt?.toISOString() ?? null,
+      lastConfigurationSyncAt: null,
+      source: 'database',
+    };
+  }
+
+  if (input.stored?.leftAt !== null && input.stored?.leftAt !== undefined) {
+    return {
+      state: 'not-installed',
+      installed: false,
+      online: false,
+      administrator: null,
+      missingPermissions: [],
+      rolePositionWarning: null,
+      canOpenDashboard: false,
+      requiresReauthorization: false,
+      commandRegistration: null,
+      lastBotHeartbeat: input.stored.botLastSeenAt?.toISOString() ?? null,
+      lastConfigurationSyncAt: null,
+      source: 'database',
+    };
+  }
+
+  return {
+    state: 'status-unavailable',
+    installed: false,
+    online: false,
+    administrator: null,
+    missingPermissions: [],
+    rolePositionWarning: null,
+    canOpenDashboard: false,
+    requiresReauthorization: false,
+    commandRegistration: null,
+    lastBotHeartbeat: null,
+    lastConfigurationSyncAt: null,
+    source: 'unavailable',
+  };
+};
+
+export type BotPermissionDiagnosticsInput = {
+  permissionBitfield: bigint;
+  highestRolePosition: number;
+  configuredChannels?: readonly {
+    canView: boolean;
+    canSend: boolean;
+  }[];
+};
+
+export const evaluateBotPermissionDiagnostics = (input: BotPermissionDiagnosticsInput) => {
+  const administrator = hasDiscordPermission(
+    input.permissionBitfield,
+    DiscordPermission.Administrator,
+  );
+  const configuredChannels = input.configuredChannels ?? [];
+  const restrictedChannelCount = configuredChannels.filter(
+    (channel) => !channel.canView || !channel.canSend,
+  ).length;
+  return {
+    administrator,
+    missingPermissions: administrator ? [] : (['Administrator'] as const),
+    rolePositionWarning: input.highestRolePosition <= 1,
+    configuredChannelCount: configuredChannels.length,
+    restrictedChannelCount,
+    canSendInConfiguredChannels:
+      configuredChannels.length === 0 ? null : restrictedChannelCount === 0,
+    canOpenDashboard: true as const,
+    requiresReauthorization: !administrator,
+  };
+};
 
 export type CommandMetadata = {
   name: string;

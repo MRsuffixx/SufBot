@@ -31,6 +31,19 @@ export const serviceHeartbeatKey = (
   instanceId: string,
 ): string => `${namespace}:runtime:${service}:heartbeat:${instanceId}`;
 
+const runtimeSegment = (value: string): string => {
+  if (!/^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(value)) {
+    throw new TypeError('Runtime cache segment is invalid.');
+  }
+  return value;
+};
+
+export const runtimeStateKey = (namespace: string, scope: string, identifier: string): string =>
+  `${namespace}:runtime:${runtimeSegment(scope)}:${runtimeSegment(identifier)}`;
+
+export const runtimeEventChannel = (namespace: string, event: string): string =>
+  `${namespace}:runtime:events:${runtimeSegment(event)}`;
+
 export class ServiceHeartbeat {
   readonly #instanceId = randomUUID();
   readonly #redis: Redis;
@@ -193,6 +206,117 @@ export class DistributedCache {
 
   public get metrics(): Readonly<CacheMetrics> {
     return { ...this.#metrics };
+  }
+
+  public async writeRuntimeState(
+    scope: string,
+    identifier: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
+    if (!Number.isInteger(ttlSeconds) || ttlSeconds < 5 || ttlSeconds > 3600) {
+      throw new TypeError('Runtime state TTL must be between 5 and 3600 seconds.');
+    }
+    await this.connect();
+    await this.#redis.set(
+      runtimeStateKey(this.options.namespace, scope, identifier),
+      JSON.stringify(value),
+      'EX',
+      ttlSeconds,
+    );
+  }
+
+  public async readRuntimeState<T>(
+    scope: string,
+    identifier: string,
+    schema: ZodType<T>,
+  ): Promise<T | null> {
+    await this.connect();
+    const raw = await this.#redis.get(runtimeStateKey(this.options.namespace, scope, identifier));
+    if (raw === null) return null;
+    try {
+      const parsed = schema.safeParse(JSON.parse(raw) as unknown);
+      if (parsed.success) return parsed.data;
+      this.options.logger.warn(
+        { scope, identifier, issues: parsed.error.issues },
+        'invalid runtime cache state rejected',
+      );
+    } catch (error) {
+      this.options.logger.warn(
+        { err: error, scope, identifier },
+        'runtime cache state could not be parsed',
+      );
+    }
+    return null;
+  }
+
+  public async deleteRuntimeState(scope: string, identifier: string): Promise<void> {
+    await this.connect();
+    await this.#redis.del(runtimeStateKey(this.options.namespace, scope, identifier));
+  }
+
+  public async countLiveServiceInstances(
+    service: ObservableService,
+    freshnessSeconds = 30,
+  ): Promise<number> {
+    await this.connect();
+    const registryKey = serviceHeartbeatRegistryKey(this.options.namespace, service);
+    const instanceIds = await this.#redis.zrangebyscore(
+      registryKey,
+      Date.now() - freshnessSeconds * 1000,
+      '+inf',
+    );
+    if (instanceIds.length === 0) return 0;
+    const values = await this.#redis.mget(
+      ...instanceIds.map((instanceId) =>
+        serviceHeartbeatKey(this.options.namespace, service, instanceId),
+      ),
+    );
+    return values.filter((value) => value !== null).length;
+  }
+
+  public async publishRuntimeEvent(event: string, value: unknown): Promise<void> {
+    await this.connect();
+    await this.#redis.publish(
+      runtimeEventChannel(this.options.namespace, event),
+      JSON.stringify(value),
+    );
+  }
+
+  public async subscribeRuntimeEvents<T>(
+    event: string,
+    schema: ZodType<T>,
+    handler: (value: T) => Promise<void> | void,
+  ): Promise<() => Promise<void>> {
+    await this.connect();
+    const channel = runtimeEventChannel(this.options.namespace, event);
+    const subscriber = this.#redis.duplicate({ maxRetriesPerRequest: null });
+    subscriber.on('error', (error) => {
+      this.options.logger.warn({ err: error, event }, 'runtime event subscriber error');
+    });
+    await subscriber.connect();
+    await subscriber.subscribe(channel);
+    subscriber.on('message', (_channel, raw) => {
+      try {
+        const parsed = schema.safeParse(JSON.parse(raw) as unknown);
+        if (!parsed.success) {
+          this.options.logger.warn(
+            { event, issues: parsed.error.issues },
+            'invalid runtime event rejected',
+          );
+          return;
+        }
+        void Promise.resolve(handler(parsed.data)).catch((error: unknown) => {
+          this.options.logger.warn({ err: error, event }, 'runtime event handler failed');
+        });
+      } catch (error) {
+        this.options.logger.warn({ err: error, event }, 'runtime event could not be parsed');
+      }
+    });
+    return async () => {
+      await subscriber.unsubscribe(channel);
+      subscriber.disconnect();
+    };
   }
 
   public key(guildId: string, segment = 'config'): string {

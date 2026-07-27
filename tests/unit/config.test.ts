@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ApiEnvironmentSchema,
   AppConfigSchema,
+  BotEnvironmentSchema,
   WebEnvironmentSchema,
   clearConfigCacheForTests,
   loadAppConfig,
@@ -37,6 +38,7 @@ describe('configuration validation', () => {
       ...validCommonEnvironment,
       DISCORD_CLIENT_ID: '123456789012345678',
       DISCORD_CLIENT_SECRET: 'd'.repeat(32),
+      DISCORD_PUBLIC_KEY: 'a'.repeat(64),
       AUTH_SECRET: 'a'.repeat(32),
       AUTH_TRUST_HOST: 'true',
       INTERNAL_API_SECRET: 'i'.repeat(32),
@@ -47,6 +49,21 @@ describe('configuration validation', () => {
       PLATFORM_ADMIN_DISCORD_IDS: '',
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it('rejects Discord application and OAuth client ID disagreement', () => {
+    const parsed = BotEnvironmentSchema.safeParse({
+      ...validCommonEnvironment,
+      DISCORD_BOT_TOKEN: 't'.repeat(32),
+      DISCORD_APPLICATION_ID: '123456789012345678',
+      DISCORD_CLIENT_ID: '987654321098765432',
+      DISCORD_PUBLIC_KEY: 'a'.repeat(64),
+      DISCORD_DEVELOPMENT_GUILD_IDS: '111111111111111111',
+      BOT_OWNER_DISCORD_IDS: '',
+      BOT_DEVELOPER_DISCORD_IDS: '',
+      PLATFORM_ADMIN_DISCORD_IDS: '',
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it('fails clearly when config.json itself is invalid', () => {

@@ -201,3 +201,44 @@ export const updateCommandOverrideAction = async (
     revalidatePath(`/dashboard/guilds/${guildId}/commands`);
     return `The ${commandName} override was saved for role ${roleId}.`;
   });
+
+export const refreshGuildStatusAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAction(async () => {
+    await validateMutationOrigin();
+    const session = await requireDashboardSession();
+    const guildId = GuildIdSchema.parse(formData.get('guildId'));
+    const access = await requireLiveGuildAccess(session.user.id, guildId);
+    await ensureCacheConnection();
+    const claimed = await cache.claimOnce(
+      'guild-status-refresh',
+      `${session.user.id}:${guildId}`,
+      10,
+    );
+    if (!claimed) {
+      throw new AuthorizationError(
+        'Guild status was refreshed recently. Try again in a few seconds.',
+        'GUILD_STATUS_REFRESH_RATE_LIMITED',
+      );
+    }
+    const metadata = await actorMetadata();
+    const requestedAt = new Date().toISOString();
+    await Promise.all([
+      cache.publishRuntimeEvent('bot:guild-status:refresh', { guildId, requestedAt }),
+      appendAuditLog(prisma, {
+        guildId,
+        actorUserId: session.user.id,
+        actorDiscordId: access.discordUserId,
+        action: 'bot.status.refresh-requested',
+        resourceType: 'DiscordGuildInstallation',
+        resourceId: guildId,
+        requestId: metadata.requestId,
+        outcome: 'SUCCESS',
+      }),
+    ]);
+    revalidatePath(`/dashboard/guilds/${guildId}`);
+    revalidatePath('/dashboard/guilds');
+    return 'A fresh status check was requested from the bot.';
+  });
