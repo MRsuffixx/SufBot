@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./generated": {
       "types": "./src/generated/prisma/client.ts",
+      "development": "./src/generated.ts",
       "default": "./dist/generated.js"
     }
   },

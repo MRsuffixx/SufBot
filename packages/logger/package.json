@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./runtime": {
       "types": "./src/runtime.ts",
+      "development": "./src/runtime.ts",
       "default": "./dist/runtime.js"
     }
   },

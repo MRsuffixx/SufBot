@@ -46,17 +46,17 @@ const dependencyClosure = (roots) => {
   return [...selected].map((name) => `--filter=${name}`);
 };
 
-const targetFilters = {
-  full: dependencyClosure(allApplications),
-  web: dependencyClosure(['@sufbot/web']),
-  api: dependencyClosure(['@sufbot/api']),
-  bot: dependencyClosure(['@sufbot/bot']),
-  worker: dependencyClosure(['@sufbot/worker']),
-  apps: dependencyClosure(allApplications),
-  packages: ['--filter=./packages/*'],
+const targetRoots = {
+  full: allApplications,
+  web: ['@sufbot/web'],
+  api: ['@sufbot/api'],
+  bot: ['@sufbot/bot'],
+  worker: ['@sufbot/worker'],
+  apps: allApplications,
+  packages: [],
 };
 
-if (!(target in targetFilters)) {
+if (!(target in targetRoots)) {
   console.error('Development target must be full, web, api, bot, worker, apps, or packages.');
   process.exit(1);
 }
@@ -64,11 +64,11 @@ if (!(target in targetFilters)) {
 const turboScript = join(workspaceRoot, 'node_modules', 'turbo', 'bin', 'turbo');
 let activeChild;
 
-const runTurbo = (args) =>
+const runTurbo = (args, environment = process.env) =>
   new Promise((resolvePromise, reject) => {
     activeChild = spawn(process.execPath, [turboScript, ...args], {
       cwd: workspaceRoot,
-      env: process.env,
+      env: environment,
       stdio: 'inherit',
       windowsHide: true,
     });
@@ -95,10 +95,26 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 try {
   await prepareDevelopment();
-  const filters = targetFilters[target];
-  await runTurbo(['run', 'dev:build', ...filters]);
+  const packageOnly = target === 'packages';
+  const roots = targetRoots[target];
+  const preparationFilters = packageOnly
+    ? ['--filter=./packages/*']
+    : dependencyClosure(roots);
+  const runtimeFilters = packageOnly
+    ? ['--filter=./packages/*']
+    : roots.map((name) => `--filter=${name}`);
+  await runTurbo(['run', 'dev:build', ...preparationFilters]);
   console.info(`Development target "${target}" prepared; starting persistent tasks.`);
-  await runTurbo(['run', 'dev', '--concurrency=20', ...filters]);
+  const developmentEnvironment = {
+    ...process.env,
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, '--conditions=development']
+      .filter(Boolean)
+      .join(' '),
+  };
+  await runTurbo(
+    ['run', 'dev', '--concurrency=20', ...runtimeFilters],
+    developmentEnvironment,
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'Development startup failed.');
   process.exitCode = 1;
