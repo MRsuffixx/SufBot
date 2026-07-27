@@ -21,6 +21,8 @@ yarn-error.log*
 npm-debug.log*
 .pnpm-debug.log*
 
+.codex-runs
+.codex-node_modules*
 # Code Generation & Generated Artifacts
 # ------------------------------------------
 **/generated/

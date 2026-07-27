@@ -49,21 +49,21 @@ enum BackgroundJobStatus {
 }
 
 model User {
-  id              String        @id @default(uuid()) @db.Uuid
-  discordId       String        @unique @db.VarChar(20)
-  displayName     String        @db.VarChar(100)
-  avatarHash      String?       @db.VarChar(128)
-  platformRole    PlatformRole  @default(USER)
-  sessionVersion  Int           @default(1)
-  lastLoginAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  id             String       @id @default(uuid()) @db.Uuid
+  discordId      String       @unique @db.VarChar(20)
+  displayName    String       @db.VarChar(100)
+  avatarHash     String?      @db.VarChar(128)
+  platformRole   PlatformRole @default(USER)
+  sessionVersion Int          @default(1)
+  lastLoginAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
 
   oauthCredential     OAuthCredential?
   sessions            AuthSession[]
   guildAccessGrants   GuildAccessGrant[]
-  auditActions        GuildAuditLog[]       @relation("AuditActor")
+  auditActions        GuildAuditLog[]      @relation("AuditActor")
   dashboardAccessLogs DashboardAccessLog[]
   apiKeys             ApiKey[]
   commandUsages       CommandUsage[]
@@ -87,13 +87,13 @@ model OAuthCredential {
 }
 
 model AuthSession {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  tokenHash String   @unique @db.Char(64)
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -102,26 +102,26 @@ model AuthSession {
 }
 
 model Guild {
-  id                     String   @id @db.VarChar(20)
-  name                   String   @db.VarChar(100)
-  iconHash               String?  @db.VarChar(128)
-  ownerDiscordId         String   @db.VarChar(20)
-  botInstalled           Boolean  @default(true)
-  botUserId              String?  @db.VarChar(20)
-  botPermissionBitfield  String?  @db.VarChar(32)
-  botHasAdministrator    Boolean?
-  botHighestRolePosition Int?
-  botStatusUpdatedAt     DateTime?
-  botLastSeenAt          DateTime?
-  commandRegistrationMode      String?  @db.VarChar(32)
-  commandRegistrationStatus    String?  @db.VarChar(32)
+  id                           String    @id @db.VarChar(20)
+  name                         String    @db.VarChar(100)
+  iconHash                     String?   @db.VarChar(128)
+  ownerDiscordId               String    @db.VarChar(20)
+  botInstalled                 Boolean   @default(true)
+  botUserId                    String?   @db.VarChar(20)
+  botPermissionBitfield        String?   @db.VarChar(32)
+  botHasAdministrator          Boolean?
+  botHighestRolePosition       Int?
+  botStatusUpdatedAt           DateTime?
+  botLastSeenAt                DateTime?
+  commandRegistrationMode      String?   @db.VarChar(32)
+  commandRegistrationStatus    String?   @db.VarChar(32)
   registeredCommandCount       Int?
-  commandSchemaHash            String?  @db.Char(64)
+  commandSchemaHash            String?   @db.Char(64)
   commandRegistrationUpdatedAt DateTime?
-  joinedAt               DateTime @default(now())
-  leftAt                 DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  joinedAt                     DateTime  @default(now())
+  leftAt                       DateTime?
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
 
   settings            GuildSettings?
   modules             GuildModule[]
@@ -266,17 +266,17 @@ model DashboardAccessLog {
 }
 
 model CommandUsage {
-  id             String   @id @default(uuid()) @db.Uuid
-  guildId        String?  @db.VarChar(20)
-  userId         String?  @db.Uuid
-  discordUserId  String   @db.VarChar(20)
-  commandName    String   @db.VarChar(64)
-  correlationId  String   @db.VarChar(128)
-  success        Boolean
-  durationMs     Int
-  errorCode      String?  @db.VarChar(64)
-  shardId        Int?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid()) @db.Uuid
+  guildId       String?  @db.VarChar(20)
+  userId        String?  @db.Uuid
+  discordUserId String   @db.VarChar(20)
+  commandName   String   @db.VarChar(64)
+  correlationId String   @db.VarChar(128)
+  success       Boolean
+  durationMs    Int
+  errorCode     String?  @db.VarChar(64)
+  shardId       Int?
+  createdAt     DateTime @default(now())
 
   guild Guild? @relation(fields: [guildId], references: [id], onDelete: SetNull)
   user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -287,19 +287,19 @@ model CommandUsage {
 }
 
 model ApiKey {
-  id          String       @id @default(uuid()) @db.Uuid
-  userId      String       @db.Uuid
-  guildId     String?      @db.VarChar(20)
-  name        String       @db.VarChar(100)
-  keyPrefix   String       @db.VarChar(16)
-  keyHash     String       @unique @db.Char(64)
-  scopes      String[]
-  status      ApiKeyStatus @default(ACTIVE)
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @db.Uuid
+  guildId    String?      @db.VarChar(20)
+  name       String       @db.VarChar(100)
+  keyPrefix  String       @db.VarChar(16)
+  keyHash    String       @unique @db.Char(64)
+  scopes     String[]
+  status     ApiKeyStatus @default(ACTIVE)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild Guild? @relation(fields: [guildId], references: [id], onDelete: Cascade)
@@ -309,17 +309,17 @@ model ApiKey {
 }
 
 model Subscription {
-  id                   String             @id @default(uuid()) @db.Uuid
-  guildId              String             @db.VarChar(20)
-  provider             String             @db.VarChar(32)
-  providerReference    String             @unique @db.VarChar(128)
-  status               SubscriptionStatus
-  planKey              String             @db.VarChar(64)
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                 String             @id @default(uuid()) @db.Uuid
+  guildId            String             @db.VarChar(20)
+  provider           String             @db.VarChar(32)
+  providerReference  String             @unique @db.VarChar(128)
+  status             SubscriptionStatus
+  planKey            String             @db.VarChar(64)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   guild Guild @relation(fields: [guildId], references: [id], onDelete: Restrict)
 

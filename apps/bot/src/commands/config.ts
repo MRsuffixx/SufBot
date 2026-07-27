@@ -4,7 +4,6 @@ import { requireCommandMetadata } from '@sufbot/discord';
 import { GuildRepository } from '@sufbot/database';
 import { translate } from '@sufbot/shared';
 import { SufBotCommand } from '../base-command.js';
-import { registrationOptions } from '../registration.js';
 
 const languages = [
   { name: 'English', value: 'en' },
@@ -14,31 +13,6 @@ const languages = [
 export class ConfigCommand extends SufBotCommand {
   public constructor(context: Command.LoaderContext) {
     super(context, requireCommandMetadata('config'));
-  }
-
-  public override registerApplicationCommands(registry: Command.Registry): void {
-    registry.registerChatInputCommand(
-      (builder) =>
-        builder
-          .setName(this.name)
-          .setDescription(this.description)
-          .addSubcommand((subcommand) =>
-            subcommand.setName('view').setDescription('View server configuration.'),
-          )
-          .addSubcommand((subcommand) =>
-            subcommand
-              .setName('set-language')
-              .setDescription('Set the server language.')
-              .addStringOption((option) =>
-                option
-                  .setName('language')
-                  .setDescription('English or Turkish')
-                  .setRequired(true)
-                  .setAutocomplete(true),
-              ),
-          ),
-      registrationOptions(),
-    );
   }
 
   public override async chatInputRun(

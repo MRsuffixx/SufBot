@@ -4,39 +4,10 @@ import { requireCommandMetadata } from '@sufbot/discord';
 import { appendAuditLog } from '@sufbot/database';
 import { translate } from '@sufbot/shared';
 import { SufBotCommand } from '../base-command.js';
-import { registrationOptions } from '../registration.js';
 
 export class TimeoutCommand extends SufBotCommand {
   public constructor(context: Command.LoaderContext) {
     super(context, requireCommandMetadata('timeout'));
-  }
-
-  public override registerApplicationCommands(registry: Command.Registry): void {
-    registry.registerChatInputCommand(
-      (builder) =>
-        builder
-          .setName(this.name)
-          .setDescription(this.description)
-          .addUserOption((option) =>
-            option.setName('member').setDescription('Member to timeout').setRequired(true),
-          )
-          .addIntegerOption((option) =>
-            option
-              .setName('minutes')
-              .setDescription('Timeout duration in minutes')
-              .setMinValue(1)
-              .setMaxValue(40_320)
-              .setRequired(true),
-          )
-          .addStringOption((option) =>
-            option
-              .setName('reason')
-              .setDescription('Audit reason')
-              .setMaxLength(300)
-              .setRequired(false),
-          ),
-      registrationOptions(),
-    );
   }
 
   public override async chatInputRun(

@@ -2,18 +2,10 @@ import { type Command } from '@sapphire/framework';
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireCommandMetadata } from '@sufbot/discord';
 import { SufBotCommand } from '../base-command.js';
-import { registrationOptions } from '../registration.js';
 
 export class ServerinfoCommand extends SufBotCommand {
   public constructor(context: Command.LoaderContext) {
     super(context, requireCommandMetadata('serverinfo'));
-  }
-
-  public override registerApplicationCommands(registry: Command.Registry): void {
-    registry.registerChatInputCommand(
-      (builder) => builder.setName(this.name).setDescription(this.description),
-      registrationOptions(),
-    );
   }
 
   public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {

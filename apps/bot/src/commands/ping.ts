@@ -3,18 +3,10 @@ import { MessageFlags } from 'discord.js';
 import { requireCommandMetadata } from '@sufbot/discord';
 import { translate } from '@sufbot/shared';
 import { SufBotCommand } from '../base-command.js';
-import { registrationOptions } from '../registration.js';
 
 export class PingCommand extends SufBotCommand {
   public constructor(context: Command.LoaderContext) {
     super(context, requireCommandMetadata('ping'));
-  }
-
-  public override registerApplicationCommands(registry: Command.Registry): void {
-    registry.registerChatInputCommand(
-      (builder) => builder.setName(this.name).setDescription(this.description),
-      registrationOptions(),
-    );
   }
 
   public override async chatInputRun(

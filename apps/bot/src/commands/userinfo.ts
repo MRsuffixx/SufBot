@@ -1,35 +1,11 @@
 import { type Command } from '@sapphire/framework';
-import {
-  ApplicationCommandType,
-  EmbedBuilder,
-  MessageFlags,
-  type UserContextMenuCommandInteraction,
-} from 'discord.js';
+import { EmbedBuilder, MessageFlags, type UserContextMenuCommandInteraction } from 'discord.js';
 import { requireCommandMetadata } from '@sufbot/discord';
 import { SufBotCommand } from '../base-command.js';
-import { registrationOptions } from '../registration.js';
 
 export class UserinfoCommand extends SufBotCommand {
   public constructor(context: Command.LoaderContext) {
     super(context, requireCommandMetadata('userinfo'));
-  }
-
-  public override registerApplicationCommands(registry: Command.Registry): void {
-    const options = registrationOptions();
-    registry.registerChatInputCommand(
-      (builder) =>
-        builder
-          .setName(this.name)
-          .setDescription(this.description)
-          .addUserOption((option) =>
-            option.setName('user').setDescription('User to inspect').setRequired(false),
-          ),
-      options,
-    );
-    registry.registerContextMenuCommand(
-      (builder) => builder.setName('User information').setType(ApplicationCommandType.User),
-      options,
-    );
   }
 
   public override chatInputRun(interaction: Command.ChatInputCommandInteraction): Promise<unknown> {

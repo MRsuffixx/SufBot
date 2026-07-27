@@ -8,13 +8,19 @@ import {
   type ClientOptions,
   type ContextMenuCommandInteraction,
 } from 'discord.js';
-import { loadAppConfig, loadBotEnvironment } from '@sufbot/config';
+import {
+  canonicalDiscordApplicationId,
+  loadAppConfig,
+  loadBotEnvironment,
+  resolveDiscordDevelopmentGuildIds,
+} from '@sufbot/config';
 import { DistributedCache, ServiceHeartbeat } from '@sufbot/cache';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { createId } from '@sufbot/shared';
 import { BotServices } from './services.js';
 import { GuildStatusService } from './guild-status.js';
+import { CommandRegistrationManager } from './command-registration.js';
 
 const env = loadBotEnvironment();
 const config = loadAppConfig();
@@ -166,10 +172,24 @@ const loginWithRetry = async (): Promise<void> => {
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
       await client.login(env.DISCORD_BOT_TOKEN);
+      if (!client.isReady()) {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            client.off(Events.ClientReady, onReady);
+            reject(new TypeError('Discord gateway did not become ready within 30 seconds.'));
+          }, 30_000);
+          const onReady = (): void => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          client.once(Events.ClientReady, onReady);
+        });
+      }
       return;
     } catch (error) {
       lastError = error;
       logger.error({ err: error, attempt }, 'Discord login failed');
+      client.destroy();
       await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** attempt, 15_000)));
     }
   }
@@ -178,6 +198,43 @@ const loginWithRetry = async (): Promise<void> => {
 
 await loginWithRetry();
 if (!client.isReady()) throw new TypeError('Discord client did not become ready after login.');
+const applicationId = canonicalDiscordApplicationId(env);
+const developmentGuildIds = resolveDiscordDevelopmentGuildIds(
+  env,
+  config.discord.developmentGuildIds,
+);
+const commandRegistration = new CommandRegistrationManager(
+  env.DISCORD_BOT_TOKEN,
+  applicationId,
+  logger,
+);
+commandRegistration.validateClientApplication(client);
+if (!config.discord.enableSlashCommands) {
+  container.sufbot.setCommandRegistrationStatus({
+    status: 'disabled',
+    mode: 'disabled',
+    discoveredCount: 0,
+    registeredCount: 0,
+    commandNames: [],
+  });
+} else if (env.NODE_ENV === 'development') {
+  container.sufbot.setCommandRegistrationStatus(
+    await commandRegistration.deployGuilds(developmentGuildIds),
+  );
+} else {
+  const status = await commandRegistration.status('global');
+  container.sufbot.setCommandRegistrationStatus(status);
+  logger.info(
+    {
+      applicationId,
+      mode: 'global',
+      status: status.status,
+      registeredCount: status.registeredCount,
+      schemaHash: status.schemaHash,
+    },
+    'Production startup inspected global commands without redeploying',
+  );
+}
 guildStatus = new GuildStatusService(client, container.sufbot);
 container.sufbot.guildStatus = guildStatus;
 await guildStatus.start();
