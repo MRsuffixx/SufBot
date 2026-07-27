@@ -46,6 +46,7 @@ describeServices('local service integration', () => {
     expect(result.rows.map((row) => row.migration_name)).toEqual([
       '20260725000100_init',
       '20260725000200_platform_bootstrap',
+      '20260727000100_discord_installation_state',
     ]);
   });
 
