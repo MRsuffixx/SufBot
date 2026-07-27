@@ -55,6 +55,18 @@ const targetRoots = {
   apps: allApplications,
   packages: [],
 };
+const uniqueFilters = (filters) => [...new Set(filters)];
+const applicationFilters = allApplications.map((name) => `--filter=${name}`);
+const webDevelopmentFilters = dependencyClosure(['@sufbot/web']);
+const runtimeFiltersByTarget = {
+  full: uniqueFilters([...applicationFilters, ...webDevelopmentFilters]),
+  web: webDevelopmentFilters,
+  api: ['--filter=@sufbot/api'],
+  bot: ['--filter=@sufbot/bot'],
+  worker: ['--filter=@sufbot/worker'],
+  apps: uniqueFilters([...applicationFilters, ...webDevelopmentFilters]),
+  packages: ['--filter=./packages/*'],
+};
 
 if (!(target in targetRoots)) {
   console.error('Development target must be full, web, api, bot, worker, apps, or packages.');
@@ -100,21 +112,10 @@ try {
   const preparationFilters = packageOnly
     ? ['--filter=./packages/*']
     : dependencyClosure(roots);
-  const runtimeFilters = packageOnly
-    ? ['--filter=./packages/*']
-    : roots.map((name) => `--filter=${name}`);
+  const runtimeFilters = runtimeFiltersByTarget[target];
   await runTurbo(['run', 'dev:build', ...preparationFilters]);
   console.info(`Development target "${target}" prepared; starting persistent tasks.`);
-  const developmentEnvironment = {
-    ...process.env,
-    NODE_OPTIONS: [process.env.NODE_OPTIONS, '--conditions=development']
-      .filter(Boolean)
-      .join(' '),
-  };
-  await runTurbo(
-    ['run', 'dev', '--concurrency=20', ...runtimeFilters],
-    developmentEnvironment,
-  );
+  await runTurbo(['run', 'dev', '--concurrency=20', ...runtimeFilters]);
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'Development startup failed.');
   process.exitCode = 1;

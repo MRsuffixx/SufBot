@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "node ../../infrastructure/scripts/run-source-app.mjs src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --enable-source-maps dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
