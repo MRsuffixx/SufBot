@@ -4,9 +4,16 @@ ENV CI=true
 WORKDIR /workspace
 
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate
+RUN pnpm config set store-dir /pnpm/store \
+    && pnpm config set fetch-retries 5 \
+    && pnpm config set fetch-retry-mintimeout 10000 \
+    && pnpm config set fetch-retry-maxtimeout 120000 \
+    && pnpm config set fetch-timeout 300000 \
+    && pnpm config set network-concurrency 8
 
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=sufbot-pnpm-store,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile
 RUN pnpm --filter @sufbot/migrator deploy --prod /output
 RUN cp packages/database/prisma.config.ts /output/prisma.config.ts \
     && cp packages/database/prisma-config.ts /output/prisma-config.ts \
