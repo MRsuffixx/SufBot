@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build && node ../../infrastructure/scripts/prepare-web-standalone.mjs",
+    "build": "node ../../infrastructure/scripts/clean-development.mjs && next build && node ../../infrastructure/scripts/prepare-web-standalone.mjs",
     "start": "node .next/standalone/apps/web/server.js",
     "typecheck": "next typegen && tsc -p tsconfig.typecheck.json --noEmit"
   },
