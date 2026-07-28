@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DistributedCache } from '@sufbot/cache';
 import { createLogger } from '@sufbot/logger';
+import { getSafeLocalTestRedisUrl } from './environment.js';
 
-const redisUrl = process.env.TEST_REDIS_URL;
+const redisUrl = getSafeLocalTestRedisUrl();
 const run = redisUrl === undefined ? describe.skip : describe;
 const guildId = '982000000000000010';
 const SnapshotSchema = z.object({
@@ -14,10 +15,7 @@ const SnapshotSchema = z.object({
 
 run('billing Redis cache invariants', () => {
   const namespace = `sufbot:test:billing-integration:${randomUUID()}`;
-  const logger = createLogger(
-    { app: 'test', environment: 'test' },
-    { level: 'silent' },
-  );
+  const logger = createLogger({ app: 'test', environment: 'test' }, { level: 'silent' });
   let publisher: DistributedCache;
   let subscriber: DistributedCache;
 

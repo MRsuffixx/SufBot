@@ -1,14 +1,19 @@
 import Stripe from 'stripe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  StripeBillingProvider,
-  type CreateCheckoutInput,
-} from '@sufbot/billing';
+import { StripeBillingProvider, type CreateCheckoutInput } from '@sufbot/billing';
 import { loadAppConfig, type AppConfig } from '@sufbot/config';
 
 const webhookSecret = 'whsec_unit_test_secret';
 const priceId = 'price_premium_monthly';
 const nowSeconds = Math.floor(Date.now() / 1_000);
+const stripeResponse = <T extends object>(value: T): Stripe.Response<T> =>
+  Object.assign(value, {
+    lastResponse: {
+      headers: {},
+      requestId: 'req_unit_test',
+      statusCode: 200,
+    },
+  });
 
 const configuredBilling = (): AppConfig => {
   const config = structuredClone(loadAppConfig({ environment: 'test', reload: true }));
@@ -48,9 +53,7 @@ const invoiceFixture = (): Stripe.Invoice =>
     status: 'paid',
   }) as Stripe.Invoice;
 
-const subscriptionFixture = (
-  overrides: Partial<Stripe.Subscription> = {},
-): Stripe.Subscription =>
+const subscriptionFixture = (overrides: Partial<Stripe.Subscription> = {}): Stripe.Subscription =>
   ({
     id: 'sub_verified',
     object: 'subscription',
@@ -112,7 +115,7 @@ describe('Stripe billing provider', () => {
 
   it('fails readiness when the immutable Stripe Price drifts from config', async () => {
     vi.spyOn(stripe.prices, 'retrieve').mockResolvedValue(
-      priceFixture({ unit_amount: 500 }),
+      stripeResponse(priceFixture({ unit_amount: 500 })),
     );
     const capabilities = await provider.checkCapabilities();
     expect(capabilities.ready).toBe(false);
@@ -120,12 +123,14 @@ describe('Stripe billing provider', () => {
   });
 
   it('creates hosted subscription Checkout from the configured Price only', async () => {
-    const create = vi.spyOn(stripe.checkout.sessions, 'create').mockResolvedValue({
-      id: 'cs_test_verified',
-      object: 'checkout.session',
-      url: 'https://checkout.stripe.com/c/pay/cs_test_verified',
-      expires_at: nowSeconds + 3_600,
-    } as Stripe.Checkout.Session);
+    const create = vi.spyOn(stripe.checkout.sessions, 'create').mockResolvedValue(
+      stripeResponse({
+        id: 'cs_test_verified',
+        object: 'checkout.session',
+        url: 'https://checkout.stripe.com/c/pay/cs_test_verified',
+        expires_at: nowSeconds + 3_600,
+      } as Stripe.Checkout.Session),
+    );
     const input: CreateCheckoutInput = {
       checkoutSessionId: '018f3310-1ad6-7bc2-8c69-556142421111',
       subscriptionId: '018f3310-1ad6-7bc2-8c69-556142422222',
@@ -163,21 +168,23 @@ describe('Stripe billing provider', () => {
 
   it('verifies the exact raw body and normalizes a paid invoice authoritatively', async () => {
     const subscription = subscriptionFixture();
-    vi.spyOn(stripe.subscriptions, 'retrieve').mockResolvedValue(subscription);
-    vi.spyOn(stripe.invoicePayments, 'list').mockResolvedValue({
-      object: 'list',
-      data: [
-        {
-          id: 'inpay_verified',
-          object: 'invoice_payment',
-          invoice: 'in_paid',
-          payment: { type: 'payment_intent', payment_intent: 'pi_verified' },
-          status: 'paid',
-        } as Stripe.InvoicePayment,
-      ],
-      has_more: false,
-      url: '/v1/invoice_payments',
-    });
+    vi.spyOn(stripe.subscriptions, 'retrieve').mockResolvedValue(stripeResponse(subscription));
+    vi.spyOn(stripe.invoicePayments, 'list').mockResolvedValue(
+      stripeResponse({
+        object: 'list',
+        data: [
+          {
+            id: 'inpay_verified',
+            object: 'invoice_payment',
+            invoice: 'in_paid',
+            payment: { type: 'payment_intent', payment_intent: 'pi_verified' },
+            status: 'paid',
+          } as Stripe.InvoicePayment,
+        ],
+        has_more: false,
+        url: '/v1/invoice_payments',
+      } as Stripe.ApiList<Stripe.InvoicePayment>),
+    );
     const invoice = {
       ...invoiceFixture(),
       parent: {
@@ -227,5 +234,72 @@ describe('Stripe billing provider', () => {
         correlationId: 'req_stripe_unit_invalid',
       }),
     ).rejects.toMatchObject({ code: 'STRIPE_SIGNATURE_INVALID' });
+  });
+
+  it('uses provider-managed cancel, resume, and a restricted Billing Portal', async () => {
+    const managedProvider = new StripeBillingProvider({
+      config: configuredBilling(),
+      environment: 'test',
+      secretKey: 'sk_test_unit_test',
+      webhookSecret,
+      priceId,
+      portalConfigurationId: 'bpc_restricted',
+      client: stripe,
+    });
+    const update = vi
+      .spyOn(stripe.subscriptions, 'update')
+      .mockResolvedValueOnce(stripeResponse(subscriptionFixture({ cancel_at_period_end: true })))
+      .mockResolvedValueOnce(stripeResponse(subscriptionFixture({ cancel_at_period_end: false })));
+    const portal = vi.spyOn(stripe.billingPortal.sessions, 'create').mockResolvedValue(
+      stripeResponse({
+        id: 'bps_verified',
+        object: 'billing_portal.session',
+        configuration: 'bpc_restricted',
+        created: nowSeconds,
+        customer: 'cus_verified',
+        livemode: false,
+        locale: null,
+        on_behalf_of: null,
+        return_url: 'https://example.test/dashboard',
+        url: 'https://billing.stripe.com/p/session/test',
+      } as Stripe.BillingPortal.Session),
+    );
+
+    await expect(
+      managedProvider.cancelSubscription({
+        providerSubscriptionId: 'sub_verified',
+        atPeriodEnd: true,
+        idempotencyKey: 'cancel-key',
+      }),
+    ).resolves.toMatchObject({ cancelAtPeriodEnd: true });
+    await expect(
+      managedProvider.resumeSubscription({
+        providerSubscriptionId: 'sub_verified',
+        idempotencyKey: 'resume-key',
+      }),
+    ).resolves.toMatchObject({ cancelAtPeriodEnd: false });
+    await expect(
+      managedProvider.createManagementSession({
+        providerCustomerId: 'cus_verified',
+        returnUrl: 'https://example.test/dashboard',
+      }),
+    ).resolves.toMatchObject({
+      url: 'https://billing.stripe.com/p/session/test',
+    });
+    expect(update).toHaveBeenNthCalledWith(
+      1,
+      'sub_verified',
+      { cancel_at_period_end: true },
+      { idempotencyKey: 'cancel-key' },
+    );
+    expect(update).toHaveBeenNthCalledWith(
+      2,
+      'sub_verified',
+      { cancel_at_period_end: false },
+      { idempotencyKey: 'resume-key' },
+    );
+    expect(portal).toHaveBeenCalledWith(
+      expect.objectContaining({ configuration: 'bpc_restricted' }),
+    );
   });
 });

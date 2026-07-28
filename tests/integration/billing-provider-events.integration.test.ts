@@ -8,9 +8,18 @@ import {
 } from '@sufbot/billing';
 import { loadAppConfig } from '@sufbot/config';
 import { createPrismaClient, type PrismaClient } from '@sufbot/database';
+import { getSafeLocalTestDatabaseUrl } from './environment.js';
 
-const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseUrl = getSafeLocalTestDatabaseUrl();
 const run = databaseUrl === undefined ? describe.skip : describe;
+type NormalizedEventBody = NormalizedProviderEvent extends infer Event
+  ? Event extends NormalizedProviderEvent
+    ? Omit<
+        Event,
+        'provider' | 'providerEventId' | 'providerSubscriptionId' | 'environment' | 'correlationId'
+      >
+    : never
+  : never;
 
 class FixtureProvider {
   public readonly provider = 'STRIPE' as const;
@@ -39,17 +48,7 @@ run('verified provider event lifecycle', () => {
   const periodStart = new Date('2026-07-28T10:00:00.000Z');
   const periodEnd = new Date('2026-08-28T10:00:00.000Z');
 
-  const event = (
-    providerEventId: string,
-    value: Omit<
-      NormalizedProviderEvent,
-      | 'provider'
-      | 'providerEventId'
-      | 'providerSubscriptionId'
-      | 'environment'
-      | 'correlationId'
-    >,
-  ): NormalizedProviderEvent =>
+  const event = (providerEventId: string, value: NormalizedEventBody): NormalizedProviderEvent =>
     ({
       provider: 'STRIPE',
       providerEventId,
@@ -131,9 +130,7 @@ run('verified provider event lifecycle', () => {
       },
     });
     checkoutSessionId = checkout.id;
-    const providers = new Map([
-      ['STRIPE' as const, provider as unknown as BillingProvider],
-    ]);
+    const providers = new Map([['STRIPE' as const, provider as unknown as BillingProvider]]);
     service = new BillingProviderEventService(prisma, config, providers);
     entitlementService = new EntitlementService(prisma, config);
   });
@@ -288,9 +285,7 @@ run('verified provider event lifecycle', () => {
       currency: 'USD',
     });
     provider.events.set(mismatch.providerEventId, mismatch);
-    await expect(ingest(mismatch.providerEventId)).rejects.toThrow(
-      /amount or currency/i,
-    );
+    await expect(ingest(mismatch.providerEventId)).rejects.toThrow(/amount or currency/i);
     await expect(
       prisma.guildSubscription.findUniqueOrThrow({
         where: { id: subscriptionId },

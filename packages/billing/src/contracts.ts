@@ -173,10 +173,8 @@ const NormalizedEventBaseSchema = z.object({
   correlationId: RequestIdSchema,
 });
 
-const subscriptionEvent = <T extends string>(
-  type: T,
-  extension: Record<string, z.ZodType> = {},
-) => NormalizedEventBaseSchema.extend({ type: z.literal(type), ...extension }).strict();
+const subscriptionEvent = <T extends string>(type: T, extension: Record<string, z.ZodType> = {}) =>
+  NormalizedEventBaseSchema.extend({ type: z.literal(type), ...extension }).strict();
 
 export const NormalizedProviderEventSchema = z.discriminatedUnion('type', [
   subscriptionEvent('subscription.pending'),
@@ -272,9 +270,7 @@ export type NormalizedProviderEvent = NormalizedProviderEventBase &
       }
   );
 
-export const parseNormalizedProviderEvent = (
-  value: unknown,
-): NormalizedProviderEvent =>
+export const parseNormalizedProviderEvent = (value: unknown): NormalizedProviderEvent =>
   NormalizedProviderEventSchema.parse(value) as NormalizedProviderEvent;
 
 export const BillingWorkerPayloadSchema = z.discriminatedUnion('job', [

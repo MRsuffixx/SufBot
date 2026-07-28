@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  AppConfigSchema,
-  type AppConfig,
-} from '@sufbot/config';
+import { AppConfigSchema, type AppConfig } from '@sufbot/config';
 import {
   PremiumEntitlement,
   assertMinorAmount,

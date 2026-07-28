@@ -140,10 +140,7 @@ export class StripeBillingProvider implements BillingProvider {
         if (price.currency.toUpperCase() !== this.#config.billing.plan.currency) {
           reasonCodes.push('STRIPE_PRICE_CURRENCY_MISMATCH');
         }
-        if (
-          price.recurring?.interval !== 'month' ||
-          price.recurring.interval_count !== 1
-        ) {
+        if (price.recurring?.interval !== 'month' || price.recurring.interval_count !== 1) {
           reasonCodes.push('STRIPE_PRICE_INTERVAL_MISMATCH');
         }
         if (price.livemode !== (this.#environment === 'production')) {
@@ -283,14 +280,10 @@ export class StripeBillingProvider implements BillingProvider {
     return { url: session.url };
   }
 
-  public async verifyAndParseWebhook(
-    input: RawWebhookInput,
-  ): Promise<NormalizedProviderEvent> {
+  public async verifyAndParseWebhook(input: RawWebhookInput): Promise<NormalizedProviderEvent> {
     const stripe = this.#requireStripe();
     const signatureHeader = input.headers['stripe-signature'];
-    const signature = Array.isArray(signatureHeader)
-      ? signatureHeader[0]
-      : signatureHeader;
+    const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
     if (signature === undefined || signature.length === 0) {
       throw new AppError({
         code: 'STRIPE_SIGNATURE_MISSING',
@@ -415,9 +408,7 @@ export class StripeBillingProvider implements BillingProvider {
       });
     } else if (event.type.startsWith('invoice.')) {
       invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId = objectId(
-        invoice.parent?.subscription_details?.subscription,
-      );
+      const subscriptionId = objectId(invoice.parent?.subscription_details?.subscription);
       if (subscriptionId === undefined) {
         throw new AppError({
           code: 'STRIPE_INVOICE_SUBSCRIPTION_MISSING',
@@ -442,9 +433,7 @@ export class StripeBillingProvider implements BillingProvider {
       eventType: event.type,
       subscription,
       ...(providerObjectId === undefined ? {} : { providerObjectId }),
-      ...(internalCheckoutSessionId === undefined
-        ? {}
-        : { internalCheckoutSessionId }),
+      ...(internalCheckoutSessionId === undefined ? {} : { internalCheckoutSessionId }),
       ...(invoice === undefined ? {} : { invoice }),
     });
   }
@@ -602,11 +591,7 @@ export class StripeBillingProvider implements BillingProvider {
     const periodStart = snapshot.currentPeriodStart?.toISOString();
     const periodEnd = snapshot.currentPeriodEnd?.toISOString();
 
-    if (
-      snapshot.cancelAtPeriodEnd &&
-      snapshot.status === 'ACTIVE' &&
-      periodEnd !== undefined
-    ) {
+    if (snapshot.cancelAtPeriodEnd && snapshot.status === 'ACTIVE' && periodEnd !== undefined) {
       return parseNormalizedProviderEvent({
         ...base,
         type: 'subscription.cancel_scheduled',
@@ -650,9 +635,7 @@ export class StripeBillingProvider implements BillingProvider {
         ...(providerPaymentId === undefined ? {} : { providerPaymentId }),
         ...(invoice === undefined ? {} : { providerInvoiceId: invoice.id }),
         ...(invoice === undefined ? {} : { amountMinor: invoice.amount_paid }),
-        ...(invoice === undefined
-          ? {}
-          : { currency: invoice.currency.toUpperCase() }),
+        ...(invoice === undefined ? {} : { currency: invoice.currency.toUpperCase() }),
       });
     }
     if (snapshot.status === 'PAST_DUE' || snapshot.status === 'SUSPENDED') {
@@ -675,12 +658,10 @@ export class StripeBillingProvider implements BillingProvider {
     return parseNormalizedProviderEvent({
       ...base,
       type:
-        input.subscription.ended_at !== null ||
-        input.eventType === 'customer.subscription.deleted'
+        input.subscription.ended_at !== null || input.eventType === 'customer.subscription.deleted'
           ? 'subscription.expired'
           : 'subscription.cancelled',
-      effectiveAt:
-        fromUnixSeconds(input.subscription.ended_at)?.toISOString() ?? input.occurredAt,
+      effectiveAt: fromUnixSeconds(input.subscription.ended_at)?.toISOString() ?? input.occurredAt,
     });
   }
 
@@ -722,9 +703,7 @@ export class StripeBillingProvider implements BillingProvider {
         'Stripe invoice reference has been deleted.',
       );
     }
-    const subscriptionId = objectId(
-      invoice?.parent?.subscription_details?.subscription,
-    );
+    const subscriptionId = objectId(invoice?.parent?.subscription_details?.subscription);
     if (subscriptionId === undefined) {
       throw providerUnavailable(
         'STRIPE_CHARGE_SUBSCRIPTION_UNRESOLVED',

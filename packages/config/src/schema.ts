@@ -136,7 +136,7 @@ export const AppConfigSchema = z
           .strict(),
         gracePeriodDays: z.number().int().min(0).max(30),
         failedPaymentRetryWindowDays: z.number().int().min(0).max(30),
-          checkoutSessionTtlMinutes: z.number().int().min(30).max(60),
+        checkoutSessionTtlMinutes: z.number().int().min(30).max(60),
         entitlementCacheTtlSeconds: z.number().int().min(5).max(300),
         allowGuildTransfer: z.literal(false),
         cancellationPolicy: z.literal('end_of_period'),
@@ -214,10 +214,7 @@ const OptionalStringSchema = z.preprocess(
   emptyStringToUndefined,
   z.string().min(1).max(255).optional(),
 );
-const OptionalBooleanSchema = z.preprocess(
-  emptyStringToUndefined,
-  z.stringbool().default(false),
-);
+const OptionalBooleanSchema = z.preprocess(emptyStringToUndefined, z.stringbool().default(false));
 const OptionalCurrencyListSchema = z.preprocess(
   emptyStringToUndefined,
   z

@@ -80,10 +80,10 @@ describe('PayTR adapter', () => {
       expect(body.get('no_installment')).toBe('1');
       expect(body.has('merchant_key')).toBe(false);
       expect(body.has('merchant_salt')).toBe(false);
-      return new Response(
-        JSON.stringify({ status: 'success', token: 'iframe_token_1234567890' }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ status: 'success', token: 'iframe_token_1234567890' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     });
     const result = await provider('manual_renewal', fetchMock).createCheckout({
       checkoutSessionId,

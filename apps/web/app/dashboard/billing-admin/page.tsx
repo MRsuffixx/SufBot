@@ -4,8 +4,11 @@ import { ActionForm } from '@/components/action-form';
 import { Card } from '@/components/ui/card';
 import {
   adminAddPromotionAction,
+  adminAddBillingBlockAction,
   adminReconcileBillingAction,
+  adminRevokeBillingBlockAction,
   adminRevokePromotionAction,
+  adminSuspendSubscriptionAction,
 } from '@/app/actions/billing-admin';
 import { requireBillingAdmin } from '@/lib/billing-admin';
 import { billingProviders, prisma } from '@/lib/runtime';
@@ -40,14 +43,10 @@ export default async function BillingAdminPage({
   const raw = await searchParams;
   const search = SearchSchema.parse({
     ...(typeof raw.query === 'string' && raw.query !== '' ? { query: raw.query } : {}),
-    ...(typeof raw.provider === 'string' && raw.provider !== ''
-      ? { provider: raw.provider }
-      : {}),
-    ...(typeof raw.status === 'string' && raw.status !== ''
-      ? { status: raw.status }
-      : {}),
+    ...(typeof raw.provider === 'string' && raw.provider !== '' ? { provider: raw.provider } : {}),
+    ...(typeof raw.status === 'string' && raw.status !== '' ? { status: raw.status } : {}),
   });
-  const [subscriptions, failedEvents, promotions, capabilities] = await Promise.all([
+  const [subscriptions, failedEvents, promotions, capabilities, riskBlocks] = await Promise.all([
     prisma.guildSubscription.findMany({
       where: {
         ...(search.provider === undefined ? {} : { provider: search.provider }),
@@ -90,9 +89,15 @@ export default async function BillingAdminPage({
       take: 50,
       select: { guildId: true, sourceReference: true, endsAt: true },
     }),
-    Promise.all(
-      [...billingProviders.values()].map((provider) => provider.checkCapabilities()),
-    ),
+    Promise.all([...billingProviders.values()].map((provider) => provider.checkCapabilities())),
+    prisma.billingRiskBlock.findMany({
+      where: {
+        status: 'ACTIVE',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
   ]);
 
   return (
@@ -103,8 +108,8 @@ export default async function BillingAdminPage({
         </p>
         <h1 className="mt-2 text-3xl font-black">Verified financial state only</h1>
         <p className="mt-2 text-[var(--muted)]">
-          This interface cannot mark a payment as paid. Mutations require confirmation,
-          reason, idempotency, and an immutable billing role.
+          This interface cannot mark a payment as paid. Mutations require confirmation, reason,
+          idempotency, and an immutable billing role.
         </p>
       </div>
 
@@ -118,13 +123,11 @@ export default async function BillingAdminPage({
                 <span>{capability.ready ? 'Ready' : 'Unavailable'}</span>
               </div>
               <p className="mt-2 text-[var(--muted)]">
-                Recurring: {capability.recurring ? 'verified' : 'not verified'} · Card
-                storage: {capability.cardStorage ? 'verified' : 'not verified'}
+                Recurring: {capability.recurring ? 'verified' : 'not verified'} · Card storage:{' '}
+                {capability.cardStorage ? 'verified' : 'not verified'}
               </p>
               {capability.reasonCodes.length > 0 ? (
-                <p className="mt-2 text-xs text-amber-500">
-                  {capability.reasonCodes.join(', ')}
-                </p>
+                <p className="mt-2 text-xs text-amber-500">{capability.reasonCodes.join(', ')}</p>
               ) : null}
             </div>
           ))}
@@ -140,7 +143,11 @@ export default async function BillingAdminPage({
             placeholder="Guild, user, subscription"
             className="rounded-xl border bg-transparent px-3 py-2"
           />
-          <select name="provider" defaultValue={search.provider ?? ''} className="rounded-xl border bg-transparent px-3 py-2">
+          <select
+            name="provider"
+            defaultValue={search.provider ?? ''}
+            className="rounded-xl border bg-transparent px-3 py-2"
+          >
             <option value="">All providers</option>
             <option value="STRIPE">Stripe</option>
             <option value="PAYTR">PayTR</option>
@@ -170,30 +177,57 @@ export default async function BillingAdminPage({
                     {maskIdentifier(subscription.providerSubscriptionId)}
                   </p>
                 </div>
-                {subscription.providerSubscriptionId !== null ? (
-                  <ActionForm
-                    action={adminReconcileBillingAction}
-                    submitLabel="Reconcile provider"
-                    className="space-y-2"
-                  >
-                    <input type="hidden" name="subscriptionId" value={subscription.id} />
-                    <input type="hidden" name="idempotencyKey" value={createId('mut')} />
-                    <input
-                      required
-                      minLength={10}
-                      maxLength={500}
-                      name="reason"
-                      placeholder="Operational reason"
-                      className="rounded-xl border bg-transparent px-3 py-2 text-sm"
-                    />
-                    <input
-                      required
-                      name="confirmation"
-                      placeholder="Type CONFIRM"
-                      className="rounded-xl border bg-transparent px-3 py-2 text-sm"
-                    />
-                  </ActionForm>
-                ) : null}
+                <div className="space-y-3">
+                  {subscription.providerSubscriptionId !== null ? (
+                    <ActionForm
+                      action={adminReconcileBillingAction}
+                      submitLabel="Reconcile provider"
+                      className="space-y-2"
+                    >
+                      <input type="hidden" name="subscriptionId" value={subscription.id} />
+                      <input type="hidden" name="idempotencyKey" value={createId('mut')} />
+                      <input
+                        required
+                        minLength={10}
+                        maxLength={500}
+                        name="reason"
+                        placeholder="Operational reason"
+                        className="rounded-xl border bg-transparent px-3 py-2 text-sm"
+                      />
+                      <input
+                        required
+                        name="confirmation"
+                        placeholder="Type CONFIRM"
+                        className="rounded-xl border bg-transparent px-3 py-2 text-sm"
+                      />
+                    </ActionForm>
+                  ) : null}
+                  {['ACTIVE', 'PAST_DUE', 'GRACE_PERIOD'].includes(subscription.status) ? (
+                    <ActionForm
+                      action={adminSuspendSubscriptionAction}
+                      submitLabel="Suspend Premium"
+                      className="space-y-2"
+                    >
+                      <input type="hidden" name="subscriptionId" value={subscription.id} />
+                      <input type="hidden" name="expectedVersion" value={subscription.version} />
+                      <input type="hidden" name="idempotencyKey" value={createId('mut')} />
+                      <input
+                        required
+                        minLength={10}
+                        maxLength={500}
+                        name="reason"
+                        placeholder="Suspension reason"
+                        className="rounded-xl border bg-transparent px-3 py-2 text-sm"
+                      />
+                      <input
+                        required
+                        name="confirmation"
+                        placeholder="Type CONFIRM"
+                        className="rounded-xl border bg-transparent px-3 py-2 text-sm"
+                      />
+                    </ActionForm>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}
@@ -212,10 +246,32 @@ export default async function BillingAdminPage({
             className="mt-4 grid gap-3"
           >
             <input type="hidden" name="idempotencyKey" value={createId('mut')} />
-            <input required name="guildId" placeholder="Guild ID" className="rounded-xl border bg-transparent px-3 py-2" />
-            <input required type="datetime-local" name="endsAt" className="rounded-xl border bg-transparent px-3 py-2" />
-            <input required minLength={10} maxLength={500} name="reason" placeholder="Reason" className="rounded-xl border bg-transparent px-3 py-2" />
-            <input required name="confirmation" placeholder="Type CONFIRM" className="rounded-xl border bg-transparent px-3 py-2" />
+            <input
+              required
+              name="guildId"
+              placeholder="Guild ID"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              required
+              type="datetime-local"
+              name="endsAt"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              required
+              minLength={10}
+              maxLength={500}
+              name="reason"
+              placeholder="Reason"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              required
+              name="confirmation"
+              placeholder="Type CONFIRM"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
           </ActionForm>
         </Card>
         <Card>
@@ -234,8 +290,20 @@ export default async function BillingAdminPage({
                 <input type="hidden" name="guildId" value={promotion.guildId} />
                 <input type="hidden" name="sourceReference" value={promotion.sourceReference} />
                 <input type="hidden" name="idempotencyKey" value={createId('mut')} />
-                <input required minLength={10} maxLength={500} name="reason" placeholder="Revocation reason" className="my-2 rounded-xl border bg-transparent px-3 py-2" />
-                <input required name="confirmation" placeholder="Type CONFIRM" className="mb-2 rounded-xl border bg-transparent px-3 py-2" />
+                <input
+                  required
+                  minLength={10}
+                  maxLength={500}
+                  name="reason"
+                  placeholder="Revocation reason"
+                  className="my-2 rounded-xl border bg-transparent px-3 py-2"
+                />
+                <input
+                  required
+                  name="confirmation"
+                  placeholder="Type CONFIRM"
+                  className="mb-2 rounded-xl border bg-transparent px-3 py-2"
+                />
               </ActionForm>
             ))}
           </div>
@@ -257,6 +325,82 @@ export default async function BillingAdminPage({
           )}
         </div>
       </Card>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <h2 className="font-bold">Add billing review block</h2>
+          <ActionForm
+            action={adminAddBillingBlockAction}
+            submitLabel="Add review block"
+            className="mt-4 grid gap-3"
+          >
+            <input type="hidden" name="idempotencyKey" value={createId('mut')} />
+            <select name="targetType" className="rounded-xl border bg-transparent px-3 py-2">
+              <option value="USER">Internal user UUID</option>
+              <option value="GUILD">Discord guild ID</option>
+            </select>
+            <input
+              required
+              name="targetId"
+              placeholder="Target ID"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              type="datetime-local"
+              name="expiresAt"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              required
+              minLength={10}
+              maxLength={500}
+              name="reason"
+              placeholder="Review reason"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+            <input
+              required
+              name="confirmation"
+              placeholder="Type CONFIRM"
+              className="rounded-xl border bg-transparent px-3 py-2"
+            />
+          </ActionForm>
+        </Card>
+        <Card>
+          <h2 className="font-bold">Active billing review blocks</h2>
+          <div className="mt-4 space-y-4">
+            {riskBlocks.map((block) => (
+              <ActionForm
+                key={block.id}
+                action={adminRevokeBillingBlockAction}
+                submitLabel="Revoke block"
+                className="rounded-xl border p-3"
+              >
+                <p className="text-sm">
+                  {block.targetType} · {maskIdentifier(block.targetId)} · expires{' '}
+                  {block.expiresAt?.toLocaleString() ?? 'manually revoked'}
+                </p>
+                <input type="hidden" name="blockId" value={block.id} />
+                <input type="hidden" name="idempotencyKey" value={createId('mut')} />
+                <input
+                  required
+                  minLength={10}
+                  maxLength={500}
+                  name="reason"
+                  placeholder="Override reason"
+                  className="my-2 rounded-xl border bg-transparent px-3 py-2"
+                />
+                <input
+                  required
+                  name="confirmation"
+                  placeholder="Type CONFIRM"
+                  className="mb-2 rounded-xl border bg-transparent px-3 py-2"
+                />
+              </ActionForm>
+            ))}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

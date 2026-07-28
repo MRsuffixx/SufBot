@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { requireGuildAccess } from '@sufbot/auth';
+import { EntitlementService } from '@sufbot/billing';
 import { AuthorizationError, AuthenticationError, sha256 } from '@sufbot/shared';
 import type { ApiDependencies } from './types.js';
 
@@ -84,4 +85,15 @@ export const createGuildAccessGuard =
       );
     }
     await requireGuildAccess(dependencies.prisma, context.userId, guildId);
+  };
+
+export const createGuildEntitlementGuard =
+  (dependencies: ApiDependencies, entitlementKey: string) =>
+  async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
+    const guildId = readGuildId(request);
+    await new EntitlementService(
+      dependencies.prisma,
+      dependencies.config,
+      dependencies.cache,
+    ).requireGuildEntitlement(guildId, entitlementKey);
   };

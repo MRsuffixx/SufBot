@@ -15,7 +15,7 @@ import {
   resumeBillingAction,
 } from '@/app/actions/billing';
 import { requireDashboardSession } from '@/lib/session';
-import { appConfig, billingProviders, cache, prisma } from '@/lib/runtime';
+import { appConfig, billingProviders, cache, prisma, webEnvironment } from '@/lib/runtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +30,7 @@ export default async function GuildPremiumPage({
   const { guildId } = await params;
   const query = await searchParams;
   const plan = configuredPlan(appConfig);
-  const management = new BillingManagementService(
-    prisma,
-    appConfig,
-    billingProviders,
-    cache,
-  );
+  const management = new BillingManagementService(prisma, appConfig, billingProviders, cache);
   const [guild, status, payments, auditEvents, capabilities, notifications] = await Promise.all([
     prisma.guild.findUniqueOrThrow({
       where: { id: guildId },
@@ -44,9 +39,7 @@ export default async function GuildPremiumPage({
     management.getGuildBillingStatus(guildId),
     management.listPayments(guildId, 20),
     management.listAuditEvents(guildId, 20),
-    Promise.all(
-      [...billingProviders.values()].map((provider) => provider.checkCapabilities()),
-    ),
+    Promise.all([...billingProviders.values()].map((provider) => provider.checkCapabilities())),
     prisma.billingNotification.findMany({
       where: { guildId, userId: session.user.id },
       orderBy: { createdAt: 'desc' },
@@ -75,8 +68,7 @@ export default async function GuildPremiumPage({
           </p>
           <h2 className="mt-2 text-3xl font-black tracking-tight">{guild.name}</h2>
           <p className="mt-2 text-[var(--muted)]">
-            {plan.displayName} · {formatConfiguredPrice(plan.amountMinor, plan.currency)} /
-            month
+            {plan.displayName} · {formatConfiguredPrice(plan.amountMinor, plan.currency)} / month
           </p>
         </div>
         <span
@@ -107,22 +99,13 @@ export default async function GuildPremiumPage({
           <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
             <BillingFact label="Status" value={status.status?.toLowerCase() ?? 'Not subscribed'} />
             <BillingFact label="Provider" value={status.provider ?? '—'} />
-            <BillingFact
-              label="Renewal / end date"
-              value={formatDate(status.currentPeriodEnd)}
-            />
-            <BillingFact
-              label="Grace period ends"
-              value={formatDate(status.gracePeriodEndsAt)}
-            />
+            <BillingFact label="Renewal / end date" value={formatDate(status.currentPeriodEnd)} />
+            <BillingFact label="Grace period ends" value={formatDate(status.gracePeriodEndsAt)} />
             <BillingFact
               label="Cancellation"
               value={status.cancelAtPeriodEnd ? 'Scheduled at period end' : 'Not scheduled'}
             />
-            <BillingFact
-              label="Billing owner"
-              value={purchaser?.displayName ?? '—'}
-            />
+            <BillingFact label="Billing owner" value={purchaser?.displayName ?? '—'} />
             <BillingFact
               label="Last successful payment"
               value={lastSuccessful?.paidAt?.toLocaleString() ?? '—'}
@@ -135,47 +118,28 @@ export default async function GuildPremiumPage({
             />
           </dl>
 
-          {isBillingOwner &&
-          status.subscriptionId !== null &&
-          status.version !== null ? (
+          {isBillingOwner && status.subscriptionId !== null && status.version !== null ? (
             <div className="mt-6 flex flex-wrap gap-3">
               {status.cancelAtPeriodEnd ? (
-                <ActionForm
-                  action={resumeBillingAction}
-                  submitLabel="Resume renewal"
-                >
+                <ActionForm action={resumeBillingAction} submitLabel="Resume renewal">
                   <input type="hidden" name="guildId" value={guildId} />
-                  <input
-                    type="hidden"
-                    name="subscriptionId"
-                    value={status.subscriptionId}
-                  />
+                  <input type="hidden" name="subscriptionId" value={status.subscriptionId} />
                   <input type="hidden" name="expectedVersion" value={status.version} />
                   <input type="hidden" name="idempotencyKey" value={createId('mut')} />
                 </ActionForm>
               ) : status.status === 'ACTIVE' ? (
-                <ActionForm
-                  action={cancelBillingAction}
-                  submitLabel="Cancel at period end"
-                >
+                <ActionForm action={cancelBillingAction} submitLabel="Cancel at period end">
                   <input type="hidden" name="guildId" value={guildId} />
-                  <input
-                    type="hidden"
-                    name="subscriptionId"
-                    value={status.subscriptionId}
-                  />
+                  <input type="hidden" name="subscriptionId" value={status.subscriptionId} />
                   <input type="hidden" name="expectedVersion" value={status.version} />
                   <input type="hidden" name="idempotencyKey" value={createId('mut')} />
                 </ActionForm>
               ) : null}
-              {status.provider === 'STRIPE' ? (
+              {status.provider === 'STRIPE' &&
+              webEnvironment.STRIPE_PORTAL_CONFIGURATION_ID !== undefined ? (
                 <form action={openBillingPortalAction}>
                   <input type="hidden" name="guildId" value={guildId} />
-                  <input
-                    type="hidden"
-                    name="subscriptionId"
-                    value={status.subscriptionId}
-                  />
+                  <input type="hidden" name="subscriptionId" value={status.subscriptionId} />
                   <input type="hidden" name="idempotencyKey" value={createId('mut')} />
                   <Button type="submit" variant="secondary">
                     Manage payment method
@@ -228,7 +192,7 @@ export default async function GuildPremiumPage({
 
       {status.subscriptionId === null ? (
         <div>
-          <h3 className="text-xl font-bold">Choose a recurring provider</h3>
+          <h3 className="text-xl font-bold">Choose a payment option</h3>
           <div className="mt-4 grid gap-5 md:grid-cols-2">
             <ProviderCard
               title="Pay with Stripe"
@@ -252,11 +216,7 @@ export default async function GuildPremiumPage({
               reason={paytr?.reasonCodes[0] ?? 'PAYTR_RECURRING_CAPABILITY_UNVERIFIED'}
             >
               {paytr?.ready === true ? (
-                <BillingCheckoutForm
-                  guildId={guildId}
-                  planCode={plan.code}
-                  provider="PAYTR"
-                />
+                <BillingCheckoutForm guildId={guildId} planCode={plan.code} provider="PAYTR" />
               ) : null}
             </ProviderCard>
           </div>
@@ -278,8 +238,7 @@ export default async function GuildPremiumPage({
                       payment.amountMinor,
                       CurrencyCodeSchema.parse(payment.currency),
                     )}{' '}
-                    ·{' '}
-                    {payment.status.toLowerCase()}
+                    · {payment.status.toLowerCase()}
                   </span>
                 </div>
               ))
@@ -336,13 +295,10 @@ function ProviderCard({
     <Card className={!available ? 'opacity-70' : ''}>
       <div className="flex items-center justify-between gap-3">
         <h4 className="font-bold">{title}</h4>
-        <span className="text-xs font-semibold">
-          {available ? 'Available' : 'Unavailable'}
-        </span>
+        <span className="text-xs font-semibold">{available ? 'Available' : 'Unavailable'}</span>
       </div>
       <p className="mt-3 text-sm text-[var(--muted)]">
-        {recurring ? 'Automatic monthly renewal' : 'No verified recurring support'} ·{' '}
-        {currency}
+        {recurring ? 'Automatic monthly renewal' : 'No verified recurring support'} · {currency}
       </p>
       <p className="mt-2 text-xs text-[var(--muted)]">
         Payment details are handled on the provider-hosted secure flow.

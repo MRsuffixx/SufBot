@@ -7,8 +7,9 @@ import {
 } from '@sufbot/billing';
 import { loadAppConfig } from '@sufbot/config';
 import { createPrismaClient, type PrismaClient } from '@sufbot/database';
+import { getSafeLocalTestDatabaseUrl } from './environment.js';
 
-const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseUrl = getSafeLocalTestDatabaseUrl();
 const run = databaseUrl === undefined ? describe.skip : describe;
 
 run('billing PostgreSQL invariants', () => {
@@ -20,10 +21,7 @@ run('billing PostgreSQL invariants', () => {
   const guildA = '981000000000000010';
   const guildB = '981000000000000011';
 
-  const createSubscription = async (
-    guildId: string,
-    providerReference: string,
-  ) =>
+  const createSubscription = async (guildId: string, providerReference: string) =>
     prisma.guildSubscription.create({
       data: {
         guildId,
@@ -114,9 +112,7 @@ run('billing PostgreSQL invariants', () => {
     ]);
     expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
     expect(attempts.filter((attempt) => attempt.status === 'rejected')).toHaveLength(1);
-    await expect(
-      prisma.guildSubscription.count({ where: { guildId: guildA } }),
-    ).resolves.toBe(1);
+    await expect(prisma.guildSubscription.count({ where: { guildId: guildA } })).resolves.toBe(1);
   });
 
   it('deduplicates provider events by provider and provider event ID', async () => {
@@ -226,11 +222,7 @@ run('billing PostgreSQL invariants', () => {
       invalidate: () => Promise.resolve(),
       publish: () => Promise.reject(new Error('redis unavailable')),
     };
-    const service = new SubscriptionReconciliationService(
-      prisma,
-      config,
-      failingCache as never,
-    );
+    const service = new SubscriptionReconciliationService(prisma, config, failingCache as never);
     const periodStart = new Date('2026-07-28T00:00:00.000Z');
     const result = await service.applyState({
       subscriptionId: subscription.id,
@@ -249,5 +241,57 @@ run('billing PostgreSQL invariants', () => {
         where: { subscriptionId: subscription.id, status: 'ACTIVE' },
       }),
     ).resolves.toBeGreaterThan(0);
+  });
+
+  it('revokes Premium on a version-checked staff suspension and audits the reason', async () => {
+    const subscription = await createSubscription(guildA, 'sub_staff_suspension');
+    const service = new SubscriptionReconciliationService(prisma, config);
+    const entitlements = new EntitlementService(prisma, config);
+    const periodStart = new Date('2026-07-28T00:00:00.000Z');
+    const activeAt = new Date('2026-07-28T00:01:00.000Z');
+    await service.applyState({
+      subscriptionId: subscription.id,
+      nextStatus: 'ACTIVE',
+      expectedVersion: 1,
+      latestPaymentStatus: 'SUCCEEDED',
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: new Date('2026-08-28T00:00:00.000Z'),
+      requestId: 'billing-integration-suspension-activate',
+      source: 'webhook',
+      now: activeAt,
+    });
+    await service.applyState({
+      subscriptionId: subscription.id,
+      nextStatus: 'SUSPENDED',
+      expectedVersion: 2,
+      requestId: 'billing-integration-suspension-admin',
+      source: 'admin',
+      actorType: 'STAFF',
+      auditMetadata: {
+        reason: 'Verified staff review requested suspension',
+        action: 'staff-entitlement-suspension',
+      },
+      now: new Date('2026-07-28T00:02:00.000Z'),
+    });
+
+    await expect(
+      entitlements.hasGuildEntitlement(
+        guildA,
+        PremiumEntitlement.Base,
+        new Date('2026-07-28T00:03:00.000Z'),
+      ),
+    ).resolves.toBe(false);
+    await expect(
+      prisma.billingAuditEvent.findFirst({
+        where: {
+          subscriptionId: subscription.id,
+          actorType: 'STAFF',
+          requestId: 'billing-integration-suspension-admin',
+        },
+        select: { metadata: true },
+      }),
+    ).resolves.toMatchObject({
+      metadata: { reason: 'Verified staff review requested suspension' },
+    });
   });
 });

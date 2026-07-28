@@ -41,7 +41,10 @@ const PaytrCallbackSchema = z
     test_mode: z.enum(['0', '1']).optional(),
     payment_type: z.enum(['card', 'eft']),
     currency: z.enum(['TL', 'TRY', 'USD', 'EUR', 'GBP', 'RUB']).optional(),
-    payment_amount: z.string().regex(/^\d{1,12}$/).optional(),
+    payment_amount: z
+      .string()
+      .regex(/^\d{1,12}$/)
+      .optional(),
   })
   .strict();
 
@@ -118,12 +121,14 @@ export const paytrMerchantOrderId = (checkoutSessionId: string): string =>
 
 export const checkoutSessionIdFromPaytrOrder = (merchantOrderId: string): string => {
   const hex = merchantOrderId.slice(MERCHANT_ORDER_PREFIX.length);
-  return z.uuid().parse(
-    `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
-      16,
-      20,
-    )}-${hex.slice(20)}`,
-  );
+  return z
+    .uuid()
+    .parse(
+      `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
+        16,
+        20,
+      )}-${hex.slice(20)}`,
+    );
 };
 
 const addCalendarMonth = (value: Date): Date => {
@@ -261,14 +266,8 @@ export class PaytrBillingProvider implements BillingProvider {
       });
     }
     const merchantId = this.#credential(this.options.merchantId, 'PAYTR_MERCHANT_ID_MISSING');
-    const merchantKey = this.#credential(
-      this.options.merchantKey,
-      'PAYTR_MERCHANT_KEY_MISSING',
-    );
-    const merchantSalt = this.#credential(
-      this.options.merchantSalt,
-      'PAYTR_MERCHANT_SALT_MISSING',
-    );
+    const merchantKey = this.#credential(this.options.merchantKey, 'PAYTR_MERCHANT_KEY_MISSING');
+    const merchantSalt = this.#credential(this.options.merchantSalt, 'PAYTR_MERCHANT_SALT_MISSING');
     const merchantOrderId = paytrMerchantOrderId(input.checkoutSessionId);
     const paymentAmount = String(input.plan.amountMinor);
     const currency = input.plan.currency;
@@ -312,13 +311,7 @@ export class PaytrBillingProvider implements BillingProvider {
       merchant_ok_url: input.successUrl,
       merchant_fail_url: input.cancelUrl,
       timeout_limit: String(
-        Math.max(
-          30,
-          Math.min(
-            60,
-            Math.ceil((input.expiresAt.getTime() - Date.now()) / 60_000),
-          ),
-        ),
+        Math.max(30, Math.min(60, Math.ceil((input.expiresAt.getTime() - Date.now()) / 60_000))),
       ),
       currency,
       test_mode: testMode,
@@ -371,17 +364,9 @@ export class PaytrBillingProvider implements BillingProvider {
     };
   }
 
-  public async verifyAndParseWebhook(
-    input: RawWebhookInput,
-  ): Promise<NormalizedProviderEvent> {
-    const merchantKey = this.#credential(
-      this.options.merchantKey,
-      'PAYTR_MERCHANT_KEY_MISSING',
-    );
-    const merchantSalt = this.#credential(
-      this.options.merchantSalt,
-      'PAYTR_MERCHANT_SALT_MISSING',
-    );
+  public async verifyAndParseWebhook(input: RawWebhookInput): Promise<NormalizedProviderEvent> {
+    const merchantKey = this.#credential(this.options.merchantKey, 'PAYTR_MERCHANT_KEY_MISSING');
+    const merchantSalt = this.#credential(this.options.merchantSalt, 'PAYTR_MERCHANT_SALT_MISSING');
     const callback = callbackFields(input.rawBody);
     const expectedHash = createPaytrCallbackHash({
       merchantOrderId: callback.merchant_oid,
@@ -408,9 +393,7 @@ export class PaytrBillingProvider implements BillingProvider {
         statusCode: 400,
       });
     }
-    const internalCheckoutSessionId = checkoutSessionIdFromPaytrOrder(
-      callback.merchant_oid,
-    );
+    const internalCheckoutSessionId = checkoutSessionIdFromPaytrOrder(callback.merchant_oid);
     const base = {
       provider: 'PAYTR' as const,
       providerEventId: `paytr:${callback.merchant_oid}`,

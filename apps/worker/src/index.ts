@@ -60,9 +60,7 @@ const stripeProvider = new StripeBillingProvider({
   config,
   environment: env.NODE_ENV,
   ...(env.STRIPE_SECRET_KEY === undefined ? {} : { secretKey: env.STRIPE_SECRET_KEY }),
-  ...(env.STRIPE_WEBHOOK_SECRET === undefined
-    ? {}
-    : { webhookSecret: env.STRIPE_WEBHOOK_SECRET }),
+  ...(env.STRIPE_WEBHOOK_SECRET === undefined ? {} : { webhookSecret: env.STRIPE_WEBHOOK_SECRET }),
   ...(env.STRIPE_PRICE_ID === undefined ? {} : { priceId: env.STRIPE_PRICE_ID }),
   ...(env.STRIPE_PORTAL_CONFIGURATION_ID === undefined
     ? {}
@@ -73,9 +71,7 @@ const paytrProvider = new PaytrBillingProvider({
   environment: env.NODE_ENV,
   ...(env.PAYTR_MERCHANT_ID === undefined ? {} : { merchantId: env.PAYTR_MERCHANT_ID }),
   ...(env.PAYTR_MERCHANT_KEY === undefined ? {} : { merchantKey: env.PAYTR_MERCHANT_KEY }),
-  ...(env.PAYTR_MERCHANT_SALT === undefined
-    ? {}
-    : { merchantSalt: env.PAYTR_MERCHANT_SALT }),
+  ...(env.PAYTR_MERCHANT_SALT === undefined ? {} : { merchantSalt: env.PAYTR_MERCHANT_SALT }),
   ...(env.PAYTR_CALLBACK_URL === undefined ? {} : { callbackUrl: env.PAYTR_CALLBACK_URL }),
   iframeCapabilityEnabled: env.PAYTR_IFRAME_ENABLED,
   recurringCapabilityEnabled: env.PAYTR_RECURRING_ENABLED,
@@ -211,11 +207,7 @@ const runRecordedBillingJob = async (
 };
 
 const providerSubscriptionIdFromSummary = (summary: unknown): string | undefined => {
-  if (
-    typeof summary !== 'object' ||
-    summary === null ||
-    !('providerSubscriptionId' in summary)
-  ) {
+  if (typeof summary !== 'object' || summary === null || !('providerSubscriptionId' in summary)) {
     return undefined;
   }
   const value = (summary as { providerSubscriptionId?: unknown }).providerSubscriptionId;
@@ -462,9 +454,7 @@ const billingWorker = new Worker(
   billingIdentity.name,
   async (job: Job): Promise<void> => {
     const payload = BillingWorkerPayloadSchema.parse(job.data);
-    await runRecordedBillingJob(QueueName.Billing, job, () =>
-      processBillingPayload(payload),
-    );
+    await runRecordedBillingJob(QueueName.Billing, job, () => processBillingPayload(payload));
   },
   {
     connection: registry.connection,
@@ -526,20 +516,14 @@ auditWorker.on('failed', (job, error) => {
 });
 auditWorker.on('error', (error) => logger.error({ err: error }, 'audit worker connection error'));
 
-const trackBillingFailure = (
-  queueName: string,
-  job: Job | undefined,
-  error: Error,
-): void => {
+const trackBillingFailure = (queueName: string, job: Job | undefined, error: Error): void => {
   logger.error(
     { err: error, queueName, jobId: job?.id, attemptsMade: job?.attemptsMade },
     'billing job failed',
   );
   if (job === undefined) return;
   const configuredAttempts =
-    typeof job.opts.attempts === 'number'
-      ? job.opts.attempts
-      : config.queue.defaultAttempts;
+    typeof job.opts.attempts === 'number' ? job.opts.attempts : config.queue.defaultAttempts;
   const idempotencyKey = billingJobIdempotencyKey(job);
   void prisma.backgroundJobRecord
     .updateMany({
@@ -568,9 +552,7 @@ const trackBillingFailure = (
   }
 };
 
-billingWorker.on('failed', (job, error) =>
-  trackBillingFailure(QueueName.Billing, job, error),
-);
+billingWorker.on('failed', (job, error) => trackBillingFailure(QueueName.Billing, job, error));
 billingNotificationWorker.on('failed', (job, error) =>
   trackBillingFailure(QueueName.BillingNotifications, job, error),
 );
@@ -609,11 +591,7 @@ await billingCache.connect();
 await heartbeat.start();
 logger.info(
   {
-    queues: [
-      QueueName.Audit,
-      QueueName.Billing,
-      QueueName.BillingNotifications,
-    ],
+    queues: [QueueName.Audit, QueueName.Billing, QueueName.BillingNotifications],
   },
   'SufBot worker is ready',
 );

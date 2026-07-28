@@ -1,10 +1,7 @@
 import { Queue, type JobsOptions, type ConnectionOptions } from 'bullmq';
 import { z } from 'zod';
 import { sha256 } from '@sufbot/shared';
-import {
-  BillingWorkerPayloadSchema,
-  type BillingWorkerPayload,
-} from '@sufbot/billing';
+import { BillingWorkerPayloadSchema, type BillingWorkerPayload } from '@sufbot/billing';
 
 export const QueueName = {
   Audit: 'audit',
@@ -141,9 +138,7 @@ export class QueueRegistry {
         break;
     }
     const job = await this.get(
-      payload.job.includes('notification')
-        ? QueueName.BillingNotifications
-        : QueueName.Billing,
+      payload.job.includes('notification') ? QueueName.BillingNotifications : QueueName.Billing,
     ).add(payload.job, payload, {
       jobId: sha256(identity),
       deduplication: { id: identity },

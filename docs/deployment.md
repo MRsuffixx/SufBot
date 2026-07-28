@@ -103,3 +103,20 @@ Discord client/bot, Auth.js, internal API, database, and Redis credentials can b
 replacing secrets and rolling all consumers. Rotating `ENCRYPTION_KEY` requires the
 keyring/re-encryption work described in the OAuth guide or forces every user to re-authenticate
 after deleting stored credentials.
+
+## Billing deployment gate
+
+1. Apply all billing migrations and back up PostgreSQL.
+2. Keep `billing.enabled=false` while configuring secrets and provider dashboards.
+3. Run `pnpm billing:config:check`, `billing:plans:check`, and `billing:providers:check`.
+4. Verify the configured Stripe Price and restricted Billing Portal configuration.
+5. Expose `POST /v1/webhooks/stripe` and `POST /v1/webhooks/paytr` through HTTPS without
+   user-session authentication. Preserve raw bodies and provider retry responses.
+6. Deliver signed test-mode Stripe events and, only for an approved PayTR merchant, complete the
+   documented merchant-panel test payment/callback.
+7. Confirm test and production credentials cannot reach the other environment's data.
+8. Verify worker billing queues, DLQ visibility, Redis invalidation, and PostgreSQL backup restore.
+9. Enable billing only after legal terms, privacy, refund, tax, and accounting owners approve.
+
+Rotate webhook secrets by coordinating the provider dashboard and deployment rollout. Never reuse
+test secrets in production or place them in configuration files.

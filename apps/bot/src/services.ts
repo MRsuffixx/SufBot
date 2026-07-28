@@ -92,31 +92,31 @@ export class BotServices {
     const [authorization, entitlements] = await Promise.all([
       this.cache.getOrLoad(guildId, 'authorization', AuthorizationStateSchema, async () => {
         const [modules, flags, rolePermissions] = await Promise.all([
-        this.prisma.guildModule.findMany({
-          where: { guildId, enabled: true },
-          select: { moduleKey: true },
-        }),
-        this.prisma.featureFlag.findMany({
-          where: {
-            enabled: true,
-            OR: [{ scopeKey: 'platform' }, { guildId }],
-          },
-          select: { key: true },
-        }),
-        this.prisma.guildRolePermission.findMany({
-          where: { guildId },
-          select: { discordRoleId: true, permissions: true },
-        }),
-      ]);
-      const enabled = new Set(modules.map((module) => module.moduleKey));
-      enabled.add('general');
-      return {
-        enabledModules: [...enabled],
-        featureFlags: flags.map((flag) => flag.key),
-        rolePermissions: Object.fromEntries(
-          rolePermissions.map((permission) => [permission.discordRoleId, permission.permissions]),
-        ),
-      };
+          this.prisma.guildModule.findMany({
+            where: { guildId, enabled: true },
+            select: { moduleKey: true },
+          }),
+          this.prisma.featureFlag.findMany({
+            where: {
+              enabled: true,
+              OR: [{ scopeKey: 'platform' }, { guildId }],
+            },
+            select: { key: true },
+          }),
+          this.prisma.guildRolePermission.findMany({
+            where: { guildId },
+            select: { discordRoleId: true, permissions: true },
+          }),
+        ]);
+        const enabled = new Set(modules.map((module) => module.moduleKey));
+        enabled.add('general');
+        return {
+          enabledModules: [...enabled],
+          featureFlags: flags.map((flag) => flag.key),
+          rolePermissions: Object.fromEntries(
+            rolePermissions.map((permission) => [permission.discordRoleId, permission.permissions]),
+          ),
+        };
       }),
       this.entitlements.listGuildEntitlements(guildId),
     ]);

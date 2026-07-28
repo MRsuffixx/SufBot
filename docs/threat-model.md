@@ -44,6 +44,12 @@ and operator secret store.
 | dependency/CI compromise            | exact versions, lockfile integrity, allowlisted install scripts, audits, container builds | pin Actions by immutable SHA in hardened orgs            |
 | database/Redis exposure             | private network, auth, non-root containers                                                | enable TLS across hosts and host firewalling             |
 | malicious operator                  | append-oriented audits, least privilege, immutable releases                               | database owners can alter data; export audits externally |
+| forged payment callback             | Stripe raw-body signature; PayTR constant-time HMAC; strict body limits                   | verify public delivery in each provider test environment |
+| checkout redirect spoofing          | redirect is informational; signed event plus stored checkout binding is authoritative     | customer sees processing until reconciliation            |
+| cross-guild Premium grant           | fresh Discord authorization, guild-bound checkout/subscription/entitlement                | support detachment remains a controlled manual process   |
+| duplicate/out-of-order billing      | provider event uniqueness, payload hash, optimistic version, provider retrieval           | failed ambiguous events require operator reconciliation  |
+| price/currency drift                | integer config, persisted snapshot, immutable Stripe Price check, PayTR approval gate     | tax/accounting policy remains external                   |
+| refund/dispute desynchronization    | explicit normalized states and conservative entitlement suspension/revocation             | partial-refund policy requires legal approval            |
 
 ## Security invariants
 
@@ -54,6 +60,8 @@ and operator secret store.
 5. Background retries cannot repeat an effect with the same durable idempotency key.
 6. Owner/developer access is based on immutable IDs, not usernames.
 7. Errors exposed to users do not include stack traces or arbitrary provider messages.
+8. Premium is never activated by a browser redirect, queue replay, or cache value.
+9. A PayTR one-time iFrame payment is never represented as automatic recurrence.
 
 ## Abuse cases reviewed
 

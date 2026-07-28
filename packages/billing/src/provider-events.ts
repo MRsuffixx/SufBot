@@ -24,10 +24,7 @@ const rawPayloadHash = (rawBody: Buffer): string =>
   createHash('sha256').update(rawBody).digest('hex');
 
 const isUniqueConstraintError = (error: unknown): boolean =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  error.code === 'P2002';
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 
 export type ProviderEventProcessingResult = {
   providerEventRecordId: string;
@@ -44,15 +41,9 @@ export class BillingProviderEventService {
     private readonly config: AppConfig,
     private readonly providers: ProviderRegistry,
     cache?: BillingCache,
-    private readonly enqueueBillingJob?: (
-      payload: BillingWorkerPayload,
-    ) => Promise<unknown>,
+    private readonly enqueueBillingJob?: (payload: BillingWorkerPayload) => Promise<unknown>,
   ) {
-    this.#reconciliation = new SubscriptionReconciliationService(
-      prisma,
-      config,
-      cache,
-    );
+    this.#reconciliation = new SubscriptionReconciliationService(prisma, config, cache);
   }
 
   public async ingestWebhook(
@@ -157,10 +148,7 @@ export class BillingProviderEventService {
     }
   }
 
-  async #process(
-    providerEventRecordId: string,
-    event: NormalizedProviderEvent,
-  ): Promise<string> {
+  async #process(providerEventRecordId: string, event: NormalizedProviderEvent): Promise<string> {
     await this.prisma.billingProviderEvent.update({
       where: { id: providerEventRecordId },
       data: { processingStatus: 'PROCESSING' },
@@ -169,8 +157,7 @@ export class BillingProviderEventService {
     const occurredAt = new Date(event.occurredAt);
 
     if (
-      (event.type === 'subscription.activated' ||
-        event.type === 'subscription.renewed') &&
+      (event.type === 'subscription.activated' || event.type === 'subscription.renewed') &&
       event.amountMinor !== undefined &&
       (event.amountMinor !== subscription.amountMinorSnapshot ||
         event.currency !== subscription.currencySnapshot)
@@ -181,12 +168,7 @@ export class BillingProviderEventService {
     }
 
     if (event.type === 'subscription.refunded' && !event.fullRefund) {
-      await this.#recordPartialRefund(
-        providerEventRecordId,
-        event,
-        subscription,
-        occurredAt,
-      );
+      await this.#recordPartialRefund(providerEventRecordId, event, subscription, occurredAt);
       return subscription.id;
     }
 
@@ -232,9 +214,7 @@ export class BillingProviderEventService {
               : { providerInvoiceId: event.providerInvoiceId }),
             idempotencyKey: event.providerEventId,
             type:
-              event.type === 'subscription.renewed' || succeededCount > 0
-                ? 'RENEWAL'
-                : 'INITIAL',
+              event.type === 'subscription.renewed' || succeededCount > 0 ? 'RENEWAL' : 'INITIAL',
             status: 'SUCCEEDED',
             amountMinor: event.amountMinor,
             currency: event.currency,
@@ -316,9 +296,7 @@ export class BillingProviderEventService {
       case 'subscription.dispute_resolved': {
         const provider = this.providers.get(event.provider);
         if (provider === undefined) throw new NotFoundError('Billing provider');
-        const snapshot = await provider.retrieveSubscription(
-          event.providerSubscriptionId,
-        );
+        const snapshot = await provider.retrieveSubscription(event.providerSubscriptionId);
         nextStatus =
           snapshot.status === 'ACTIVE' && snapshot.latestPaymentStatus === 'SUCCEEDED'
             ? 'ACTIVE'
@@ -378,8 +356,7 @@ export class BillingProviderEventService {
         ? 'billing.send-payment-failed-notification'
         : event.type === 'subscription.cancel_scheduled'
           ? 'billing.send-cancellation-notification'
-          : event.type === 'subscription.activated' ||
-              event.type === 'subscription.renewed'
+          : event.type === 'subscription.activated' || event.type === 'subscription.renewed'
             ? 'billing.send-renewal-confirmation'
             : undefined;
     if (notificationJob !== undefined && this.enqueueBillingJob !== undefined) {
@@ -428,8 +405,7 @@ export class BillingProviderEventService {
       }
       if (
         checkout.subscription.providerSubscriptionId !== null &&
-        checkout.subscription.providerSubscriptionId !==
-          event.providerSubscriptionId
+        checkout.subscription.providerSubscriptionId !== event.providerSubscriptionId
       ) {
         throw new ConflictError('Provider subscription binding cannot be replaced.');
       }
@@ -452,10 +428,7 @@ export class BillingProviderEventService {
               },
             },
           });
-          if (
-            mapping !== null &&
-            mapping.providerCustomerId !== event.providerCustomerId
-          ) {
+          if (mapping !== null && mapping.providerCustomerId !== event.providerCustomerId) {
             throw new ConflictError('Provider customer binding cannot be replaced.');
           }
           await transaction.billingCustomer.upsert({

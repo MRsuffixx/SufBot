@@ -4,15 +4,9 @@ import { sanitizeAuditValue } from '@sufbot/database';
 import type { PrismaClient } from '@sufbot/database/generated';
 import { ConflictError, NotFoundError } from '@sufbot/shared';
 import { entitlementsForFeatureSet } from './catalogue.js';
-import {
-  SubscriptionStatusSchema,
-  type SubscriptionStatus,
-} from './contracts.js';
+import { SubscriptionStatusSchema, type SubscriptionStatus } from './contracts.js';
 import { EntitlementService } from './entitlements.js';
-import {
-  assertSubscriptionTransition,
-  subscriptionGrantsPremium,
-} from './state-machine.js';
+import { assertSubscriptionTransition, subscriptionGrantsPremium } from './state-machine.js';
 
 export type SubscriptionStateUpdate = {
   subscriptionId: string;
@@ -41,20 +35,14 @@ export type SubscriptionStateUpdate = {
   actorType?: 'SYSTEM' | 'WORKER' | 'PROVIDER' | 'STAFF';
   actorUserId?: string;
   providerEventRecordId?: string;
+  auditMetadata?: Record<string, string | number | boolean | null>;
   payment?: {
     provider: 'STRIPE' | 'PAYTR';
     providerPaymentId?: string;
     providerInvoiceId?: string;
     merchantOrderId?: string;
     idempotencyKey: string;
-    type:
-      | 'INITIAL'
-      | 'RENEWAL'
-      | 'RETRY'
-      | 'REFUND'
-      | 'PARTIAL_REFUND'
-      | 'CHARGEBACK'
-      | 'REVERSAL';
+    type: 'INITIAL' | 'RENEWAL' | 'RETRY' | 'REFUND' | 'PARTIAL_REFUND' | 'CHARGEBACK' | 'REVERSAL';
     status:
       | 'PENDING'
       | 'SUCCEEDED'
@@ -88,9 +76,7 @@ export class SubscriptionReconciliationService {
     this.entitlements = new EntitlementService(prisma, config, cache);
   }
 
-  public async applyState(
-    input: SubscriptionStateUpdate,
-  ): Promise<{
+  public async applyState(input: SubscriptionStateUpdate): Promise<{
     subscriptionId: string;
     guildId: string;
     version: number;
@@ -198,9 +184,7 @@ export class SubscriptionReconciliationService {
             ...(input.payment.failureMessageSanitized === undefined
               ? {}
               : { failureMessageSanitized: input.payment.failureMessageSanitized }),
-            ...(input.payment.paidAt === undefined
-              ? {}
-              : { paidAt: input.payment.paidAt }),
+            ...(input.payment.paidAt === undefined ? {} : { paidAt: input.payment.paidAt }),
             ...(input.payment.refundedAt === undefined
               ? {}
               : { refundedAt: input.payment.refundedAt }),
@@ -216,9 +200,7 @@ export class SubscriptionReconciliationService {
             ...(input.payment.failureMessageSanitized === undefined
               ? {}
               : { failureMessageSanitized: input.payment.failureMessageSanitized }),
-            ...(input.payment.paidAt === undefined
-              ? {}
-              : { paidAt: input.payment.paidAt }),
+            ...(input.payment.paidAt === undefined ? {} : { paidAt: input.payment.paidAt }),
             ...(input.payment.refundedAt === undefined
               ? {}
               : { refundedAt: input.payment.refundedAt }),
@@ -315,6 +297,8 @@ export class SubscriptionReconciliationService {
           }),
           requestId: input.requestId,
           source: input.source,
+          metadata:
+            input.auditMetadata === undefined ? {} : sanitizeAuditValue(input.auditMetadata),
         },
       });
       if (input.providerEventRecordId !== undefined) {

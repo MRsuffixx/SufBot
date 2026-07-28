@@ -15,10 +15,7 @@ export const assertMinorAmount = (amountMinor: number): number => {
   return amountMinor;
 };
 
-export const minorAmountToDecimal = (
-  amountMinor: number,
-  currency: CurrencyCode,
-): string => {
+export const minorAmountToDecimal = (amountMinor: number, currency: CurrencyCode): string => {
   const safeAmount = assertMinorAmount(amountMinor);
   const safeCurrency = CurrencyCodeSchema.parse(currency);
   const digits = currencyFractionDigits[safeCurrency];

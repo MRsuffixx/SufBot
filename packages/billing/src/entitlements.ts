@@ -150,6 +150,22 @@ export class EntitlementService {
         };
   }
 
+  public async getGuildLimits(
+    guildId: string,
+    at = new Date(),
+  ): Promise<{
+    tier: 'free' | 'premium';
+    limits: AppConfig['billing']['limits']['free'];
+  }> {
+    const premium = await this.hasGuildEntitlement(guildId, PremiumEntitlement.Base, at);
+    return {
+      tier: premium ? 'premium' : 'free',
+      limits: premium
+        ? { ...this.config.billing.limits.premium }
+        : { ...this.config.billing.limits.free },
+    };
+  }
+
   public async getGuildPremiumStatus(
     guildId: string,
     at = new Date(),

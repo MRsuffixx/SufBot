@@ -5,27 +5,20 @@ import { z } from 'zod';
 import {
   BillingManagementService,
   EntitlementService,
+  SubscriptionReconciliationService,
   entitlementsForFeatureSet,
 } from '@sufbot/billing';
 import { createId, isAppError } from '@sufbot/shared';
 import { requireBillingAdmin } from '@/lib/billing-admin';
 import { validateMutationOrigin } from '@/lib/server-security';
-import {
-  appConfig,
-  billingProviders,
-  cache,
-  ensureCacheConnection,
-  prisma,
-} from '@/lib/runtime';
+import { appConfig, billingProviders, cache, ensureCacheConnection, prisma } from '@/lib/runtime';
 import type { ActionState } from './guild';
 
 const MutationIdSchema = z.string().regex(/^mut_[a-f0-9]{32}$/);
 const GuildIdSchema = z.string().regex(/^\d{17,20}$/);
 const ReasonSchema = z.string().trim().min(10).max(500);
 
-const safeAdminAction = async (
-  operation: () => Promise<string>,
-): Promise<ActionState> => {
+const safeAdminAction = async (operation: () => Promise<string>): Promise<ActionState> => {
   try {
     return { status: 'success', message: await operation() };
   } catch (error) {
@@ -60,12 +53,7 @@ export const adminReconcileBillingAction = async (
   safeAdminAction(async () => {
     const { actor, idempotencyKey, reason } = await authorizeMutation(formData);
     const subscriptionId = z.uuid().parse(formData.get('subscriptionId'));
-    const management = new BillingManagementService(
-      prisma,
-      appConfig,
-      billingProviders,
-      cache,
-    );
+    const management = new BillingManagementService(prisma, appConfig, billingProviders, cache);
     const result = await management.reconcileAsSystem({
       subscriptionId,
       requestId: createId('req'),
@@ -86,6 +74,44 @@ export const adminReconcileBillingAction = async (
     return 'Provider state was retrieved and reconciled.';
   });
 
+export const adminSuspendSubscriptionAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAdminAction(async () => {
+    const { actor, idempotencyKey, reason } = await authorizeMutation(formData);
+    const subscriptionId = z.uuid().parse(formData.get('subscriptionId'));
+    const expectedVersion = z.coerce
+      .number()
+      .int()
+      .positive()
+      .parse(formData.get('expectedVersion'));
+    const subscription = await prisma.guildSubscription.findUnique({
+      where: { id: subscriptionId },
+      select: { status: true },
+    });
+    if (
+      subscription === null ||
+      !(['ACTIVE', 'PAST_DUE', 'GRACE_PERIOD'] as const).includes(
+        subscription.status as 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD',
+      )
+    ) {
+      throw new Error('Only a currently effective paid subscription can be suspended.');
+    }
+    await new SubscriptionReconciliationService(prisma, appConfig, cache).applyState({
+      subscriptionId,
+      expectedVersion,
+      nextStatus: 'SUSPENDED',
+      requestId: idempotencyKey,
+      source: 'admin',
+      actorType: 'STAFF',
+      actorUserId: actor.session.user.id,
+      auditMetadata: { reason, action: 'staff-entitlement-suspension' },
+    });
+    revalidatePath('/dashboard/billing-admin');
+    return 'Premium was suspended. Restore only by reconciling verified provider state.';
+  });
+
 export const adminAddPromotionAction = async (
   _previous: ActionState,
   formData: FormData,
@@ -99,9 +125,7 @@ export const adminAddPromotionAction = async (
       throw new Error('Promotion expiry must be within the next 366 days.');
     }
     const sourceReference = `promo_${idempotencyKey.slice(4)}`;
-    const entitlementKeys = entitlementsForFeatureSet(
-      appConfig.billing.plan.featureSetVersion,
-    );
+    const entitlementKeys = entitlementsForFeatureSet(appConfig.billing.plan.featureSetVersion);
     const version = await prisma.$transaction(async (transaction) => {
       for (const entitlementKey of entitlementKeys) {
         await transaction.guildEntitlement.upsert({
@@ -200,4 +224,100 @@ export const adminRevokePromotionAction = async (
     );
     revalidatePath('/dashboard/billing-admin');
     return 'Manual promotion was revoked.';
+  });
+
+export const adminAddBillingBlockAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAdminAction(async () => {
+    const { actor, idempotencyKey, reason } = await authorizeMutation(formData);
+    const targetType = z.enum(['USER', 'GUILD']).parse(formData.get('targetType'));
+    const targetId =
+      targetType === 'USER'
+        ? z.uuid().parse(formData.get('targetId'))
+        : GuildIdSchema.parse(formData.get('targetId'));
+    const expiresAtValue = formData.get('expiresAt');
+    const expiresAt =
+      typeof expiresAtValue === 'string' && expiresAtValue !== ''
+        ? z.coerce.date().parse(expiresAtValue)
+        : null;
+    if (
+      expiresAt !== null &&
+      (expiresAt <= new Date() || expiresAt > new Date(Date.now() + 366 * 86_400_000))
+    ) {
+      throw new Error('Block expiry must be within the next 366 days.');
+    }
+    await prisma.$transaction(async (transaction) => {
+      const block = await transaction.billingRiskBlock.create({
+        data: {
+          targetType,
+          targetId,
+          reason,
+          createdByUserId: actor.session.user.id,
+          expiresAt,
+        },
+      });
+      await transaction.billingAuditEvent.create({
+        data: {
+          actorType: 'STAFF',
+          actorUserId: actor.session.user.id,
+          ...(targetType === 'GUILD' ? { guildId: targetId } : {}),
+          action: 'billing.admin.risk-block-added',
+          requestId: idempotencyKey,
+          source: 'admin',
+          newValue: {
+            blockId: block.id,
+            targetType,
+            targetId,
+            expiresAt,
+          },
+          metadata: { reason },
+        },
+      });
+    });
+    revalidatePath('/dashboard/billing-admin');
+    return 'Billing checkout block was added for manual review.';
+  });
+
+export const adminRevokeBillingBlockAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAdminAction(async () => {
+    const { actor, idempotencyKey, reason } = await authorizeMutation(formData);
+    const blockId = z.uuid().parse(formData.get('blockId'));
+    const block = await prisma.billingRiskBlock.findUnique({ where: { id: blockId } });
+    if (block === null || block.status !== 'ACTIVE') {
+      throw new Error('Active billing block was not found.');
+    }
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.billingRiskBlock.update({
+        where: { id: block.id },
+        data: {
+          status: 'REVOKED',
+          revokedAt: now,
+          revokedByUserId: actor.session.user.id,
+        },
+      }),
+      prisma.billingAuditEvent.create({
+        data: {
+          actorType: 'STAFF',
+          actorUserId: actor.session.user.id,
+          ...(block.targetType === 'GUILD' ? { guildId: block.targetId } : {}),
+          action: 'billing.admin.risk-block-revoked',
+          requestId: idempotencyKey,
+          source: 'admin',
+          previousValue: {
+            blockId: block.id,
+            targetType: block.targetType,
+            targetId: block.targetId,
+          },
+          metadata: { reason },
+        },
+      }),
+    ]);
+    revalidatePath('/dashboard/billing-admin');
+    return 'Billing checkout block was revoked.';
   });

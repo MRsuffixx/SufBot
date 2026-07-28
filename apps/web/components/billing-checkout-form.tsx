@@ -67,8 +67,9 @@ export function BillingCheckoutForm({
           disabled={disabled}
         />
         <span>
-          I confirm this guild, the monthly automatic renewal, the cancellation
-          policy, and the Terms and Privacy Policy.
+          {provider === 'STRIPE'
+            ? 'I confirm this guild, monthly automatic renewal, the cancellation policy, and the Terms and Privacy Policy.'
+            : 'I confirm this guild, a single one-month entitlement with no automatic renewal, and the Terms and Privacy Policy.'}
         </span>
       </label>
       <Button type="submit" disabled={disabled}>

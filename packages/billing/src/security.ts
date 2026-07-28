@@ -30,15 +30,10 @@ export const createBillingIdempotencyKey = (
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(internalReference)) {
     throw new TypeError('Billing idempotency reference is invalid.');
   }
-  if (
-    periodReference !== undefined &&
-    !/^[A-Za-z0-9:._-]{1,64}$/.test(periodReference)
-  ) {
+  if (periodReference !== undefined && !/^[A-Za-z0-9:._-]{1,64}$/.test(periodReference)) {
     throw new TypeError('Billing period reference is invalid.');
   }
-  return sha256(
-    [provider, operation, internalReference, periodReference ?? 'initial'].join(':'),
-  );
+  return sha256([provider, operation, internalReference, periodReference ?? 'initial'].join(':'));
 };
 
 const providerSecretPattern =

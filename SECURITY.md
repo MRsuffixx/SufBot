@@ -4,6 +4,17 @@ SufBot handles Discord OAuth credentials and multi-tenant configuration. Treat e
 session, API, database, cache, and queue change as security-sensitive. This policy does not claim
 that the project is immune to vulnerabilities.
 
+## Billing reports
+
+Treat forged callbacks, cross-guild entitlements, duplicate charging, price/currency manipulation,
+payment data exposure, or test/production crossover as critical. Preserve request IDs and provider
+event IDs, but never include card data, secrets, callback hashes, full provider payloads, or billing
+contact data in a report. Disable the affected provider, retain PostgreSQL/audit evidence, and
+reconcile against the provider before restoring access. Do not manually mark a payment paid.
+
+Billing architecture, incident recovery, and provider-specific controls are documented in
+`docs/billing-security.md` and `docs/billing-operations.md`.
+
 ## Reporting a vulnerability
 
 Do not open a public issue containing exploit details, credentials, guild data, or personal

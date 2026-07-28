@@ -145,19 +145,21 @@ model User {
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
 
-  oauthCredential     OAuthCredential?
-  sessions            AuthSession[]
-  guildAccessGrants   GuildAccessGrant[]
-  auditActions        GuildAuditLog[]      @relation("AuditActor")
-  dashboardAccessLogs DashboardAccessLog[]
-  apiKeys             ApiKey[]
-  commandUsages       CommandUsage[]
-  billingCustomers    BillingCustomer[]
-  purchasedSubscriptions GuildSubscription[] @relation("SubscriptionPurchaser")
-  paymentTransactions PaymentTransaction[]
-  checkoutSessions    CheckoutSession[]
-  billingAuditEvents  BillingAuditEvent[] @relation("BillingAuditActor")
-  billingNotifications BillingNotification[]
+  oauthCredential          OAuthCredential?
+  sessions                 AuthSession[]
+  guildAccessGrants        GuildAccessGrant[]
+  auditActions             GuildAuditLog[]       @relation("AuditActor")
+  dashboardAccessLogs      DashboardAccessLog[]
+  apiKeys                  ApiKey[]
+  commandUsages            CommandUsage[]
+  billingCustomers         BillingCustomer[]
+  purchasedSubscriptions   GuildSubscription[]   @relation("SubscriptionPurchaser")
+  paymentTransactions      PaymentTransaction[]
+  checkoutSessions         CheckoutSession[]
+  billingAuditEvents       BillingAuditEvent[]   @relation("BillingAuditActor")
+  billingNotifications     BillingNotification[]
+  billingRiskBlocksCreated BillingRiskBlock[]    @relation("BillingRiskBlockCreatedBy")
+  billingRiskBlocksRevoked BillingRiskBlock[]    @relation("BillingRiskBlockRevokedBy")
 
   @@index([platformRole])
   @@index([deletedAt])
@@ -215,21 +217,21 @@ model Guild {
   createdAt                    DateTime  @default(now())
   updatedAt                    DateTime  @updatedAt
 
-  settings            GuildSettings?
-  modules             GuildModule[]
-  rolePermissions     GuildRolePermission[]
-  commandOverrides    GuildCommandOverride[]
-  auditLogs           GuildAuditLog[]
-  accessGrants        GuildAccessGrant[]
-  dashboardAccessLogs DashboardAccessLog[]
-  commandUsages       CommandUsage[]
-  apiKeys             ApiKey[]
-  subscriptions       GuildSubscription[]
-  featureFlags        FeatureFlag[]
-  entitlements        GuildEntitlement[]
-  paymentTransactions PaymentTransaction[]
-  checkoutSessions    CheckoutSession[]
-  billingAuditEvents  BillingAuditEvent[]
+  settings             GuildSettings?
+  modules              GuildModule[]
+  rolePermissions      GuildRolePermission[]
+  commandOverrides     GuildCommandOverride[]
+  auditLogs            GuildAuditLog[]
+  accessGrants         GuildAccessGrant[]
+  dashboardAccessLogs  DashboardAccessLog[]
+  commandUsages        CommandUsage[]
+  apiKeys              ApiKey[]
+  subscriptions        GuildSubscription[]
+  featureFlags         FeatureFlag[]
+  entitlements         GuildEntitlement[]
+  paymentTransactions  PaymentTransaction[]
+  checkoutSessions     CheckoutSession[]
+  billingAuditEvents   BillingAuditEvent[]
   billingNotifications BillingNotification[]
 
   @@index([ownerDiscordId])
@@ -490,18 +492,18 @@ model GuildSubscription {
 }
 
 model GuildEntitlement {
-  id               String                   @id @default(uuid()) @db.Uuid
-  guildId          String                   @db.VarChar(20)
-  entitlementKey   String                   @db.VarChar(100)
-  source           GuildEntitlementSource
-  sourceReference  String                   @db.VarChar(128)
-  subscriptionId   String?                  @db.Uuid
-  startsAt         DateTime
-  endsAt           DateTime?
-  status           GuildEntitlementStatus   @default(ACTIVE)
-  metadata         Json                     @default("{}")
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
+  id              String                 @id @default(uuid()) @db.Uuid
+  guildId         String                 @db.VarChar(20)
+  entitlementKey  String                 @db.VarChar(100)
+  source          GuildEntitlementSource
+  sourceReference String                 @db.VarChar(128)
+  subscriptionId  String?                @db.Uuid
+  startsAt        DateTime
+  endsAt          DateTime?
+  status          GuildEntitlementStatus @default(ACTIVE)
+  metadata        Json                   @default("{}")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   guild        Guild              @relation(fields: [guildId], references: [id], onDelete: Restrict)
   subscription GuildSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
@@ -513,26 +515,26 @@ model GuildEntitlement {
 }
 
 model PaymentTransaction {
-  id                      String                   @id @default(uuid()) @db.Uuid
-  guildId                 String                   @db.VarChar(20)
-  purchaserUserId         String                   @db.Uuid
-  subscriptionId          String                   @db.Uuid
+  id                      String                 @id @default(uuid()) @db.Uuid
+  guildId                 String                 @db.VarChar(20)
+  purchaserUserId         String                 @db.Uuid
+  subscriptionId          String                 @db.Uuid
   provider                BillingProviderName
-  providerPaymentId       String?                  @db.VarChar(255)
-  providerInvoiceId       String?                  @db.VarChar(255)
-  merchantOrderId         String?                  @db.VarChar(64)
-  idempotencyKey          String                   @db.VarChar(128)
+  providerPaymentId       String?                @db.VarChar(255)
+  providerInvoiceId       String?                @db.VarChar(255)
+  merchantOrderId         String?                @db.VarChar(64)
+  idempotencyKey          String                 @db.VarChar(128)
   type                    PaymentTransactionType
-  status                  PaymentStatus            @default(PENDING)
+  status                  PaymentStatus          @default(PENDING)
   amountMinor             Int
-  currency                String                   @db.Char(3)
-  failureCode             String?                  @db.VarChar(100)
-  failureMessageSanitized String?                  @db.VarChar(500)
+  currency                String                 @db.Char(3)
+  failureCode             String?                @db.VarChar(100)
+  failureMessageSanitized String?                @db.VarChar(500)
   paidAt                  DateTime?
   refundedAt              DateTime?
   disputedAt              DateTime?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
 
   guild        Guild             @relation(fields: [guildId], references: [id], onDelete: Restrict)
   purchaser    User              @relation(fields: [purchaserUserId], references: [id], onDelete: Restrict)
@@ -628,17 +630,17 @@ model BillingAuditEvent {
 }
 
 model BillingNotification {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @db.Uuid
-  guildId        String   @db.VarChar(20)
-  subscriptionId String   @db.Uuid
-  eventKey       String   @unique @db.VarChar(128)
-  type           String   @db.VarChar(64)
-  title          String   @db.VarChar(120)
-  message        String   @db.VarChar(500)
-  metadata       Json     @default("{}")
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  guildId        String    @db.VarChar(20)
+  subscriptionId String    @db.Uuid
+  eventKey       String    @unique @db.VarChar(128)
+  type           String    @db.VarChar(64)
+  title          String    @db.VarChar(120)
+  message        String    @db.VarChar(500)
+  metadata       Json      @default("{}")
   readAt         DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild        Guild             @relation(fields: [guildId], references: [id], onDelete: Cascade)
@@ -647,6 +649,26 @@ model BillingNotification {
   @@index([userId, readAt, createdAt(sort: Desc)])
   @@index([guildId, createdAt(sort: Desc)])
   @@index([subscriptionId, createdAt(sort: Desc)])
+}
+
+model BillingRiskBlock {
+  id              String    @id @default(uuid()) @db.Uuid
+  targetType      String    @db.VarChar(16)
+  targetId        String    @db.VarChar(64)
+  reason          String    @db.VarChar(500)
+  status          String    @default("ACTIVE") @db.VarChar(16)
+  createdByUserId String    @db.Uuid
+  revokedByUserId String?   @db.Uuid
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdBy User  @relation("BillingRiskBlockCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revokedBy User? @relation("BillingRiskBlockRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId, status, expiresAt])
+  @@index([createdAt(sort: Desc)])
 }
 
 model FeatureFlag {

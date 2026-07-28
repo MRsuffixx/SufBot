@@ -2,8 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { requireGuildAccess } from '@sufbot/auth';
 import { GuildRepository, createPrismaClient, type PrismaClient } from '@sufbot/database';
 import { DiscordPermission } from '@sufbot/permissions';
+import { getSafeLocalTestDatabaseUrl } from './environment.js';
 
-const databaseUrl = process.env.TEST_DATABASE_URL;
+const databaseUrl = getSafeLocalTestDatabaseUrl();
 const run = databaseUrl === undefined ? describe.skip : describe;
 
 run('PostgreSQL tenant isolation', () => {

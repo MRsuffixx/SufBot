@@ -1,12 +1,7 @@
 import { ConflictError } from '@sufbot/shared';
-import {
-  SubscriptionStatusSchema,
-  type SubscriptionStatus,
-} from './contracts.js';
+import { SubscriptionStatusSchema, type SubscriptionStatus } from './contracts.js';
 
-const allowedTransitions: Readonly<
-  Record<SubscriptionStatus, ReadonlySet<SubscriptionStatus>>
-> = {
+const allowedTransitions: Readonly<Record<SubscriptionStatus, ReadonlySet<SubscriptionStatus>>> = {
   PENDING: new Set(['INCOMPLETE', 'ACTIVE', 'CANCELLED', 'EXPIRED']),
   INCOMPLETE: new Set(['ACTIVE', 'EXPIRED', 'CANCELLED']),
   ACTIVE: new Set([

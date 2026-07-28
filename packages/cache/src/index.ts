@@ -420,9 +420,7 @@ export class DistributedCache {
     const validated = InvalidationSchema.parse(event);
     await this.invalidate(
       validated.guildId,
-      validated.type === 'guild.config.updated'
-        ? validated.module
-        : 'billing:entitlements',
+      validated.type === 'guild.config.updated' ? validated.module : 'billing:entitlements',
     );
     try {
       await this.#redis.publish(this.options.invalidationChannel, JSON.stringify(validated));

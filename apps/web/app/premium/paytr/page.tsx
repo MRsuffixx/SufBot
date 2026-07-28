@@ -18,8 +18,8 @@ export default async function PaytrPaymentPage() {
       <Card>
         <h1 className="text-2xl font-black">PayTR secure payment</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Premium activates only after the signed PayTR callback is durably processed.
-          This page is not proof of payment.
+          Premium activates only after the signed PayTR callback is durably processed. This page is
+          not proof of payment.
         </p>
         <iframe
           title="PayTR secure payment"

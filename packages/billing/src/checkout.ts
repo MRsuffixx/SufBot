@@ -14,6 +14,7 @@ import {
   sanitizeProviderMessage,
   verifyCheckoutNonce,
 } from './security.js';
+import { BillingRiskService } from './risk.js';
 
 type ProviderRegistry = ReadonlyMap<BillingProviderName, BillingProvider>;
 
@@ -36,10 +37,7 @@ export type CreateGuildCheckoutInput = {
 };
 
 const isUniqueConstraintError = (error: unknown): boolean =>
-  typeof error === 'object' &&
-  error !== null &&
-  'code' in error &&
-  error.code === 'P2002';
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 
 export class BillingCheckoutService {
   public constructor(
@@ -49,9 +47,7 @@ export class BillingCheckoutService {
     private readonly environment: 'development' | 'test' | 'production',
   ) {}
 
-  public async createCheckout(
-    input: CreateGuildCheckoutInput,
-  ): Promise<CheckoutResponse> {
+  public async createCheckout(input: CreateGuildCheckoutInput): Promise<CheckoutResponse> {
     if (!this.config.billing.enabled) {
       return {
         kind: 'unavailable',
@@ -77,6 +73,12 @@ export class BillingCheckoutService {
         message: 'The selected billing provider is not enabled.',
       };
     }
+    await new BillingRiskService(this.prisma).assertCheckoutAllowed({
+      userId: input.userId,
+      guildId: input.guildId,
+      requestId: input.requestId,
+      ...(input.now === undefined ? {} : { now: input.now }),
+    });
     const capabilities = await provider.checkCapabilities();
     if (!capabilities.ready) {
       return {
@@ -218,9 +220,7 @@ export class BillingCheckoutService {
         ...(existingCustomer?.status === 'ACTIVE'
           ? { providerCustomerId: existingCustomer.providerCustomerId }
           : {}),
-        ...(input.paytrCustomer === undefined
-          ? {}
-          : { paytrCustomer: input.paytrCustomer }),
+        ...(input.paytrCustomer === undefined ? {} : { paytrCustomer: input.paytrCustomer }),
       });
       await this.prisma.checkoutSession.update({
         where: { id: records.checkoutSessionId },

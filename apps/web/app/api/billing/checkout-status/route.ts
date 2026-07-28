@@ -3,12 +3,7 @@ import { NextResponse } from 'next/server';
 import { BillingCheckoutService } from '@sufbot/billing';
 import { isAppError } from '@sufbot/shared';
 import { auth } from '@/auth';
-import {
-  appConfig,
-  billingProviders,
-  prisma,
-  webEnvironment,
-} from '@/lib/runtime';
+import { appConfig, billingProviders, prisma, webEnvironment } from '@/lib/runtime';
 import { billingCheckoutCookies } from '@/lib/billing-cookies';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +30,11 @@ export async function GET() {
       statusToken,
       userId: session.user.id,
     });
+    if (['COMPLETED', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(result.state)) {
+      cookieStore.delete(billingCheckoutCookies.session);
+      cookieStore.delete(billingCheckoutCookies.status);
+      cookieStore.delete(billingCheckoutCookies.paytrIframe);
+    }
     return NextResponse.json(result, {
       headers: { 'cache-control': 'no-store, max-age=0' },
     });

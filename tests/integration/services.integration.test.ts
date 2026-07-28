@@ -1,18 +1,11 @@
 import { Redis } from 'ioredis';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadRootEnvironment } from '@sufbot/config';
+import { getSafeLocalTestDatabaseUrl, getSafeLocalTestRedisUrl } from './environment.js';
 
-loadRootEnvironment();
-const databaseUrl = process.env.DATABASE_URL;
-const redisUrl = process.env.REDIS_URL;
-const databaseHost = databaseUrl === undefined ? '' : new URL(databaseUrl).hostname;
-const redisHost = redisUrl === undefined ? '' : new URL(redisUrl).hostname;
-const runIntegration =
-  databaseUrl !== undefined &&
-  redisUrl !== undefined &&
-  ['127.0.0.1', 'localhost'].includes(databaseHost) &&
-  ['127.0.0.1', 'localhost'].includes(redisHost);
+const databaseUrl = getSafeLocalTestDatabaseUrl();
+const redisUrl = getSafeLocalTestRedisUrl();
+const runIntegration = databaseUrl !== undefined && redisUrl !== undefined;
 const describeServices = runIntegration ? describe : describe.skip;
 
 describeServices('local service integration', () => {
@@ -48,6 +41,11 @@ describeServices('local service integration', () => {
       '20260725000200_platform_bootstrap',
       '20260727000100_discord_installation_state',
       '20260728000100_billing_foundation',
+      '20260728000200_billing_financial_event_identity',
+      '20260728000300_billing_event_transaction_identity',
+      '20260728000400_billing_notifications',
+      '20260728000500_billing_risk_blocks',
+      '20260728000600_billing_risk_block_actors',
     ]);
   });
 

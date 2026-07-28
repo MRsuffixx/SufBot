@@ -17,19 +17,22 @@ export function BillingStatusPoller() {
   useEffect(() => {
     if (terminal.has(status.state) || attempts >= 40) return;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      fetch('/api/billing/checkout-status', {
-        cache: 'no-store',
-        credentials: 'same-origin',
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          const body = (await response.json()) as CheckoutStatus;
-          setStatus(body);
-          setAttempts((value) => value + 1);
+    const timer = window.setTimeout(
+      () => {
+        fetch('/api/billing/checkout-status', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          signal: controller.signal,
         })
-        .catch(() => setAttempts((value) => value + 1));
-    }, attempts === 0 ? 0 : 3_000);
+          .then(async (response) => {
+            const body = (await response.json()) as CheckoutStatus;
+            setStatus(body);
+            setAttempts((value) => value + 1);
+          })
+          .catch(() => setAttempts((value) => value + 1));
+      },
+      attempts === 0 ? 0 : 3_000,
+    );
     return () => {
       controller.abort();
       window.clearTimeout(timer);

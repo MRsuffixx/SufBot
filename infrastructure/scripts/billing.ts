@@ -1,100 +1,91 @@
 import {
+  PaytrBillingProvider,
+  StripeBillingProvider,
   assertPersistedPlanMatchesConfig,
   configuredPlan,
+  type CurrencyCode,
+  type ProviderCapabilities,
 } from '../../packages/billing/src/index.js';
-import {
-  loadAppConfig,
-  loadRootEnvironment,
-} from '@sufbot/config';
+import { loadAppConfig, loadRootEnvironment } from '@sufbot/config';
 import { createPrismaClient } from '@sufbot/database';
-
-type ProviderCheck = {
-  provider: 'stripe' | 'paytr';
-  enabled: boolean;
-  configured: boolean;
-  recurringCapable: boolean;
-  ready: boolean;
-  reasonCodes: string[];
-};
 
 loadRootEnvironment();
 const config = loadAppConfig({ reload: true });
 const command = process.argv[2] ?? 'config:check';
+const environment =
+  process.env.NODE_ENV === 'production'
+    ? 'production'
+    : process.env.NODE_ENV === 'test'
+      ? 'test'
+      : 'development';
 
-const present = (name: string): boolean => {
-  const value = process.env[name];
-  return value !== undefined && value.trim().length > 0;
+const value = (name: string): string | undefined => {
+  const candidate = process.env[name]?.trim();
+  return candidate === undefined || candidate === '' ? undefined : candidate;
 };
 
-const stripeCheck = (): ProviderCheck => {
-  const enabled = config.billing.providers.stripe.enabled;
-  const configured =
-    present('STRIPE_SECRET_KEY') &&
-    present('STRIPE_WEBHOOK_SECRET') &&
-    present('STRIPE_PRICE_ID');
-  const reasonCodes: string[] = [];
-  if (!enabled) reasonCodes.push('PROVIDER_DISABLED');
-  if (!configured) reasonCodes.push('CREDENTIALS_OR_PRICE_MISSING');
-  reasonCodes.push('PRICE_NOT_LIVE_VERIFIED');
-  reasonCodes.push('WEBHOOK_NOT_DELIVERY_VERIFIED');
-  return {
-    provider: 'stripe',
-    enabled,
-    configured,
-    recurringCapable: true,
-    ready: false,
-    reasonCodes,
-  };
+const enabled = (name: string): boolean => value(name)?.toLowerCase() === 'true';
+const approvedCurrencies = (): CurrencyCode[] => {
+  const supported = new Set(['USD', 'TRY', 'EUR', 'GBP', 'RUB']);
+  return (value('PAYTR_APPROVED_CURRENCIES') ?? '')
+    .split(',')
+    .map((currency) => currency.trim().toUpperCase())
+    .filter((currency): currency is CurrencyCode => supported.has(currency));
 };
 
-const paytrCheck = (): ProviderCheck => {
-  const enabled = config.billing.providers.paytr.enabled;
-  const configured =
-    present('PAYTR_MERCHANT_ID') &&
-    present('PAYTR_MERCHANT_KEY') &&
-    present('PAYTR_MERCHANT_SALT') &&
-    present('PAYTR_CALLBACK_URL');
-  const cardStorage = process.env.PAYTR_CARD_STORAGE_ENABLED === 'true';
-  const recurring = process.env.PAYTR_RECURRING_ENABLED === 'true';
-  const recurringCapable = configured && cardStorage && recurring;
-  const reasonCodes: string[] = [];
-  if (!enabled) reasonCodes.push('PROVIDER_DISABLED');
-  if (!configured) reasonCodes.push('CREDENTIALS_OR_CALLBACK_MISSING');
-  if (!cardStorage) reasonCodes.push('CARD_STORAGE_MERCHANT_CAPABILITY_UNVERIFIED');
-  if (!recurring) reasonCodes.push('RECURRING_MERCHANT_CAPABILITY_UNVERIFIED');
-  reasonCodes.push('CALLBACK_NOT_REACHABILITY_VERIFIED');
-  reasonCodes.push('MERCHANT_CURRENCY_SUPPORT_NOT_VERIFIED');
-  return {
-    provider: 'paytr',
-    enabled,
-    configured,
-    recurringCapable,
-    ready: false,
-    reasonCodes,
-  };
-};
+const stripeSecretKey = value('STRIPE_SECRET_KEY');
+const stripeWebhookSecret = value('STRIPE_WEBHOOK_SECRET');
+const stripePriceId = value('STRIPE_PRICE_ID');
+const stripePortalConfigurationId = value('STRIPE_PORTAL_CONFIGURATION_ID');
+const stripeProvider = new StripeBillingProvider({
+  config,
+  environment,
+  ...(stripeSecretKey === undefined ? {} : { secretKey: stripeSecretKey }),
+  ...(stripeWebhookSecret === undefined ? {} : { webhookSecret: stripeWebhookSecret }),
+  ...(stripePriceId === undefined ? {} : { priceId: stripePriceId }),
+  ...(stripePortalConfigurationId === undefined
+    ? {}
+    : { portalConfigurationId: stripePortalConfigurationId }),
+});
 
-const printProvider = (result: ProviderCheck): void => {
+const paytrMerchantId = value('PAYTR_MERCHANT_ID');
+const paytrMerchantKey = value('PAYTR_MERCHANT_KEY');
+const paytrMerchantSalt = value('PAYTR_MERCHANT_SALT');
+const paytrCallbackUrl = value('PAYTR_CALLBACK_URL');
+const paytrProvider = new PaytrBillingProvider({
+  config,
+  environment,
+  ...(paytrMerchantId === undefined ? {} : { merchantId: paytrMerchantId }),
+  ...(paytrMerchantKey === undefined ? {} : { merchantKey: paytrMerchantKey }),
+  ...(paytrMerchantSalt === undefined ? {} : { merchantSalt: paytrMerchantSalt }),
+  ...(paytrCallbackUrl === undefined ? {} : { callbackUrl: paytrCallbackUrl }),
+  iframeCapabilityEnabled: enabled('PAYTR_IFRAME_ENABLED'),
+  recurringCapabilityEnabled: enabled('PAYTR_RECURRING_ENABLED'),
+  cardStorageCapabilityEnabled: enabled('PAYTR_CARD_STORAGE_ENABLED'),
+  approvedCurrencies: approvedCurrencies(),
+});
+
+const printProvider = (result: ProviderCapabilities): void => {
   process.stdout.write(
-    `${result.provider}: enabled=${String(result.enabled)} configured=${String(
+    `${result.provider.toLowerCase()}: configured=${String(
       result.configured,
-    )} recurringCapable=${String(result.recurringCapable)} ready=${String(
+    )} initialPayment=${String(result.hostedInitialPayment)} cardStorage=${String(
+      result.cardStorage,
+    )} recurring=${String(result.recurring)} testMode=${String(
+      result.testMode,
+    )} callbackConfigured=${String(result.callbackConfigured)} callbackReachable=${
+      result.callbackReachable === null ? 'unverified' : String(result.callbackReachable)
+    } currencies=${result.supportedCurrencies.join(',') || 'none'} ready=${String(
       result.ready,
-    )} reasons=${result.reasonCodes.join(',')}\n`,
+    )} reasons=${result.reasonCodes.join(',') || 'none'}\n`,
   );
 };
 
 const checkConfig = (): void => {
-  const runtimeEnvironment =
-    process.env.NODE_ENV === 'production'
-      ? 'production'
-      : process.env.NODE_ENV === 'test'
-        ? 'test'
-        : 'development';
   const plan = configuredPlan(config);
   process.stdout.write(
     `billing config valid: enabled=${String(config.billing.enabled)} environment=${
-      runtimeEnvironment
+      environment
     } plan=${plan.code} amountMinor=${plan.amountMinor} currency=${plan.currency} interval=${
       plan.interval
     }\n`,
@@ -109,8 +100,9 @@ const checkPlans = async (): Promise<void> => {
     );
     return;
   }
-  if (!present('DATABASE_URL')) throw new Error('DATABASE_URL_MISSING');
-  const prisma = createPrismaClient(process.env.DATABASE_URL as string);
+  const databaseUrl = value('DATABASE_URL');
+  if (databaseUrl === undefined) throw new Error('DATABASE_URL_MISSING');
+  const prisma = createPrismaClient(databaseUrl);
   try {
     await assertPersistedPlanMatchesConfig(prisma, config);
     process.stdout.write(`persisted billing plan matches config: ${plan.code}\n`);
@@ -119,15 +111,25 @@ const checkPlans = async (): Promise<void> => {
   }
 };
 
-const checkProviders = (): void => {
-  const results = [stripeCheck(), paytrCheck()];
+const checkProviders = async (): Promise<ProviderCapabilities[]> => {
+  const results = await Promise.all([
+    stripeProvider.checkCapabilities(),
+    paytrProvider.checkCapabilities(),
+  ]);
   results.forEach(printProvider);
   if (
     config.billing.enabled &&
-    results.filter((provider) => provider.enabled).every((provider) => !provider.ready)
+    results
+      .filter((provider) =>
+        provider.provider === 'STRIPE'
+          ? config.billing.providers.stripe.enabled
+          : config.billing.providers.paytr.enabled,
+      )
+      .every((provider) => !provider.ready)
   ) {
     throw new Error('NO_ENABLED_BILLING_PROVIDER_IS_READY');
   }
+  return results;
 };
 
 try {
@@ -136,16 +138,16 @@ try {
       checkConfig();
       break;
     case 'providers:check':
-      checkProviders();
+      await checkProviders();
       break;
     case 'plans:check':
       await checkPlans();
       break;
     case 'stripe:check':
-      printProvider(stripeCheck());
+      printProvider(await stripeProvider.checkCapabilities());
       break;
     case 'paytr:check':
-      printProvider(paytrCheck());
+      printProvider(await paytrProvider.checkCapabilities());
       break;
     default:
       throw new Error(`Unknown billing diagnostics command: ${command}`);

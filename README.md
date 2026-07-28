@@ -40,6 +40,13 @@ Shared packages cover Prisma, configuration, authentication, authorization, Disc
 caching, queues, logging, API signing, localization, validation, and errors. See
 [the architecture guide](docs/architecture.md).
 
+Billing is an isolated provider-neutral domain. PostgreSQL subscription/payment state and
+guild-scoped entitlements are reconciled only from verified server-side provider events. Stripe
+supports automatic monthly subscriptions; PayTR remains capability-gated and cannot be presented as
+recurring without an approved merchant integration. See
+[billing architecture](docs/billing-architecture.md), [Stripe setup](docs/stripe.md), and
+[PayTR setup](docs/paytr.md).
+
 ## Technology
 
 - Node.js 24, TypeScript 6, pnpm workspaces, Turborepo
@@ -112,6 +119,24 @@ https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=109951
 
 More detail is in [the Discord OAuth guide](docs/discord-oauth.md).
 
+## Billing safety
+
+Billing is disabled by default. Configure one immutable Premium plan using integer minor units
+(`400` for USD 4.00), deploy the billing migrations, and run all diagnostics before exposing
+checkout:
+
+```bash
+pnpm billing:config:check
+pnpm billing:providers:check
+pnpm billing:plans:check
+pnpm billing:test
+pnpm billing:test:integration
+```
+
+A payment-page redirect never grants Premium. The dashboard confirmation page polls a cookie-bound
+internal checkout record while signed Stripe webhooks or PayTR callbacks reconcile durable guild
+entitlements.
+
 ## Configuration
 
 Secrets and environment-specific private endpoints belong in `.env`. Editable, non-secret product
@@ -169,8 +194,11 @@ TypeScript declaration output noticeably slower. For the best filesystem perform
 path such as `C:\Projects\SufBot`. OneDrive affects performance; it does not explain dependency
 resolution errors, HTTP 500 responses, or unscheduled Turborepo tasks.
 
-Set `TEST_DATABASE_URL` to include the PostgreSQL-backed tenant and transaction tests. Without it
-those tests are explicitly skipped; unit and API-boundary tests still run.
+Integration tests reject non-loopback URLs and database names that are not clearly test-scoped.
+`pnpm billing:test:integration` creates or reuses `sufbot_billing_test` in the local Docker
+PostgreSQL service, deploys migrations, rebuilds production package outputs, and runs the
+PostgreSQL/Redis suites serially. An unsafe or absent `TEST_DATABASE_URL` is explicitly skipped by
+the general test command; unit and API-boundary tests still run.
 
 ## Docker and production
 

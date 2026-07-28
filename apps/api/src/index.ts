@@ -32,12 +32,8 @@ const billingQueue = new QueueRegistry(env.REDIS_URL, config.queue);
 const stripeProvider = new StripeBillingProvider({
   config,
   environment: env.NODE_ENV,
-  ...(env.STRIPE_SECRET_KEY === undefined
-    ? {}
-    : { secretKey: env.STRIPE_SECRET_KEY }),
-  ...(env.STRIPE_WEBHOOK_SECRET === undefined
-    ? {}
-    : { webhookSecret: env.STRIPE_WEBHOOK_SECRET }),
+  ...(env.STRIPE_SECRET_KEY === undefined ? {} : { secretKey: env.STRIPE_SECRET_KEY }),
+  ...(env.STRIPE_WEBHOOK_SECRET === undefined ? {} : { webhookSecret: env.STRIPE_WEBHOOK_SECRET }),
   ...(env.STRIPE_PRICE_ID === undefined ? {} : { priceId: env.STRIPE_PRICE_ID }),
   ...(env.STRIPE_PORTAL_CONFIGURATION_ID === undefined
     ? {}
@@ -46,18 +42,10 @@ const stripeProvider = new StripeBillingProvider({
 const paytrProvider = new PaytrBillingProvider({
   config,
   environment: env.NODE_ENV,
-  ...(env.PAYTR_MERCHANT_ID === undefined
-    ? {}
-    : { merchantId: env.PAYTR_MERCHANT_ID }),
-  ...(env.PAYTR_MERCHANT_KEY === undefined
-    ? {}
-    : { merchantKey: env.PAYTR_MERCHANT_KEY }),
-  ...(env.PAYTR_MERCHANT_SALT === undefined
-    ? {}
-    : { merchantSalt: env.PAYTR_MERCHANT_SALT }),
-  ...(env.PAYTR_CALLBACK_URL === undefined
-    ? {}
-    : { callbackUrl: env.PAYTR_CALLBACK_URL }),
+  ...(env.PAYTR_MERCHANT_ID === undefined ? {} : { merchantId: env.PAYTR_MERCHANT_ID }),
+  ...(env.PAYTR_MERCHANT_KEY === undefined ? {} : { merchantKey: env.PAYTR_MERCHANT_KEY }),
+  ...(env.PAYTR_MERCHANT_SALT === undefined ? {} : { merchantSalt: env.PAYTR_MERCHANT_SALT }),
+  ...(env.PAYTR_CALLBACK_URL === undefined ? {} : { callbackUrl: env.PAYTR_CALLBACK_URL }),
   iframeCapabilityEnabled: env.PAYTR_IFRAME_ENABLED,
   recurringCapabilityEnabled: env.PAYTR_RECURRING_ENABLED,
   cardStorageCapabilityEnabled: env.PAYTR_CARD_STORAGE_ENABLED,

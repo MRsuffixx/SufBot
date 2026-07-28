@@ -135,10 +135,7 @@ export const canExecuteCommand = (
       reason: `The ${policy.requiredModule} module is disabled.`,
     };
   }
-  if (
-    policy.premium?.required === true &&
-    !context.entitlements.has(policy.premium.entitlement)
-  ) {
+  if (policy.premium?.required === true && !context.entitlements.has(policy.premium.entitlement)) {
     return {
       allowed: false,
       code: 'PREMIUM_REQUIRED',

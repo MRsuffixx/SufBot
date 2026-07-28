@@ -219,10 +219,7 @@ export class BillingManagementService {
         'BILLING_OWNER_REQUIRED',
       );
     }
-    if (
-      input.expectedVersion !== undefined &&
-      subscription.version !== input.expectedVersion
-    ) {
+    if (input.expectedVersion !== undefined && subscription.version !== input.expectedVersion) {
       throw new ConflictError('The subscription changed; refresh before trying again.');
     }
     if (subscription.providerSubscriptionId === null) {
@@ -354,9 +351,7 @@ export class BillingManagementService {
     return {
       nextStatus: snapshot.status,
       cancellationStatus:
-        snapshot.status === 'CANCELLED' || snapshot.status === 'EXPIRED'
-          ? 'CANCELLED'
-          : 'NONE',
+        snapshot.status === 'CANCELLED' || snapshot.status === 'EXPIRED' ? 'CANCELLED' : 'NONE',
       gracePeriodEndsAt: null,
       ...(snapshot.status === 'CANCELLED' ? { cancelledAt: now } : {}),
     };

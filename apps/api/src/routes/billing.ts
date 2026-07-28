@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   BillingCheckoutService,
   BillingManagementService,
+  EntitlementService,
   CancellationRequestSchema,
   CheckoutRequestSchema,
   GuildBillingStatusSchema,
@@ -49,21 +50,22 @@ export const registerBillingRoutes = async (
     dependencies.billingProviders,
     dependencies.env.NODE_ENV,
   );
+  const entitlements = new EntitlementService(
+    dependencies.prisma,
+    dependencies.config,
+    dependencies.cache,
+  );
 
   app.get('/v1/billing/plans', async (request) => {
     const capabilities = await Promise.all(
-      [...dependencies.billingProviders.values()].map((provider) =>
-        provider.checkCapabilities(),
-      ),
+      [...dependencies.billingProviders.values()].map((provider) => provider.checkCapabilities()),
     );
     return {
       success: true,
       data: {
         plan: configuredPlan(dependencies.config),
         enabled: dependencies.config.billing.enabled,
-        providers: capabilities.map((capability) =>
-          ProviderCapabilitiesSchema.parse(capability),
-        ),
+        providers: capabilities.map((capability) => ProviderCapabilitiesSchema.parse(capability)),
       },
       requestId: request.id,
     };
@@ -76,9 +78,7 @@ export const registerBillingRoutes = async (
       const { guildId } = GuildParamsSchema.parse(request.params);
       return {
         success: true,
-        data: GuildBillingStatusSchema.parse(
-          await management.getGuildBillingStatus(guildId),
-        ),
+        data: GuildBillingStatusSchema.parse(await management.getGuildBillingStatus(guildId)),
         requestId: request.id,
       };
     },
@@ -99,6 +99,26 @@ export const registerBillingRoutes = async (
             createdAt: payment.createdAt.toISOString(),
           }),
         ),
+        requestId: request.id,
+      };
+    },
+  });
+
+  app.get('/v1/guilds/:guildId/billing/entitlements', {
+    preHandler: [authenticate, guildRead],
+    schema: { tags: ['billing'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      const [records, limits] = await Promise.all([
+        entitlements.listGuildEntitlements(guildId),
+        entitlements.getGuildLimits(guildId),
+      ]);
+      return {
+        success: true,
+        data: {
+          entitlements: records.map((record) => record.key),
+          ...limits,
+        },
         requestId: request.id,
       };
     },

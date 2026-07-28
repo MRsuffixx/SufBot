@@ -78,8 +78,7 @@ export const registerBillingWebhookRoutes = async (
         } catch (error) {
           if (
             error instanceof AppError &&
-            (error.code === 'STRIPE_SIGNATURE_INVALID' ||
-              error.code === 'STRIPE_SIGNATURE_MISSING')
+            (error.code === 'STRIPE_SIGNATURE_INVALID' || error.code === 'STRIPE_SIGNATURE_MISSING')
           ) {
             metrics.increment('sufbot_billing_webhook_invalid_total', {
               provider: 'stripe',
@@ -106,8 +105,7 @@ export const registerBillingWebhookRoutes = async (
         if (!Buffer.isBuffer(request.body)) {
           throw new AppError({
             code: 'PAYTR_RAW_BODY_REQUIRED',
-            message:
-              'PayTR callback body must be sent as application/x-www-form-urlencoded.',
+            message: 'PayTR callback body must be sent as application/x-www-form-urlencoded.',
             statusCode: 415,
           });
         }
@@ -126,10 +124,7 @@ export const registerBillingWebhookRoutes = async (
               provider: 'paytr',
             });
           }
-          return reply
-            .status(200)
-            .type('text/plain; charset=utf-8')
-            .send('OK');
+          return reply.status(200).type('text/plain; charset=utf-8').send('OK');
         } catch (error) {
           if (
             error instanceof AppError &&

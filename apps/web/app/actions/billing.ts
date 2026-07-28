@@ -31,12 +31,7 @@ import type { ActionState } from './guild';
 const GuildIdSchema = z.string().regex(/^\d{17,20}$/);
 const MutationIdSchema = z.string().regex(/^mut_[a-f0-9]{32}$/);
 const checkoutService = () =>
-  new BillingCheckoutService(
-    prisma,
-    appConfig,
-    billingProviders,
-    webEnvironment.NODE_ENV,
-  );
+  new BillingCheckoutService(prisma, appConfig, billingProviders, webEnvironment.NODE_ENV);
 const managementService = () =>
   new BillingManagementService(prisma, appConfig, billingProviders, cache);
 
@@ -51,9 +46,7 @@ const claimMutation = async (formData: FormData, scope: string): Promise<string>
 const requestId = async (): Promise<string> => {
   const requestHeaders = await headers();
   const incoming = requestHeaders.get('x-request-id');
-  return incoming !== null && /^[A-Za-z0-9_-]{8,128}$/.test(incoming)
-    ? incoming
-    : createId('req');
+  return incoming !== null && /^[A-Za-z0-9_-]{8,128}$/.test(incoming) ? incoming : createId('req');
 };
 
 const safeAction = async (operation: () => Promise<string>): Promise<ActionState> => {
@@ -130,9 +123,7 @@ export const createBillingCheckoutAction = async (formData: FormData): Promise<v
     cookieStore.set(billingCheckoutCookies.paytrIframe, result.iframeToken, cookieOptions);
   }
   redirect(
-    result.kind === 'redirect'
-      ? result.url
-      : `${appConfig.application.websiteUrl}/premium/paytr`,
+    result.kind === 'redirect' ? result.url : `${appConfig.application.websiteUrl}/premium/paytr`,
   );
 };
 
@@ -143,8 +134,7 @@ const trustedRequestIp = async (): Promise<string> => {
     requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim(),
   ];
   const address = candidates.find(
-    (candidate): candidate is string =>
-      typeof candidate === 'string' && isIP(candidate) !== 0,
+    (candidate): candidate is string => typeof candidate === 'string' && isIP(candidate) !== 0,
   );
   if (address === undefined) {
     throw new Error('A validated client IP is required for PayTR.');

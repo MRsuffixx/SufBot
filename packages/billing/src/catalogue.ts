@@ -19,8 +19,7 @@ export const PremiumEntitlement = {
   SupportBadge: 'premium.support.badge',
 } as const;
 
-export type PremiumEntitlementKey =
-  (typeof PremiumEntitlement)[keyof typeof PremiumEntitlement];
+export type PremiumEntitlementKey = (typeof PremiumEntitlement)[keyof typeof PremiumEntitlement];
 
 export type PremiumFeatureDefinition = {
   key: PremiumEntitlementKey;
@@ -123,15 +122,10 @@ export const premiumFeatureCatalogue: readonly PremiumFeatureDefinition[] = [
 ] as const;
 
 const featureSets: Readonly<Record<number, readonly PremiumEntitlementKey[]>> = {
-  1: [
-    PremiumEntitlement.Base,
-    ...premiumFeatureCatalogue.map((feature) => feature.key),
-  ],
+  1: [PremiumEntitlement.Base, ...premiumFeatureCatalogue.map((feature) => feature.key)],
 };
 
-export const entitlementsForFeatureSet = (
-  version: number,
-): readonly PremiumEntitlementKey[] => {
+export const entitlementsForFeatureSet = (version: number): readonly PremiumEntitlementKey[] => {
   const entitlements = featureSets[version];
   if (entitlements === undefined) {
     throw new TypeError(`Unsupported premium feature-set version: ${version}.`);

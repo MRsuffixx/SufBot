@@ -46,8 +46,7 @@ export class AuthorizedPrecondition extends Precondition {
         const permissions = interaction.memberPermissions?.bitfield ?? 0n;
         const canManage =
           interaction.guild?.ownerId === interaction.user.id ||
-          (permissions & DiscordPermission.Administrator) ===
-            DiscordPermission.Administrator ||
+          (permissions & DiscordPermission.Administrator) === DiscordPermission.Administrator ||
           (permissions & DiscordPermission.ManageGuild) === DiscordPermission.ManageGuild;
         const plan = this.container.sufbot.config.billing.plan;
         const price = formatConfiguredPrice(plan.priceMinor, plan.currency);

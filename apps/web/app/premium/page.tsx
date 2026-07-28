@@ -11,42 +11,35 @@ export default async function PremiumPage() {
   const session = await requireDashboardSession();
   const [guilds, providerCapabilities] = await Promise.all([
     loadDashboardGuilds(session.user.id),
-    Promise.all(
-      [...billingProviders.values()].map((provider) => provider.checkCapabilities()),
-    ),
+    Promise.all([...billingProviders.values()].map((provider) => provider.checkCapabilities())),
   ]);
   const plan = configuredPlan(appConfig);
   const entitlementService = new EntitlementService(prisma, appConfig, cache);
   const statuses = new Map(
     await Promise.all(
-      guilds.map(async (guild) => [
-        guild.id,
-        await entitlementService.getGuildPremiumStatus(guild.id),
-      ] as const),
+      guilds.map(
+        async (guild) =>
+          [guild.id, await entitlementService.getGuildPremiumStatus(guild.id)] as const,
+      ),
     ),
   );
   const stripe = providerCapabilities.find((item) => item.provider === 'STRIPE');
+  const paytr = providerCapabilities.find((item) => item.provider === 'PAYTR');
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-16">
-      <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">
-        Guild Premium
-      </p>
+      <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">Guild Premium</p>
       <h1 className="mt-3 text-4xl font-black tracking-tight">
         One subscription, one selected guild
       </h1>
       <p className="mt-3 max-w-3xl text-[var(--muted)]">
-        {plan.displayName} costs {formatConfiguredPrice(plan.amountMinor, plan.currency)} per
-        month. Billing ownership and guild entitlement remain separate.
+        {plan.displayName} costs {formatConfiguredPrice(plan.amountMinor, plan.currency)} per month.
+        Billing ownership and guild entitlement remain separate.
       </p>
       <div className="mt-10 grid gap-5 md:grid-cols-2">
         {guilds.map((guild) => {
           const status = statuses.get(guild.id);
-          const eligible =
-            guild.canManage &&
-            guild.botInstalled &&
-            status?.subscriptionId === null &&
-            stripe?.ready === true;
+          const eligible = guild.canManage && guild.botInstalled && status?.subscriptionId === null;
           return (
             <Card key={guild.id}>
               <div className="flex items-center justify-between gap-4">
@@ -61,7 +54,7 @@ export default async function PremiumPage() {
                           ? 'Manage Guild permission required'
                           : !guild.botInstalled
                             ? 'Install the bot before purchasing'
-                            : stripe?.ready !== true
+                            : stripe?.ready !== true && paytr?.ready !== true
                               ? 'No recurring provider is ready'
                               : 'Eligible for Premium'}
                   </p>
@@ -71,11 +64,28 @@ export default async function PremiumPage() {
                 </span>
               </div>
               {eligible ? (
-                <BillingCheckoutForm
-                  guildId={guild.id}
-                  planCode={plan.code}
-                  provider="STRIPE"
-                />
+                <div className="mt-4 grid gap-3">
+                  {stripe?.ready === true ? (
+                    <BillingCheckoutForm
+                      guildId={guild.id}
+                      planCode={plan.code}
+                      provider="STRIPE"
+                    />
+                  ) : null}
+                  {paytr?.ready === true ? (
+                    <div>
+                      <p className="text-xs font-semibold text-amber-500">
+                        PayTR is a manually renewed one-month payment; it does not renew
+                        automatically.
+                      </p>
+                      <BillingCheckoutForm
+                        guildId={guild.id}
+                        planCode={plan.code}
+                        provider="PAYTR"
+                      />
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
             </Card>
           );
