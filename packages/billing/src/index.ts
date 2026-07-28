@@ -3,6 +3,7 @@ export * from './contracts.js';
 export * from './entitlements.js';
 export * from './money.js';
 export * from './plan.js';
+export * from './providers/stripe.js';
 export * from './reconciliation.js';
 export * from './security.js';
 export * from './state-machine.js';

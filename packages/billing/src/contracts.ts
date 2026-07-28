@@ -154,6 +154,9 @@ const NormalizedEventBaseSchema = z.object({
   environment: z.enum(['development', 'test', 'production']),
   occurredAt: z.iso.datetime(),
   providerStateVersion: z.string().min(1).max(128).optional(),
+  providerObjectId: z.string().min(1).max(255).optional(),
+  internalCheckoutSessionId: z.uuid().optional(),
+  providerCustomerId: z.string().min(1).max(255).optional(),
   correlationId: RequestIdSchema,
 });
 
