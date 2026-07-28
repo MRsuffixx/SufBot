@@ -98,7 +98,6 @@ export const AppConfigSchema = z
     billing: z
       .object({
         enabled: z.boolean(),
-        environment: z.enum(['development', 'test', 'production']),
         plan: z
           .object({
             code: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/),

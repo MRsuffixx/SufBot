@@ -77,7 +77,6 @@
   },
   "billing": {
     "enabled": false,
-    "environment": "development",
     "plan": {
       "code": "premium_monthly",
       "displayName": "SufBot Premium",

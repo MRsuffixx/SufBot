@@ -4,7 +4,9 @@ import {
   type SubscriptionStatus,
 } from './contracts.js';
 
-const allowedTransitions = {
+const allowedTransitions: Readonly<
+  Record<SubscriptionStatus, ReadonlySet<SubscriptionStatus>>
+> = {
   PENDING: new Set(['INCOMPLETE', 'ACTIVE', 'CANCELLED', 'EXPIRED']),
   INCOMPLETE: new Set(['ACTIVE', 'EXPIRED', 'CANCELLED']),
   ACTIVE: new Set(['PAST_DUE', 'SUSPENDED', 'CANCELLED', 'DISPUTED', 'REFUNDED']),
@@ -15,7 +17,7 @@ const allowedTransitions = {
   EXPIRED: new Set<SubscriptionStatus>(),
   DISPUTED: new Set(['ACTIVE', 'SUSPENDED', 'CANCELLED', 'REFUNDED']),
   REFUNDED: new Set<SubscriptionStatus>(),
-} satisfies Record<SubscriptionStatus, ReadonlySet<SubscriptionStatus>>;
+};
 
 export const canTransitionSubscription = (
   current: SubscriptionStatus,
