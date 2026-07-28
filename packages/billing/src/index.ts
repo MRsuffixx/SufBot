@@ -7,6 +7,7 @@ export * from './management.js';
 export * from './plan.js';
 export * from './provider-events.js';
 export * from './providers/stripe.js';
+export * from './providers/paytr.js';
 export * from './reconciliation.js';
 export * from './security.js';
 export * from './state-machine.js';

@@ -1,6 +1,6 @@
 import { loadApiEnvironment, loadAppConfig } from '@sufbot/config';
 import { DistributedCache } from '@sufbot/cache';
-import { StripeBillingProvider } from '@sufbot/billing';
+import { PaytrBillingProvider, StripeBillingProvider } from '@sufbot/billing';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { buildApi } from './app.js';
@@ -36,7 +36,30 @@ const stripeProvider = new StripeBillingProvider({
     ? {}
     : { portalConfigurationId: env.STRIPE_PORTAL_CONFIGURATION_ID }),
 });
-const billingProviders = new Map([['STRIPE' as const, stripeProvider]]);
+const paytrProvider = new PaytrBillingProvider({
+  config,
+  environment: env.NODE_ENV,
+  ...(env.PAYTR_MERCHANT_ID === undefined
+    ? {}
+    : { merchantId: env.PAYTR_MERCHANT_ID }),
+  ...(env.PAYTR_MERCHANT_KEY === undefined
+    ? {}
+    : { merchantKey: env.PAYTR_MERCHANT_KEY }),
+  ...(env.PAYTR_MERCHANT_SALT === undefined
+    ? {}
+    : { merchantSalt: env.PAYTR_MERCHANT_SALT }),
+  ...(env.PAYTR_CALLBACK_URL === undefined
+    ? {}
+    : { callbackUrl: env.PAYTR_CALLBACK_URL }),
+  iframeCapabilityEnabled: env.PAYTR_IFRAME_ENABLED,
+  recurringCapabilityEnabled: env.PAYTR_RECURRING_ENABLED,
+  cardStorageCapabilityEnabled: env.PAYTR_CARD_STORAGE_ENABLED,
+  approvedCurrencies: env.PAYTR_APPROVED_CURRENCIES,
+});
+const billingProviders = new Map([
+  ['STRIPE' as const, stripeProvider],
+  ['PAYTR' as const, paytrProvider],
+]);
 
 await cache.connect();
 const app = await buildApi({
