@@ -14,11 +14,7 @@ const sections = [
   ['logs', 'Logs', 'Onboarding events and failures'],
 ] as const;
 
-export default async function OnboardingPage({
-  params,
-}: {
-  params: Promise<{ guildId: string }>;
-}) {
+export default async function OnboardingPage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
   const config = await new OnboardingRepository(prisma, cache).get(guildId);
   return (

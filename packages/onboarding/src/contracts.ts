@@ -42,14 +42,14 @@ export const OnboardingEmbedSchema = z
   .object({
     color: ColorSchema.default(0x7c3aed),
     authorName: z.string().max(256).default(''),
-    authorIconUrl: OptionalHttpsUrlSchema.default(''),
-    authorUrl: OptionalHttpsUrlSchema.default(''),
+    authorIconUrl: OptionalHttpsUrlSchema.prefault(''),
+    authorUrl: OptionalHttpsUrlSchema.prefault(''),
     title: z.string().max(256).default(''),
     description: z.string().max(4096).default(''),
-    thumbnailUrl: OptionalHttpsUrlSchema.default(''),
-    imageUrl: OptionalHttpsUrlSchema.default(''),
+    thumbnailUrl: OptionalHttpsUrlSchema.prefault(''),
+    imageUrl: OptionalHttpsUrlSchema.prefault(''),
     footerText: z.string().max(2048).default(''),
-    footerIconUrl: OptionalHttpsUrlSchema.default(''),
+    footerIconUrl: OptionalHttpsUrlSchema.prefault(''),
     timestamp: z.boolean().default(false),
     fields: z.array(OnboardingEmbedFieldSchema).max(25).default([]),
   })
@@ -82,8 +82,8 @@ export const OnboardingMessageSchema = z
   .object({
     mode: OnboardingMessageModeSchema.default('TEXT'),
     content: z.string().max(2000).default(''),
-    embed: OnboardingEmbedSchema.default({}),
-    allowedMentions: AllowedMentionsSchema.default({}),
+    embed: OnboardingEmbedSchema.prefault({}),
+    allowedMentions: AllowedMentionsSchema.prefault({}),
     unknownVariablePolicy: UnknownVariablePolicySchema.default('PRESERVE'),
     deleteAfterSeconds: z.number().int().min(0).max(604800).default(0),
   })
@@ -117,14 +117,14 @@ export const WelcomeConfigSchema = z
     ignoreBots: z.boolean().default(true),
     minimumAccountAgeHours: z.number().int().min(0).max(87600).default(0),
     attachWelcomeCard: z.boolean().default(false),
-    message: OnboardingMessageSchema.default({
+    message: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
       content: 'Hey {user.mention}, welcome to **{server.name}**!',
     }),
     dmEnabled: z.boolean().default(false),
     dmDelivery: OnboardingDeliverySchema.default('ON_JOIN'),
     dmDelaySeconds: z.number().int().min(0).max(86400).default(0),
-    dmMessage: OnboardingMessageSchema.default({
+    dmMessage: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
       content: 'Welcome to {server.name}, {user.displayName}!',
     }),
@@ -138,7 +138,7 @@ export const GoodbyeConfigSchema = z
     ignoreBots: z.boolean().default(true),
     includeJoinDuration: z.boolean().default(true),
     includeLastKnownRoles: z.boolean().default(false),
-    message: OnboardingMessageSchema.default({
+    message: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
       content: '**{user.displayName}** just left the server.',
       allowedMentions: {
@@ -179,7 +179,7 @@ export const VerificationConfigSchema = z
       .string()
       .max(500)
       .default('Too many failed attempts. Please wait before trying again.'),
-    panelMessage: OnboardingMessageSchema.default({
+    panelMessage: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
       content:
         'Welcome to {server.name}, {user.mention}! Press the button below to verify that you are human.',
@@ -209,7 +209,7 @@ export const WelcomeCardConfigSchema = z
   .object({
     width: z.number().int().min(640).max(1920).default(1200),
     height: z.number().int().min(240).max(1080).default(480),
-    backgroundUrl: OptionalHttpsUrlSchema.default(''),
+    backgroundUrl: OptionalHttpsUrlSchema.prefault(''),
     backgroundFit: z.enum(['COVER', 'CONTAIN']).default('COVER'),
     backgroundPosition: z.enum(['CENTER', 'TOP', 'BOTTOM', 'LEFT', 'RIGHT']).default('CENTER'),
     overlayOpacity: z.number().min(0).max(0.9).default(0.45),

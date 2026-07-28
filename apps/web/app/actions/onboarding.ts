@@ -44,6 +44,7 @@ export const updateOnboardingBasicsAction = async (
       throw new AuthorizationError('Duplicate submission rejected.', 'DUPLICATE_SUBMISSION');
     }
     const requestHeaders = await headers();
+    const userAgent = requestHeaders.get('user-agent')?.slice(0, 255);
     const updated = await new OnboardingRepository(prisma, cache).updateBasics(
       {
         welcomeEnabled: formData.get('welcomeEnabled') === 'on',
@@ -59,9 +60,7 @@ export const updateOnboardingBasicsAction = async (
         actorDiscordId: access.discordUserId,
         requestId: requestHeaders.get('x-request-id') ?? createId('req'),
         source: 'dashboard',
-        ...(requestHeaders.get('user-agent') === null
-          ? {}
-          : { userAgent: requestHeaders.get('user-agent')?.slice(0, 255) }),
+        ...(userAgent === undefined ? {} : { userAgent }),
       },
     );
     revalidatePath(`/dashboard/guilds/${guildId}/onboarding`);

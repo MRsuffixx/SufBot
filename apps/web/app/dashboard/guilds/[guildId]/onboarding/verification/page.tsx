@@ -35,9 +35,7 @@ export default async function VerificationPage({
           </div>
           <div>
             <dt className="font-bold">Verified role</dt>
-            <dd className="mt-1 text-[var(--muted)]">
-              {config.verifiedRoleId ?? 'Not created'}
-            </dd>
+            <dd className="mt-1 text-[var(--muted)]">{config.verifiedRoleId ?? 'Not created'}</dd>
           </div>
         </dl>
       </Card>

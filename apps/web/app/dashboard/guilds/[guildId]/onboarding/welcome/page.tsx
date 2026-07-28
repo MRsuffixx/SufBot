@@ -3,11 +3,7 @@ import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
 
-export default async function WelcomePage({
-  params,
-}: {
-  params: Promise<{ guildId: string }>;
-}) {
+export default async function WelcomePage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
   const config = await new OnboardingRepository(prisma, cache).get(guildId);
   return (
@@ -21,7 +17,9 @@ export default async function WelcomePage({
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="font-bold">Channel</dt>
-            <dd className="mt-1 text-[var(--muted)]">{config.welcome.channelId ?? 'Not selected'}</dd>
+            <dd className="mt-1 text-[var(--muted)]">
+              {config.welcome.channelId ?? 'Not selected'}
+            </dd>
           </div>
           <div>
             <dt className="font-bold">Delivery</dt>

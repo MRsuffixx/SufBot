@@ -3,11 +3,7 @@ import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
 
-export default async function GoodbyePage({
-  params,
-}: {
-  params: Promise<{ guildId: string }>;
-}) {
+export default async function GoodbyePage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
   const config = await new OnboardingRepository(prisma, cache).get(guildId);
   return (
