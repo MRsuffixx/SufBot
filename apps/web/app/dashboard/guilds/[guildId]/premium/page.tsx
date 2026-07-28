@@ -36,7 +36,7 @@ export default async function GuildPremiumPage({
     billingProviders,
     cache,
   );
-  const [guild, status, payments, auditEvents, capabilities] = await Promise.all([
+  const [guild, status, payments, auditEvents, capabilities, notifications] = await Promise.all([
     prisma.guild.findUniqueOrThrow({
       where: { id: guildId },
       select: { name: true, iconHash: true },
@@ -47,6 +47,12 @@ export default async function GuildPremiumPage({
     Promise.all(
       [...billingProviders.values()].map((provider) => provider.checkCapabilities()),
     ),
+    prisma.billingNotification.findMany({
+      where: { guildId, userId: session.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { id: true, title: true, message: true, createdAt: true },
+    }),
   ]);
   const purchaser =
     status.purchaserUserId === null
@@ -202,6 +208,23 @@ export default async function GuildPremiumPage({
           </ul>
         </Card>
       </div>
+
+      {notifications.length > 0 ? (
+        <Card>
+          <h3 className="font-bold">Billing notifications</h3>
+          <div className="mt-4 grid gap-3">
+            {notifications.map((notification) => (
+              <div key={notification.id}>
+                <p className="font-semibold">{notification.title}</p>
+                <p className="text-sm text-[var(--muted)]">{notification.message}</p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {notification.createdAt.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {status.subscriptionId === null ? (
         <div>

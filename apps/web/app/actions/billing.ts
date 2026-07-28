@@ -143,7 +143,8 @@ const trustedRequestIp = async (): Promise<string> => {
     requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim(),
   ];
   const address = candidates.find(
-    (candidate): candidate is string => candidate !== null && isIP(candidate) !== 0,
+    (candidate): candidate is string =>
+      typeof candidate === 'string' && isIP(candidate) !== 0,
   );
   if (address === undefined) {
     throw new Error('A validated client IP is required for PayTR.');

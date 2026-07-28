@@ -1,8 +1,14 @@
 import { loadApiEnvironment, loadAppConfig } from '@sufbot/config';
 import { DistributedCache } from '@sufbot/cache';
-import { PaytrBillingProvider, StripeBillingProvider } from '@sufbot/billing';
+import {
+  PaytrBillingProvider,
+  StripeBillingProvider,
+  type BillingProvider,
+  type BillingProviderName,
+} from '@sufbot/billing';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
+import { QueueRegistry } from '@sufbot/queue';
 import { buildApi } from './app.js';
 
 const env = loadApiEnvironment();
@@ -22,6 +28,7 @@ const cache = new DistributedCache(env.REDIS_URL, {
   invalidationChannel: config.cache.invalidationChannel,
   logger,
 });
+const billingQueue = new QueueRegistry(env.REDIS_URL, config.queue);
 const stripeProvider = new StripeBillingProvider({
   config,
   environment: env.NODE_ENV,
@@ -56,7 +63,10 @@ const paytrProvider = new PaytrBillingProvider({
   cardStorageCapabilityEnabled: env.PAYTR_CARD_STORAGE_ENABLED,
   approvedCurrencies: env.PAYTR_APPROVED_CURRENCIES,
 });
-const billingProviders = new Map([
+const billingProviders: ReadonlyMap<BillingProviderName, BillingProvider> = new Map<
+  BillingProviderName,
+  BillingProvider
+>([
   ['STRIPE' as const, stripeProvider],
   ['PAYTR' as const, paytrProvider],
 ]);
@@ -69,6 +79,7 @@ const app = await buildApi({
   cache,
   logger,
   billingProviders,
+  billingQueue,
 });
 let stopping = false;
 
@@ -83,6 +94,7 @@ const shutdown = async (signal: string): Promise<void> => {
   forceExit.unref();
   await app.close();
   await cache.close();
+  await billingQueue.close();
   await disconnectPrisma();
   clearTimeout(forceExit);
   logger.info('graceful shutdown completed');

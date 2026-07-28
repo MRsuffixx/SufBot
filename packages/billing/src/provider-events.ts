@@ -6,6 +6,7 @@ import { AppError, ConflictError, NotFoundError } from '@sufbot/shared';
 import type {
   BillingProvider,
   BillingProviderName,
+  BillingWorkerPayload,
   NormalizedProviderEvent,
   RawWebhookInput,
   SubscriptionStatus,
@@ -43,6 +44,9 @@ export class BillingProviderEventService {
     private readonly config: AppConfig,
     private readonly providers: ProviderRegistry,
     cache?: BillingCache,
+    private readonly enqueueBillingJob?: (
+      payload: BillingWorkerPayload,
+    ) => Promise<unknown>,
   ) {
     this.#reconciliation = new SubscriptionReconciliationService(
       prisma,
@@ -357,6 +361,47 @@ export class BillingProviderEventService {
           version: { increment: 1 },
         },
       });
+    } else if (
+      event.type === 'subscription.payment_failed' &&
+      (subscription.status === 'PENDING' || subscription.status === 'INCOMPLETE')
+    ) {
+      await this.prisma.checkoutSession.updateMany({
+        where: {
+          subscriptionId: subscription.id,
+          state: { in: ['CREATED', 'PROVIDER_PENDING'] },
+        },
+        data: { state: 'FAILED', version: { increment: 1 } },
+      });
+    }
+    const notificationJob =
+      event.type === 'subscription.payment_failed'
+        ? 'billing.send-payment-failed-notification'
+        : event.type === 'subscription.cancel_scheduled'
+          ? 'billing.send-cancellation-notification'
+          : event.type === 'subscription.activated' ||
+              event.type === 'subscription.renewed'
+            ? 'billing.send-renewal-confirmation'
+            : undefined;
+    if (notificationJob !== undefined && this.enqueueBillingJob !== undefined) {
+      await this.enqueueBillingJob({
+        job: notificationJob,
+        subscriptionId: subscription.id,
+        correlationId: event.correlationId,
+      }).catch(() => undefined);
+    }
+    if (
+      (event.type === 'subscription.activated' ||
+        event.type === 'subscription.renewed' ||
+        event.type === 'subscription.cancel_scheduled') &&
+      this.enqueueBillingJob !== undefined
+    ) {
+      await this.enqueueBillingJob({
+        job: 'billing.expire-entitlement',
+        guildId: subscription.guildId,
+        subscriptionId: subscription.id,
+        expectedAt: event.periodEnd,
+        correlationId: event.correlationId,
+      }).catch(() => undefined);
     }
     return subscription.id;
   }

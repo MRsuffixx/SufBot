@@ -17,6 +17,7 @@ export const registerBillingWebhookRoutes = async (
     dependencies.config,
     dependencies.billingProviders,
     dependencies.cache,
+    dependencies.billingQueue?.enqueueBilling.bind(dependencies.billingQueue),
   );
 
   await app.register(async (webhooks) => {

@@ -3,6 +3,7 @@ import type { BillingProvider, BillingProviderName } from '@sufbot/billing';
 import type { AppConfig, ApiEnvironment } from '@sufbot/config';
 import type { PrismaClient } from '@sufbot/database/generated';
 import type { Logger } from '@sufbot/logger';
+import type { QueueRegistry } from '@sufbot/queue';
 
 export type ApiAuthContext = {
   kind: 'api-key';
@@ -20,6 +21,7 @@ export type ApiDependencies = {
   cache: DistributedCache;
   logger: Logger;
   billingProviders: ReadonlyMap<BillingProviderName, BillingProvider>;
+  billingQueue?: Pick<QueueRegistry, 'enqueueBilling'>;
 };
 
 declare module 'fastify' {

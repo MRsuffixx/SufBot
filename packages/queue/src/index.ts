@@ -1,6 +1,10 @@
 import { Queue, type JobsOptions, type ConnectionOptions } from 'bullmq';
 import { z } from 'zod';
 import { sha256 } from '@sufbot/shared';
+import {
+  BillingWorkerPayloadSchema,
+  type BillingWorkerPayload,
+} from '@sufbot/billing';
 
 export const QueueName = {
   Audit: 'audit',
@@ -10,6 +14,8 @@ export const QueueName = {
   CacheMaintenance: 'cache-maintenance',
   Cleanup: 'cleanup',
   DeadLetter: 'dead-letter',
+  Billing: 'billing',
+  BillingNotifications: 'billing-notifications',
 } as const;
 
 export const AuditJobSchema = z.object({
@@ -107,6 +113,47 @@ export class QueueRegistry {
       deduplication: { id: payload.idempotencyKey },
     });
     return job.id ?? sha256(payload.idempotencyKey);
+  }
+
+  public async enqueueBilling(input: BillingWorkerPayload): Promise<string> {
+    const payload = BillingWorkerPayloadSchema.parse(input);
+    let identity: string;
+    switch (payload.job) {
+      case 'billing.process-provider-event':
+      case 'billing.retry-failed-event':
+        identity = payload.providerEventRecordId;
+        break;
+      case 'billing.reconcile-subscription':
+        identity = `${payload.subscriptionId}:${payload.reason}`;
+        break;
+      case 'billing.expire-entitlement':
+        identity = `${payload.guildId}:${payload.subscriptionId}:${payload.expectedAt}`;
+        break;
+      case 'billing.send-payment-failed-notification':
+      case 'billing.send-renewal-confirmation':
+      case 'billing.send-cancellation-notification':
+        identity = `${payload.subscriptionId}:${payload.job}:${payload.correlationId}`;
+        break;
+      case 'billing.reconcile-stale-subscriptions':
+      case 'billing.cleanup-expired-checkouts':
+      case 'billing.cleanup-old-event-payloads':
+        identity = `${payload.job}:${payload.before}`;
+        break;
+    }
+    const job = await this.get(
+      payload.job.includes('notification')
+        ? QueueName.BillingNotifications
+        : QueueName.Billing,
+    ).add(payload.job, payload, {
+      jobId: sha256(identity),
+      deduplication: { id: identity },
+      ...(payload.job === 'billing.expire-entitlement'
+        ? {
+            delay: Math.max(0, new Date(payload.expectedAt).getTime() - Date.now()),
+          }
+        : {}),
+    });
+    return job.id ?? sha256(identity);
   }
 
   public async close(): Promise<void> {

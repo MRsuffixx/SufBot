@@ -302,7 +302,47 @@ export const BillingWorkerPayloadSchema = z.discriminatedUnion('job', [
       correlationId: RequestIdSchema,
     })
     .strict(),
+  z
+    .object({
+      job: z.literal('billing.reconcile-stale-subscriptions'),
+      before: z.iso.datetime(),
+      correlationId: RequestIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      job: z.literal('billing.retry-failed-event'),
+      providerEventRecordId: z.uuid(),
+      correlationId: RequestIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      job: z.literal('billing.cleanup-expired-checkouts'),
+      before: z.iso.datetime(),
+      correlationId: RequestIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      job: z.literal('billing.cleanup-old-event-payloads'),
+      before: z.iso.datetime(),
+      correlationId: RequestIdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      job: z.enum([
+        'billing.send-payment-failed-notification',
+        'billing.send-renewal-confirmation',
+        'billing.send-cancellation-notification',
+      ]),
+      subscriptionId: z.uuid(),
+      correlationId: RequestIdSchema,
+    })
+    .strict(),
 ]);
+export type BillingWorkerPayload = z.infer<typeof BillingWorkerPayloadSchema>;
 
 export type CreateCheckoutInput = {
   checkoutSessionId: string;

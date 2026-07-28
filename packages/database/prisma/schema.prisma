@@ -157,6 +157,7 @@ model User {
   paymentTransactions PaymentTransaction[]
   checkoutSessions    CheckoutSession[]
   billingAuditEvents  BillingAuditEvent[] @relation("BillingAuditActor")
+  billingNotifications BillingNotification[]
 
   @@index([platformRole])
   @@index([deletedAt])
@@ -229,6 +230,7 @@ model Guild {
   paymentTransactions PaymentTransaction[]
   checkoutSessions    CheckoutSession[]
   billingAuditEvents  BillingAuditEvent[]
+  billingNotifications BillingNotification[]
 
   @@index([ownerDiscordId])
   @@index([botInstalled, leftAt])
@@ -477,6 +479,7 @@ model GuildSubscription {
   paymentTransactions PaymentTransaction[]
   checkoutSessions    CheckoutSession[]
   auditEvents         BillingAuditEvent[]
+  notifications       BillingNotification[]
 
   @@unique([provider, providerSubscriptionId])
   @@index([guildId, status])
@@ -622,6 +625,28 @@ model BillingAuditEvent {
   @@index([actorUserId, createdAt(sort: Desc)])
   @@index([action, createdAt(sort: Desc)])
   @@index([requestId])
+}
+
+model BillingNotification {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  guildId        String   @db.VarChar(20)
+  subscriptionId String   @db.Uuid
+  eventKey       String   @unique @db.VarChar(128)
+  type           String   @db.VarChar(64)
+  title          String   @db.VarChar(120)
+  message        String   @db.VarChar(500)
+  metadata       Json     @default("{}")
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild        Guild             @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  subscription GuildSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([guildId, createdAt(sort: Desc)])
+  @@index([subscriptionId, createdAt(sort: Desc)])
 }
 
 model FeatureFlag {

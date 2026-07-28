@@ -185,6 +185,22 @@ export class BillingManagementService {
     return this.getGuildBillingStatus(input.guildId);
   }
 
+  public async reconcileAsSystem(input: {
+    subscriptionId: string;
+    requestId: string;
+  }): Promise<{ guildId: string; status: GuildBillingStatus }> {
+    const subscription = await this.prisma.guildSubscription.findUnique({
+      where: { id: input.subscriptionId },
+      select: { guildId: true },
+    });
+    if (subscription === null) throw new NotFoundError('Guild subscription');
+    await this.#reconcileAuthoritative(input.subscriptionId, input.requestId);
+    return {
+      guildId: subscription.guildId,
+      status: await this.getGuildBillingStatus(subscription.guildId),
+    };
+  }
+
   async #ownedSubscription(input: {
     guildId: string;
     userId: string;
@@ -227,7 +243,7 @@ export class BillingManagementService {
   async #reconcileAuthoritative(
     subscriptionId: string,
     requestId: string,
-    actorUserId: string,
+    actorUserId?: string,
   ): Promise<void> {
     const current = await this.prisma.guildSubscription.findUniqueOrThrow({
       where: { id: subscriptionId },
@@ -268,7 +284,7 @@ export class BillingManagementService {
       requestId,
       source: 'reconciliation',
       actorType: 'SYSTEM',
-      actorUserId,
+      ...(actorUserId === undefined ? {} : { actorUserId }),
     });
   }
 

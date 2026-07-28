@@ -56,7 +56,10 @@ const paytrBillingProvider = new PaytrBillingProvider({
   cardStorageCapabilityEnabled: webEnvironment.PAYTR_CARD_STORAGE_ENABLED,
   approvedCurrencies: webEnvironment.PAYTR_APPROVED_CURRENCIES,
 });
-export const billingProviders: ReadonlyMap<BillingProviderName, BillingProvider> = new Map([
+export const billingProviders: ReadonlyMap<BillingProviderName, BillingProvider> = new Map<
+  BillingProviderName,
+  BillingProvider
+>([
   ['STRIPE', stripeBillingProvider],
   ['PAYTR', paytrBillingProvider],
 ]);

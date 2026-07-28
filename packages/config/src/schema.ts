@@ -332,6 +332,7 @@ export const WebEnvironmentSchema = z
     BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
     BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
     PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
+    BILLING_ADMIN_DISCORD_IDS: SnowflakeListSchema,
     ...BillingServerEnvironmentShape,
   })
   .superRefine((environment, context) => {

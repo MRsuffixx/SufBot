@@ -157,6 +157,9 @@ importers:
       '@sufbot/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@sufbot/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
       '@sufbot/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -301,6 +304,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@sufbot/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@sufbot/cache':
         specifier: workspace:*
         version: link:../../packages/cache
@@ -584,6 +590,9 @@ importers:
 
   packages/queue:
     dependencies:
+      '@sufbot/billing':
+        specifier: workspace:*
+        version: link:../billing
       '@sufbot/shared':
         specifier: workspace:*
         version: link:../shared
