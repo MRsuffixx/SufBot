@@ -206,7 +206,7 @@ export class GuildStatusService {
         },
         update: {},
       });
-      for (const moduleKey of ['general', 'moderation']) {
+      for (const moduleKey of ['general', 'moderation', 'onboarding']) {
         await transaction.guildModule.upsert({
           where: { guildId_moduleKey: { guildId: guild.id, moduleKey } },
           create: { guildId: guild.id, moduleKey, enabled: moduleKey === 'general' },

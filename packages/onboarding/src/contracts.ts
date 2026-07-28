@@ -2,12 +2,15 @@ import { z } from 'zod';
 import { DiscordSnowflakeSchema } from '@sufbot/shared';
 
 const HttpsUrlSchema = z
-  .url()
+  .string()
   .max(2048)
-  .refine((value) => new URL(value).protocol === 'https:', 'Only HTTPS URLs are allowed.');
+  .regex(/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/iu, 'A valid HTTPS URL is required.');
 const OptionalHttpsUrlSchema = z
-  .union([HttpsUrlSchema, z.literal('')])
-  .transform((value) => (value === '' ? null : value));
+  .preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    HttpsUrlSchema.optional(),
+  )
+  .transform((value) => value ?? null);
 const ColorSchema = z.number().int().min(0).max(0xffffff);
 
 export const OnboardingMessageModeSchema = z.enum(['TEXT', 'EMBED', 'TEXT_AND_EMBED']);
