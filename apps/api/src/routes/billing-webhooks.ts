@@ -5,6 +5,7 @@ import type { MetricsRegistry } from '../metrics.js';
 import type { ApiDependencies } from '../types.js';
 
 const STRIPE_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
+const PAYTR_CALLBACK_BODY_LIMIT_BYTES = 64 * 1024;
 
 export const registerBillingWebhookRoutes = async (
   app: FastifyInstance,
@@ -25,6 +26,14 @@ export const registerBillingWebhookRoutes = async (
       {
         parseAs: 'buffer',
         bodyLimit: STRIPE_WEBHOOK_BODY_LIMIT_BYTES,
+      },
+      (_request, body, done) => done(null, body),
+    );
+    webhooks.addContentTypeParser(
+      'application/x-www-form-urlencoded',
+      {
+        parseAs: 'buffer',
+        bodyLimit: PAYTR_CALLBACK_BODY_LIMIT_BYTES,
       },
       (_request, body, done) => done(null, body),
     );
@@ -73,6 +82,61 @@ export const registerBillingWebhookRoutes = async (
           ) {
             metrics.increment('sufbot_billing_webhook_invalid_total', {
               provider: 'stripe',
+            });
+          }
+          throw error;
+        }
+      },
+    );
+
+    webhooks.post(
+      '/v1/webhooks/paytr',
+      {
+        bodyLimit: PAYTR_CALLBACK_BODY_LIMIT_BYTES,
+        config: {
+          rateLimit: {
+            max: 300,
+            timeWindow: 60_000,
+            ban: 0,
+          },
+        },
+      },
+      async (request, reply) => {
+        if (!Buffer.isBuffer(request.body)) {
+          throw new AppError({
+            code: 'PAYTR_RAW_BODY_REQUIRED',
+            message:
+              'PayTR callback body must be sent as application/x-www-form-urlencoded.',
+            statusCode: 415,
+          });
+        }
+        metrics.increment('sufbot_billing_webhook_received_total', {
+          provider: 'paytr',
+        });
+        try {
+          const result = await events.ingestWebhook('PAYTR', {
+            rawBody: request.body,
+            headers: request.headers,
+            receivedAt: new Date(),
+            correlationId: request.correlationId,
+          });
+          if (result.duplicate) {
+            metrics.increment('sufbot_billing_webhook_duplicate_total', {
+              provider: 'paytr',
+            });
+          }
+          return reply
+            .status(200)
+            .type('text/plain; charset=utf-8')
+            .send('OK');
+        } catch (error) {
+          if (
+            error instanceof AppError &&
+            (error.code === 'PAYTR_CALLBACK_HASH_INVALID' ||
+              error.code === 'PAYTR_ENVIRONMENT_MISMATCH')
+          ) {
+            metrics.increment('sufbot_billing_webhook_invalid_total', {
+              provider: 'paytr',
             });
           }
           throw error;

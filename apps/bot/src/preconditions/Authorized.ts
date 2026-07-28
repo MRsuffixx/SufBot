@@ -1,6 +1,8 @@
 import { Precondition, type Command } from '@sapphire/framework';
 import type { ChatInputCommandInteraction, ContextMenuCommandInteraction } from 'discord.js';
+import { formatConfiguredPrice } from '@sufbot/billing';
 import { canExecuteCommand, type AuthorizationContext } from '@sufbot/permissions';
+import { DiscordPermission } from '@sufbot/permissions';
 import { requireCommandMetadata } from '@sufbot/discord';
 
 type SupportedInteraction = ChatInputCommandInteraction | ContextMenuCommandInteraction;
@@ -40,6 +42,22 @@ export class AuthorizedPrecondition extends Precondition {
     };
     const decision = canExecuteCommand(context, metadata);
     if (!decision.allowed) {
+      if (decision.code === 'PREMIUM_REQUIRED' && interaction.guildId !== null) {
+        const permissions = interaction.memberPermissions?.bitfield ?? 0n;
+        const canManage =
+          interaction.guild?.ownerId === interaction.user.id ||
+          (permissions & DiscordPermission.Administrator) ===
+            DiscordPermission.Administrator ||
+          (permissions & DiscordPermission.ManageGuild) === DiscordPermission.ManageGuild;
+        const plan = this.container.sufbot.config.billing.plan;
+        const price = formatConfiguredPrice(plan.priceMinor, plan.currency);
+        return this.error({
+          identifier: decision.code,
+          message: canManage
+            ? `This feature requires Premium (${price}/month for this server). Activate it at ${this.container.sufbot.config.application.websiteUrl}/dashboard/guilds/${interaction.guildId}/premium`
+            : `This feature requires Premium (${price}/month). Ask a server administrator to activate it.`,
+        });
+      }
       return this.error({ identifier: decision.code, message: decision.reason });
     }
 

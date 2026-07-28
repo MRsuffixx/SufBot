@@ -126,6 +126,9 @@ export const createBillingCheckoutAction = async (formData: FormData): Promise<v
   };
   cookieStore.set(billingCheckoutCookies.session, result.checkoutSessionId, cookieOptions);
   cookieStore.set(billingCheckoutCookies.status, result.statusToken, cookieOptions);
+  if (result.kind === 'iframe') {
+    cookieStore.set(billingCheckoutCookies.paytrIframe, result.iframeToken, cookieOptions);
+  }
   redirect(
     result.kind === 'redirect'
       ? result.url
