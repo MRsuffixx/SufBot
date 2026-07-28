@@ -75,6 +75,48 @@
     "publicApi": true,
     "backgroundJobs": true
   },
+  "billing": {
+    "enabled": false,
+    "environment": "development",
+    "plan": {
+      "code": "premium_monthly",
+      "displayName": "SufBot Premium",
+      "priceMinor": 400,
+      "currency": "USD",
+      "interval": "month",
+      "intervalCount": 1,
+      "featureSetVersion": 1
+    },
+    "providers": {
+      "stripe": {
+        "enabled": false
+      },
+      "paytr": {
+        "enabled": false,
+        "mode": "recurring"
+      }
+    },
+    "gracePeriodDays": 3,
+    "failedPaymentRetryWindowDays": 7,
+    "checkoutSessionTtlMinutes": 15,
+    "entitlementCacheTtlSeconds": 30,
+    "allowGuildTransfer": false,
+    "cancellationPolicy": "end_of_period",
+    "limits": {
+      "free": {
+        "automodRules": 3,
+        "ticketPanels": 1,
+        "customCommands": 5,
+        "moderationHistoryDays": 7
+      },
+      "premium": {
+        "automodRules": 100,
+        "ticketPanels": 25,
+        "customCommands": 100,
+        "moderationHistoryDays": 365
+      }
+    }
+  },
   "logging": {
     "level": "info",
     "prettyDevelopmentLogs": true

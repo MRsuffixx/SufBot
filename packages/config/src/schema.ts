@@ -2,6 +2,16 @@ import { z } from 'zod';
 import { DiscordSnowflakeSchema, LocaleSchema } from '@sufbot/shared';
 
 const UrlSchema = z.url().refine((value) => ['http:', 'https:'].includes(new URL(value).protocol));
+const CurrencySchema = z.enum(['USD', 'TRY', 'EUR', 'GBP', 'RUB']);
+const PlanLimitSchema = z.number().int().nonnegative().max(1_000_000);
+const PlanLimitsSchema = z
+  .object({
+    automodRules: PlanLimitSchema,
+    ticketPanels: PlanLimitSchema,
+    customCommands: PlanLimitSchema,
+    moderationHistoryDays: PlanLimitSchema,
+  })
+  .strict();
 
 export const AppConfigSchema = z
   .object({
@@ -85,6 +95,84 @@ export const AppConfigSchema = z
       publicApi: z.boolean(),
       backgroundJobs: z.boolean(),
     }),
+    billing: z
+      .object({
+        enabled: z.boolean(),
+        environment: z.enum(['development', 'test', 'production']),
+        plan: z
+          .object({
+            code: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/),
+            displayName: z.string().min(1).max(100),
+            priceMinor: z.number().int().positive().safe(),
+            currency: CurrencySchema,
+            interval: z.literal('month'),
+            intervalCount: z.literal(1),
+            featureSetVersion: z.number().int().positive().max(10_000),
+          })
+          .strict(),
+        providers: z
+          .object({
+            stripe: z
+              .object({
+                enabled: z.boolean(),
+              })
+              .strict(),
+            paytr: z
+              .object({
+                enabled: z.boolean(),
+                mode: z.enum(['recurring', 'manual_renewal']),
+                priceMinor: z.number().int().positive().safe().optional(),
+                currency: CurrencySchema.optional(),
+              })
+              .strict()
+              .superRefine((provider, context) => {
+                if ((provider.priceMinor === undefined) !== (provider.currency === undefined)) {
+                  context.addIssue({
+                    code: 'custom',
+                    message: 'PayTR priceMinor and currency must be configured together.',
+                  });
+                }
+              }),
+          })
+          .strict(),
+        gracePeriodDays: z.number().int().min(0).max(30),
+        failedPaymentRetryWindowDays: z.number().int().min(0).max(30),
+        checkoutSessionTtlMinutes: z.number().int().min(5).max(60),
+        entitlementCacheTtlSeconds: z.number().int().min(5).max(300),
+        allowGuildTransfer: z.literal(false),
+        cancellationPolicy: z.literal('end_of_period'),
+        limits: z
+          .object({
+            free: PlanLimitsSchema,
+            premium: PlanLimitsSchema,
+          })
+          .strict(),
+      })
+      .strict()
+      .superRefine((billing, context) => {
+        if (
+          billing.enabled &&
+          !billing.providers.stripe.enabled &&
+          !billing.providers.paytr.enabled
+        ) {
+          context.addIssue({
+            code: 'custom',
+            path: ['providers'],
+            message: 'At least one billing provider must be enabled when billing is enabled.',
+          });
+        }
+        for (const key of Object.keys(billing.limits.free) as Array<
+          keyof typeof billing.limits.free
+        >) {
+          if (billing.limits.premium[key] < billing.limits.free[key]) {
+            context.addIssue({
+              code: 'custom',
+              path: ['limits', 'premium', key],
+              message: 'Premium limits must not be lower than free limits.',
+            });
+          }
+        }
+      }),
     logging: z.object({
       level: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
       prettyDevelopmentLogs: z.boolean(),
@@ -116,6 +204,35 @@ const EncryptionKeySchema = z.string().refine(
   },
   { message: 'must be a base64-encoded 32-byte key' },
 );
+const emptyStringToUndefined = (value: unknown): unknown => (value === '' ? undefined : value);
+const OptionalSecretSchema = z.preprocess(emptyStringToUndefined, SecretSchema.optional());
+const OptionalEncryptionKeySchema = z.preprocess(
+  emptyStringToUndefined,
+  EncryptionKeySchema.optional(),
+);
+const OptionalUrlSchema = z.preprocess(emptyStringToUndefined, UrlSchema.optional());
+const OptionalStringSchema = z.preprocess(
+  emptyStringToUndefined,
+  z.string().min(1).max(255).optional(),
+);
+const OptionalBooleanSchema = z.preprocess(
+  emptyStringToUndefined,
+  z.stringbool().default(false),
+);
+const BillingServerEnvironmentShape = {
+  STRIPE_SECRET_KEY: OptionalSecretSchema,
+  STRIPE_PUBLISHABLE_KEY: OptionalStringSchema,
+  STRIPE_WEBHOOK_SECRET: OptionalSecretSchema,
+  STRIPE_PRICE_ID: OptionalStringSchema,
+  PAYTR_MERCHANT_ID: OptionalStringSchema,
+  PAYTR_MERCHANT_KEY: OptionalSecretSchema,
+  PAYTR_MERCHANT_SALT: OptionalSecretSchema,
+  PAYTR_CALLBACK_URL: OptionalUrlSchema,
+  PAYTR_RECURRING_ENABLED: OptionalBooleanSchema,
+  PAYTR_CARD_STORAGE_ENABLED: OptionalBooleanSchema,
+  BILLING_INTERNAL_SIGNING_SECRET: OptionalSecretSchema,
+  BILLING_ENCRYPTION_KEY: OptionalEncryptionKeySchema,
+} as const;
 const SnowflakeListSchema = z
   .string()
   .default('')
@@ -144,6 +261,7 @@ export const ApiEnvironmentSchema = z.object({
   ...CommonEnvironmentShape,
   INTERNAL_API_SECRET: SecretSchema,
   WEBHOOK_SIGNING_SECRET: SecretSchema,
+  ...BillingServerEnvironmentShape,
 });
 
 export const BotEnvironmentSchema = z
@@ -173,6 +291,7 @@ export const BotEnvironmentSchema = z
 
 export const WorkerEnvironmentSchema = z.object({
   ...CommonEnvironmentShape,
+  ...BillingServerEnvironmentShape,
 });
 
 export const WebEnvironmentSchema = z
@@ -190,6 +309,7 @@ export const WebEnvironmentSchema = z
     BOT_OWNER_DISCORD_IDS: SnowflakeListSchema,
     BOT_DEVELOPER_DISCORD_IDS: SnowflakeListSchema,
     PLATFORM_ADMIN_DISCORD_IDS: SnowflakeListSchema,
+    ...BillingServerEnvironmentShape,
   })
   .superRefine((environment, context) => {
     if (

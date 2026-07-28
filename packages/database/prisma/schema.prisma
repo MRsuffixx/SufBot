@@ -32,12 +32,97 @@ enum ApiKeyStatus {
   REVOKED
 }
 
-enum SubscriptionStatus {
-  TRIALING
+enum BillingProviderName {
+  STRIPE
+  PAYTR
+}
+
+enum BillingInterval {
+  MONTH
+}
+
+enum BillingCustomerStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum GuildSubscriptionStatus {
+  PENDING
+  INCOMPLETE
   ACTIVE
   PAST_DUE
-  CANCELED
+  GRACE_PERIOD
+  SUSPENDED
+  CANCELLED
   EXPIRED
+  DISPUTED
+  REFUNDED
+}
+
+enum CancellationStatus {
+  NONE
+  SCHEDULED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  DISPUTED
+  REVERSED
+  UNKNOWN
+}
+
+enum PaymentTransactionType {
+  INITIAL
+  RENEWAL
+  RETRY
+  REFUND
+  PARTIAL_REFUND
+  CHARGEBACK
+  REVERSAL
+}
+
+enum BillingProviderEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  IGNORED
+  DEAD_LETTERED
+}
+
+enum CheckoutSessionState {
+  CREATED
+  PROVIDER_PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  FAILED
+}
+
+enum GuildEntitlementStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  SUSPENDED
+}
+
+enum GuildEntitlementSource {
+  SUBSCRIPTION
+  MANUAL_PROMOTION
+  ADMIN_OVERRIDE
+}
+
+enum BillingAuditActorType {
+  USER
+  SYSTEM
+  WORKER
+  PROVIDER
+  STAFF
 }
 
 enum BackgroundJobStatus {
@@ -67,6 +152,11 @@ model User {
   dashboardAccessLogs DashboardAccessLog[]
   apiKeys             ApiKey[]
   commandUsages       CommandUsage[]
+  billingCustomers    BillingCustomer[]
+  purchasedSubscriptions GuildSubscription[] @relation("SubscriptionPurchaser")
+  paymentTransactions PaymentTransaction[]
+  checkoutSessions    CheckoutSession[]
+  billingAuditEvents  BillingAuditEvent[] @relation("BillingAuditActor")
 
   @@index([platformRole])
   @@index([deletedAt])
@@ -118,6 +208,7 @@ model Guild {
   registeredCommandCount       Int?
   commandSchemaHash            String?   @db.Char(64)
   commandRegistrationUpdatedAt DateTime?
+  billingEntitlementVersion    Int       @default(1)
   joinedAt                     DateTime  @default(now())
   leftAt                       DateTime?
   createdAt                    DateTime  @default(now())
@@ -132,8 +223,12 @@ model Guild {
   dashboardAccessLogs DashboardAccessLog[]
   commandUsages       CommandUsage[]
   apiKeys             ApiKey[]
-  subscriptions       Subscription[]
+  subscriptions       GuildSubscription[]
   featureFlags        FeatureFlag[]
+  entitlements        GuildEntitlement[]
+  paymentTransactions PaymentTransaction[]
+  checkoutSessions    CheckoutSession[]
+  billingAuditEvents  BillingAuditEvent[]
 
   @@index([ownerDiscordId])
   @@index([botInstalled, leftAt])
@@ -308,23 +403,225 @@ model ApiKey {
   @@index([guildId, status])
 }
 
-model Subscription {
-  id                 String             @id @default(uuid()) @db.Uuid
-  guildId            String             @db.VarChar(20)
-  provider           String             @db.VarChar(32)
-  providerReference  String             @unique @db.VarChar(128)
-  status             SubscriptionStatus
-  planKey            String             @db.VarChar(64)
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean            @default(false)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+model BillingPlan {
+  id                String          @id @default(uuid()) @db.Uuid
+  code              String          @unique @db.VarChar(64)
+  displayName       String          @db.VarChar(100)
+  active            Boolean         @default(true)
+  interval          BillingInterval @default(MONTH)
+  intervalCount     Int             @default(1)
+  currency          String          @db.Char(3)
+  amountMinor       Int
+  featureSetVersion Int             @default(1)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  guild Guild @relation(fields: [guildId], references: [id], onDelete: Restrict)
+  subscriptions GuildSubscription[]
 
+  @@index([active, code])
+}
+
+model BillingCustomer {
+  id                 String                @id @default(uuid()) @db.Uuid
+  userId             String                @db.Uuid
+  provider           BillingProviderName
+  providerCustomerId String                @db.VarChar(255)
+  emailSnapshot      String?               @db.VarChar(320)
+  status             BillingCustomerStatus @default(ACTIVE)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  subscriptions GuildSubscription[]
+
+  @@unique([provider, providerCustomerId])
+  @@unique([userId, provider])
+  @@index([status])
+}
+
+model GuildSubscription {
+  id                      String                  @id @default(uuid()) @db.Uuid
+  guildId                 String                  @db.VarChar(20)
+  purchaserUserId         String                  @db.Uuid
+  billingPlanId           String                  @db.Uuid
+  billingCustomerId       String?                 @db.Uuid
+  planCode                String                  @db.VarChar(64)
+  planDisplayNameSnapshot String                  @db.VarChar(100)
+  amountMinorSnapshot     Int
+  currencySnapshot        String                  @db.Char(3)
+  featureSetVersion       Int
+  provider                BillingProviderName
+  providerCustomerId      String?                 @db.VarChar(255)
+  providerSubscriptionId  String?                 @db.VarChar(255)
+  providerPriceId         String?                 @db.VarChar(255)
+  status                  GuildSubscriptionStatus @default(PENDING)
+  cancellationStatus      CancellationStatus      @default(NONE)
+  currentPeriodStart      DateTime?
+  currentPeriodEnd        DateTime?
+  cancelAtPeriodEnd       Boolean                 @default(false)
+  cancelledAt             DateTime?
+  endedAt                 DateTime?
+  gracePeriodEndsAt       DateTime?
+  latestPaymentStatus     PaymentStatus           @default(PENDING)
+  providerStateVersion    String?                 @db.VarChar(128)
+  providerUpdatedAt       DateTime?
+  version                 Int                     @default(1)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  guild               Guild                 @relation(fields: [guildId], references: [id], onDelete: Restrict)
+  purchaser           User                  @relation("SubscriptionPurchaser", fields: [purchaserUserId], references: [id], onDelete: Restrict)
+  billingPlan         BillingPlan           @relation(fields: [billingPlanId], references: [id], onDelete: Restrict)
+  billingCustomer     BillingCustomer?      @relation(fields: [billingCustomerId], references: [id], onDelete: SetNull)
+  entitlements        GuildEntitlement[]
+  paymentTransactions PaymentTransaction[]
+  checkoutSessions    CheckoutSession[]
+  auditEvents         BillingAuditEvent[]
+
+  @@unique([provider, providerSubscriptionId])
   @@index([guildId, status])
+  @@index([purchaserUserId, status])
+  @@index([provider, providerCustomerId])
   @@index([currentPeriodEnd])
+  @@index([gracePeriodEndsAt])
+}
+
+model GuildEntitlement {
+  id               String                   @id @default(uuid()) @db.Uuid
+  guildId          String                   @db.VarChar(20)
+  entitlementKey   String                   @db.VarChar(100)
+  source           GuildEntitlementSource
+  sourceReference  String                   @db.VarChar(128)
+  subscriptionId   String?                  @db.Uuid
+  startsAt         DateTime
+  endsAt           DateTime?
+  status           GuildEntitlementStatus   @default(ACTIVE)
+  metadata         Json                     @default("{}")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  guild        Guild              @relation(fields: [guildId], references: [id], onDelete: Restrict)
+  subscription GuildSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([guildId, entitlementKey, source, sourceReference])
+  @@index([guildId, status, startsAt, endsAt])
+  @@index([subscriptionId, status])
+  @@index([endsAt])
+}
+
+model PaymentTransaction {
+  id                      String                   @id @default(uuid()) @db.Uuid
+  guildId                 String                   @db.VarChar(20)
+  purchaserUserId         String                   @db.Uuid
+  subscriptionId          String                   @db.Uuid
+  provider                BillingProviderName
+  providerPaymentId       String?                  @db.VarChar(255)
+  providerInvoiceId       String?                  @db.VarChar(255)
+  merchantOrderId         String?                  @db.VarChar(64)
+  idempotencyKey          String                   @db.VarChar(128)
+  type                    PaymentTransactionType
+  status                  PaymentStatus            @default(PENDING)
+  amountMinor             Int
+  currency                String                   @db.Char(3)
+  failureCode             String?                  @db.VarChar(100)
+  failureMessageSanitized String?                  @db.VarChar(500)
+  paidAt                  DateTime?
+  refundedAt              DateTime?
+  disputedAt              DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  guild        Guild             @relation(fields: [guildId], references: [id], onDelete: Restrict)
+  purchaser    User              @relation(fields: [purchaserUserId], references: [id], onDelete: Restrict)
+  subscription GuildSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, idempotencyKey])
+  @@unique([provider, merchantOrderId])
+  @@unique([provider, providerPaymentId])
+  @@unique([provider, providerInvoiceId, type])
+  @@index([guildId, createdAt(sort: Desc)])
+  @@index([subscriptionId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+}
+
+model BillingProviderEvent {
+  id                     String                     @id @default(uuid()) @db.Uuid
+  provider               BillingProviderName
+  providerEventId        String                     @db.VarChar(255)
+  eventType              String                     @db.VarChar(128)
+  environment            String                     @db.VarChar(32)
+  payloadHash            String                     @db.Char(64)
+  payloadSummary         Json                       @default("{}")
+  signatureVerified      Boolean
+  processingStatus       BillingProviderEventStatus @default(RECEIVED)
+  attemptCount           Int                        @default(0)
+  providerEventCreatedAt DateTime?
+  receivedAt             DateTime                   @default(now())
+  processedAt            DateTime?
+  failureCode            String?                    @db.VarChar(100)
+  lastErrorSanitized     String?                    @db.VarChar(500)
+  correlationId          String                     @db.VarChar(128)
+
+  @@unique([provider, providerEventId])
+  @@index([processingStatus, receivedAt])
+  @@index([provider, eventType, receivedAt(sort: Desc)])
+  @@index([correlationId])
+}
+
+model CheckoutSession {
+  id                  String               @id @default(uuid()) @db.Uuid
+  userId              String               @db.Uuid
+  guildId             String               @db.VarChar(20)
+  subscriptionId      String               @db.Uuid
+  provider            BillingProviderName
+  planCode            String               @db.VarChar(64)
+  environment         String               @db.VarChar(32)
+  state               CheckoutSessionState @default(CREATED)
+  nonceHash           String               @db.Char(64)
+  expiresAt           DateTime
+  providerSessionId   String?              @db.VarChar(255)
+  amountMinorSnapshot Int
+  currencySnapshot    String               @db.Char(3)
+  version             Int                  @default(1)
+  createdAt           DateTime             @default(now())
+  completedAt         DateTime?
+  updatedAt           DateTime             @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  guild        Guild             @relation(fields: [guildId], references: [id], onDelete: Restrict)
+  subscription GuildSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerSessionId])
+  @@unique([nonceHash])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([guildId, state])
+  @@index([state, expiresAt])
+}
+
+model BillingAuditEvent {
+  id             String                @id @default(uuid()) @db.Uuid
+  actorType      BillingAuditActorType
+  actorUserId    String?               @db.Uuid
+  guildId        String?               @db.VarChar(20)
+  subscriptionId String?               @db.Uuid
+  action         String                @db.VarChar(128)
+  previousValue  Json?
+  newValue       Json?
+  requestId      String                @db.VarChar(128)
+  source         String                @db.VarChar(64)
+  ipAddressHash  String?               @db.Char(64)
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now())
+
+  actor        User?              @relation("BillingAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  guild        Guild?             @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  subscription GuildSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([guildId, createdAt(sort: Desc)])
+  @@index([subscriptionId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([requestId])
 }
 
 model FeatureFlag {
