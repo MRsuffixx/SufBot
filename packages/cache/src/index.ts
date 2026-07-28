@@ -10,13 +10,21 @@ export type CacheMetrics = {
   loadErrors: number;
 };
 
-export type CacheInvalidationEvent = {
-  type: 'guild.config.updated';
-  guildId: string;
-  module?: string;
-  version: number;
-  timestamp: string;
-};
+export type CacheInvalidationEvent =
+  | {
+      type: 'guild.config.updated';
+      guildId: string;
+      module?: string;
+      version: number;
+      timestamp: string;
+    }
+  | {
+      type: 'guild.entitlements.updated';
+      guildId: string;
+      subscriptionId?: string;
+      version: number;
+      timestamp: string;
+    };
 
 export type ObservableService = 'bot' | 'worker';
 
@@ -149,13 +157,22 @@ export class ServiceHeartbeat {
   }
 }
 
-const InvalidationSchema = z.object({
-  type: z.literal('guild.config.updated'),
-  guildId: z.string().regex(/^\d{17,20}$/),
-  module: z.string().min(1).max(64).optional(),
-  version: z.number().int().positive(),
-  timestamp: z.iso.datetime(),
-});
+const InvalidationSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('guild.config.updated'),
+    guildId: z.string().regex(/^\d{17,20}$/),
+    module: z.string().min(1).max(64).optional(),
+    version: z.number().int().positive(),
+    timestamp: z.iso.datetime(),
+  }),
+  z.object({
+    type: z.literal('guild.entitlements.updated'),
+    guildId: z.string().regex(/^\d{17,20}$/),
+    subscriptionId: z.uuid().optional(),
+    version: z.number().int().positive(),
+    timestamp: z.iso.datetime(),
+  }),
+]);
 
 type LocalEntry = { value: string; expiresAt: number };
 
@@ -320,6 +337,9 @@ export class DistributedCache {
   }
 
   public key(guildId: string, segment = 'config'): string {
+    if (segment === 'billing:entitlements') {
+      return `${this.options.namespace}:billing:guild:${guildId}:entitlements:v1`;
+    }
     return `${this.options.namespace}:guild:${guildId}:${segment}:v1`;
   }
 
@@ -393,7 +413,12 @@ export class DistributedCache {
 
   public async publish(event: CacheInvalidationEvent): Promise<void> {
     const validated = InvalidationSchema.parse(event);
-    await this.invalidate(validated.guildId, validated.module);
+    await this.invalidate(
+      validated.guildId,
+      validated.type === 'guild.config.updated'
+        ? validated.module
+        : 'billing:entitlements',
+    );
     try {
       await this.#redis.publish(this.options.invalidationChannel, JSON.stringify(validated));
     } catch (error) {
@@ -416,14 +441,28 @@ export class DistributedCache {
         this.options.logger.warn({ issues: parsed.error.issues }, 'Invalid cache event rejected');
         return;
       }
-      const event: CacheInvalidationEvent = {
-        type: parsed.data.type,
-        guildId: parsed.data.guildId,
-        version: parsed.data.version,
-        timestamp: parsed.data.timestamp,
-        ...(parsed.data.module === undefined ? {} : { module: parsed.data.module }),
-      };
-      void this.invalidate(event.guildId, event.module).then(() => handler(event));
+      const event: CacheInvalidationEvent =
+        parsed.data.type === 'guild.config.updated'
+          ? {
+              type: parsed.data.type,
+              guildId: parsed.data.guildId,
+              version: parsed.data.version,
+              timestamp: parsed.data.timestamp,
+              ...(parsed.data.module === undefined ? {} : { module: parsed.data.module }),
+            }
+          : {
+              type: parsed.data.type,
+              guildId: parsed.data.guildId,
+              version: parsed.data.version,
+              timestamp: parsed.data.timestamp,
+              ...(parsed.data.subscriptionId === undefined
+                ? {}
+                : { subscriptionId: parsed.data.subscriptionId }),
+            };
+      void this.invalidate(
+        event.guildId,
+        event.type === 'guild.config.updated' ? event.module : 'billing:entitlements',
+      ).then(() => handler(event));
     });
     return async () => {
       await subscriber.unsubscribe(this.options.invalidationChannel);

@@ -33,14 +33,14 @@ const logger = await createRuntimeLogger(
 );
 const prisma = getPrismaClient(env.DATABASE_URL);
 const cache = new DistributedCache(env.REDIS_URL, {
-  namespace: config.cache.namespace,
+  namespace: `${config.cache.namespace}:${env.NODE_ENV}`,
   localTtlSeconds: config.cache.localTtlSeconds,
   redisTtlSeconds: config.cache.guildConfigTtlSeconds,
   invalidationChannel: config.cache.invalidationChannel,
   logger,
 });
 const heartbeat = new ServiceHeartbeat(env.REDIS_URL, {
-  namespace: config.cache.namespace,
+  namespace: `${config.cache.namespace}:${env.NODE_ENV}`,
   service: 'bot',
   logger,
 });
@@ -141,7 +141,19 @@ client.on(Events.Error, (error) => logger.error({ err: error }, 'Discord client 
 client.on(Events.Warn, (warning) => logger.warn({ warning }, 'Discord client warning'));
 
 const stopInvalidation = await cache.subscribe((event) => {
-  logger.debug({ guildId: event.guildId, module: event.module }, 'configuration invalidated');
+  logger.debug(
+    {
+      guildId: event.guildId,
+      invalidationType: event.type,
+      ...(event.type === 'guild.config.updated' && event.module !== undefined
+        ? { module: event.module }
+        : {}),
+      ...(event.type === 'guild.entitlements.updated' && event.subscriptionId !== undefined
+        ? { subscriptionId: event.subscriptionId }
+        : {}),
+    },
+    'guild cache invalidated',
+  );
 });
 
 let stopping = false;

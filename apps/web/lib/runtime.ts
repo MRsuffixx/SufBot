@@ -15,7 +15,7 @@ export const webLogger = createLogger(
 );
 export const prisma = getPrismaClient(webEnvironment.DATABASE_URL);
 export const cache = new DistributedCache(webEnvironment.REDIS_URL, {
-  namespace: appConfig.cache.namespace,
+  namespace: `${appConfig.cache.namespace}:${webEnvironment.NODE_ENV}`,
   localTtlSeconds: appConfig.cache.localTtlSeconds,
   redisTtlSeconds: appConfig.cache.guildConfigTtlSeconds,
   invalidationChannel: appConfig.cache.invalidationChannel,

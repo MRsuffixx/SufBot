@@ -79,6 +79,7 @@
     "@playwright/test": "1.62.0",
     "@prisma/config": "7.9.0",
     "@sufbot/auth": "workspace:*",
+    "@sufbot/billing": "workspace:*",
     "@sufbot/cache": "workspace:*",
     "@sufbot/config": "workspace:*",
     "@sufbot/database": "workspace:*",

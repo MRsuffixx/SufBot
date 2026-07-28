@@ -18,7 +18,7 @@ const context = (overrides: Partial<AuthorizationContext> = {}): AuthorizationCo
   botPermissions: DiscordPermission.Administrator,
   customPermissions: new Set(),
   enabledModules: new Set(['general']),
-  premium: false,
+  entitlements: new Set(),
   featureFlags: new Set(),
   ...overrides,
 });
@@ -53,10 +53,21 @@ describe('permission policies', () => {
       allowed: false,
       code: 'MODULE_DISABLED',
     });
-    expect(canExecuteCommand(context(), policy({ premiumOnly: true }))).toMatchObject({
+    expect(
+      canExecuteCommand(
+        context(),
+        policy({ premium: { required: true, entitlement: 'premium.automod.advanced' } }),
+      ),
+    ).toMatchObject({
       allowed: false,
       code: 'PREMIUM_REQUIRED',
     });
+    expect(
+      canExecuteCommand(
+        context({ entitlements: new Set(['premium.automod.advanced']) }),
+        policy({ premium: { required: true, entitlement: 'premium.automod.advanced' } }),
+      ),
+    ).toEqual({ allowed: true });
     expect(canExecuteCommand(context(), policy({ featureFlag: 'beta-command' }))).toMatchObject({
       allowed: false,
       code: 'FEATURE_DISABLED',

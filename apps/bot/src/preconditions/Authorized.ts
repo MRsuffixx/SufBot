@@ -21,7 +21,7 @@ export class AuthorizedPrecondition extends Precondition {
         ? {
             enabledModules: ['general'],
             featureFlags: [] as string[],
-            premium: false,
+            entitlements: [] as string[],
             rolePermissions: {},
           }
         : await this.container.sufbot.authorizationState(interaction.guildId);
@@ -35,7 +35,7 @@ export class AuthorizedPrecondition extends Precondition {
       botPermissions: interaction.guild?.members.me?.permissions.bitfield ?? 0n,
       customPermissions: this.container.sufbot.rolePermissions(interaction, state.rolePermissions),
       enabledModules: new Set(state.enabledModules),
-      premium: state.premium,
+      entitlements: new Set(state.entitlements),
       featureFlags: new Set(state.featureFlags),
     };
     const decision = canExecuteCommand(context, metadata);

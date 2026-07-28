@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@sapphire/framework": "5.5.0",
+    "@sufbot/billing": "workspace:*",
     "@sufbot/cache": "workspace:*",
     "@sufbot/config": "workspace:*",
     "@sufbot/database": "workspace:*",

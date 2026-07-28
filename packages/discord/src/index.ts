@@ -278,7 +278,10 @@ export type CommandMetadata = {
   cooldownSeconds: number;
   perGuildCooldownSeconds?: number;
   requiredModule?: string;
-  premiumOnly?: boolean;
+  premium?: {
+    required: true;
+    entitlement: string;
+  };
   featureFlag?: string;
 };
 

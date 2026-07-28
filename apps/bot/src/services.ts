@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ChatInputCommandInteraction, ContextMenuCommandInteraction } from 'discord.js';
 import type { DistributedCache } from '@sufbot/cache';
+import { EntitlementService } from '@sufbot/billing';
 import { loadAppConfig, type AppConfig, type BotEnvironment } from '@sufbot/config';
 import type { PrismaClient } from '@sufbot/database/generated';
 import type { Logger } from '@sufbot/logger';
@@ -11,8 +12,11 @@ import type { GuildStatusService } from './guild-status.js';
 const AuthorizationStateSchema = z.object({
   enabledModules: z.array(z.string()),
   featureFlags: z.array(z.string()),
-  premium: z.boolean(),
   rolePermissions: z.record(z.string(), z.array(z.string())),
+});
+
+const CompleteAuthorizationStateSchema = AuthorizationStateSchema.extend({
+  entitlements: z.array(z.string()),
 });
 
 type CommandInteraction = ChatInputCommandInteraction | ContextMenuCommandInteraction;
@@ -39,6 +43,7 @@ export class CooldownService {
 
 export class BotServices {
   public readonly cooldowns = new CooldownService();
+  public readonly entitlements: EntitlementService;
   public config: AppConfig;
   public guildStatus: GuildStatusService | undefined;
   #commandRegistrationStatus: CommandRegistrationStatus = CommandRegistrationStatusSchema.parse({
@@ -57,6 +62,7 @@ export class BotServices {
     config: AppConfig,
   ) {
     this.config = config;
+    this.entitlements = new EntitlementService(prisma, config, cache);
   }
 
   public reloadConfig(): AppConfig {
@@ -81,9 +87,10 @@ export class BotServices {
 
   public async authorizationState(
     guildId: string,
-  ): Promise<z.infer<typeof AuthorizationStateSchema>> {
-    return this.cache.getOrLoad(guildId, 'authorization', AuthorizationStateSchema, async () => {
-      const [modules, flags, subscription, rolePermissions] = await Promise.all([
+  ): Promise<z.infer<typeof CompleteAuthorizationStateSchema>> {
+    const [authorization, entitlements] = await Promise.all([
+      this.cache.getOrLoad(guildId, 'authorization', AuthorizationStateSchema, async () => {
+        const [modules, flags, rolePermissions] = await Promise.all([
         this.prisma.guildModule.findMany({
           where: { guildId, enabled: true },
           select: { moduleKey: true },
@@ -95,14 +102,6 @@ export class BotServices {
           },
           select: { key: true },
         }),
-        this.prisma.subscription.findFirst({
-          where: {
-            guildId,
-            status: { in: ['ACTIVE', 'TRIALING'] },
-            currentPeriodEnd: { gt: new Date() },
-          },
-          select: { id: true },
-        }),
         this.prisma.guildRolePermission.findMany({
           where: { guildId },
           select: { discordRoleId: true, permissions: true },
@@ -113,11 +112,16 @@ export class BotServices {
       return {
         enabledModules: [...enabled],
         featureFlags: flags.map((flag) => flag.key),
-        premium: subscription !== null,
         rolePermissions: Object.fromEntries(
           rolePermissions.map((permission) => [permission.discordRoleId, permission.permissions]),
         ),
       };
+      }),
+      this.entitlements.listGuildEntitlements(guildId),
+    ]);
+    return CompleteAuthorizationStateSchema.parse({
+      ...authorization,
+      entitlements: entitlements.map((entitlement) => entitlement.key),
     });
   }
 

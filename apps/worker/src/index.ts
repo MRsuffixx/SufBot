@@ -24,7 +24,7 @@ const logger = await createRuntimeLogger(
 const prisma = getPrismaClient(env.DATABASE_URL);
 const registry = new QueueRegistry(env.REDIS_URL, config.queue);
 const heartbeat = new ServiceHeartbeat(env.REDIS_URL, {
-  namespace: config.cache.namespace,
+  namespace: `${config.cache.namespace}:${env.NODE_ENV}`,
   service: 'worker',
   logger,
 });

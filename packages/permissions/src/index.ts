@@ -25,7 +25,7 @@ export type AuthorizationContext = {
   botPermissions: bigint;
   customPermissions: ReadonlySet<string>;
   enabledModules: ReadonlySet<string>;
-  premium: boolean;
+  entitlements: ReadonlySet<string>;
   featureFlags: ReadonlySet<string>;
 };
 
@@ -36,7 +36,10 @@ export type CommandPolicy = {
   requiredUserPermissions: readonly bigint[];
   requiredBotPermissions: readonly bigint[];
   requiredModule?: string;
-  premiumOnly?: boolean;
+  premium?: {
+    required: true;
+    entitlement: string;
+  };
   featureFlag?: string;
   customPermission?: string;
 };
@@ -132,8 +135,15 @@ export const canExecuteCommand = (
       reason: `The ${policy.requiredModule} module is disabled.`,
     };
   }
-  if (policy.premiumOnly === true && !context.premium) {
-    return { allowed: false, code: 'PREMIUM_REQUIRED', reason: 'A premium plan is required.' };
+  if (
+    policy.premium?.required === true &&
+    !context.entitlements.has(policy.premium.entitlement)
+  ) {
+    return {
+      allowed: false,
+      code: 'PREMIUM_REQUIRED',
+      reason: `The ${policy.premium.entitlement} Premium entitlement is required.`,
+    };
   }
   if (policy.featureFlag !== undefined && !context.featureFlags.has(policy.featureFlag)) {
     return { allowed: false, code: 'FEATURE_DISABLED', reason: 'The feature is disabled.' };

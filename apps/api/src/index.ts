@@ -15,7 +15,7 @@ const logger = await createRuntimeLogger(
 );
 const prisma = getPrismaClient(env.DATABASE_URL);
 const cache = new DistributedCache(env.REDIS_URL, {
-  namespace: config.cache.namespace,
+  namespace: `${config.cache.namespace}:${env.NODE_ENV}`,
   localTtlSeconds: config.cache.localTtlSeconds,
   redisTtlSeconds: config.cache.guildConfigTtlSeconds,
   invalidationChannel: config.cache.invalidationChannel,
