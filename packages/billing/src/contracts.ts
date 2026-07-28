@@ -167,12 +167,14 @@ export const NormalizedProviderEventSchema = z.discriminatedUnion('type', [
   subscriptionEvent('subscription.activated', {
     periodStart: z.iso.datetime(),
     periodEnd: z.iso.datetime(),
-    providerPaymentId: z.string().min(1).max(255),
+    providerPaymentId: z.string().min(1).max(255).optional(),
+    providerInvoiceId: z.string().min(1).max(255).optional(),
   }),
   subscriptionEvent('subscription.renewed', {
     periodStart: z.iso.datetime(),
     periodEnd: z.iso.datetime(),
-    providerPaymentId: z.string().min(1).max(255),
+    providerPaymentId: z.string().min(1).max(255).optional(),
+    providerInvoiceId: z.string().min(1).max(255).optional(),
   }),
   subscriptionEvent('subscription.payment_failed', {
     failureCode: z.string().min(1).max(100).optional(),
@@ -194,6 +196,9 @@ export const NormalizedProviderEventSchema = z.discriminatedUnion('type', [
     fullRefund: z.boolean(),
   }),
   subscriptionEvent('subscription.disputed', {
+    providerPaymentId: z.string().min(1).max(255),
+  }),
+  subscriptionEvent('subscription.dispute_resolved', {
     providerPaymentId: z.string().min(1).max(255),
   }),
 ]);
@@ -234,7 +239,9 @@ export type CreateCheckoutInput = {
   plan: PlanResponse;
   successUrl: string;
   cancelUrl: string;
+  expiresAt: Date;
   idempotencyKey: string;
+  providerCustomerId?: string;
 };
 
 export type CreateCheckoutResult = z.infer<typeof CheckoutResponseSchema>;
@@ -253,6 +260,17 @@ export type ProviderSubscriptionSnapshot = {
   currentPeriodStart?: Date;
   currentPeriodEnd?: Date;
   cancelAtPeriodEnd: boolean;
+  providerCustomerId?: string;
+  providerPriceId?: string;
+  latestPaymentStatus:
+    | 'PENDING'
+    | 'SUCCEEDED'
+    | 'FAILED'
+    | 'REFUNDED'
+    | 'PARTIALLY_REFUNDED'
+    | 'DISPUTED'
+    | 'REVERSED'
+    | 'UNKNOWN';
   providerStateVersion?: string;
   providerUpdatedAt?: Date;
 };

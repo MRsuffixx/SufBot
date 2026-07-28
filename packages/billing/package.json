@@ -23,6 +23,7 @@
     "@sufbot/config": "workspace:*",
     "@sufbot/database": "workspace:*",
     "@sufbot/shared": "workspace:*",
+    "stripe": "22.3.2",
     "zod": "4.4.3"
   },
   "devDependencies": {

@@ -401,7 +401,12 @@ export class DistributedCache {
   }
 
   public async invalidate(guildId: string, module?: string): Promise<void> {
-    const segment = module === undefined ? 'config' : `module:${module}`;
+    const segment =
+      module === undefined
+        ? 'config'
+        : module === 'billing:entitlements'
+          ? module
+          : `module:${module}`;
     const key = this.key(guildId, segment);
     this.#local.delete(key);
     try {

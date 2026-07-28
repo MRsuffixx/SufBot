@@ -1,7 +1,7 @@
 import {
   assertPersistedPlanMatchesConfig,
   configuredPlan,
-} from '@sufbot/billing';
+} from '../../packages/billing/src/index.js';
 import {
   loadAppConfig,
   loadRootEnvironment,
@@ -69,11 +69,7 @@ const paytrCheck = (): ProviderCheck => {
     enabled,
     configured,
     recurringCapable,
-    ready:
-      enabled &&
-      configured &&
-      config.billing.providers.paytr.mode === 'manual_renewal' &&
-      false,
+    ready: false,
     reasonCodes,
   };
 };

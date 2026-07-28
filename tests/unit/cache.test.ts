@@ -145,4 +145,21 @@ describe('distributed cache', () => {
     expect(redisState.published[0]?.channel).toBe('test:invalidate');
     await cache.close();
   });
+
+  it('deletes the billing entitlement key when publishing an entitlement update', async () => {
+    const cache = createCache();
+    const guildId = '123456789012345678';
+    const key = cache.key(guildId, 'billing:entitlements');
+    redisState.values.set(key, JSON.stringify({ version: 1 }));
+
+    await cache.publish({
+      type: 'guild.entitlements.updated',
+      guildId,
+      version: 2,
+      timestamp: '2026-07-28T10:00:00.000Z',
+    });
+
+    expect(redisState.values.has(key)).toBe(false);
+    await cache.close();
+  });
 });

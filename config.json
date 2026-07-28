@@ -97,7 +97,7 @@
     },
     "gracePeriodDays": 3,
     "failedPaymentRetryWindowDays": 7,
-    "checkoutSessionTtlMinutes": 15,
+    "checkoutSessionTtlMinutes": 60,
     "entitlementCacheTtlSeconds": 30,
     "allowGuildTransfer": false,
     "cancellationPolicy": "end_of_period",

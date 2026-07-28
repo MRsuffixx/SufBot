@@ -43,7 +43,7 @@ export class CooldownService {
 
 export class BotServices {
   public readonly cooldowns = new CooldownService();
-  public readonly entitlements: EntitlementService;
+  public entitlements: EntitlementService;
   public config: AppConfig;
   public guildStatus: GuildStatusService | undefined;
   #commandRegistrationStatus: CommandRegistrationStatus = CommandRegistrationStatusSchema.parse({
@@ -67,6 +67,7 @@ export class BotServices {
 
   public reloadConfig(): AppConfig {
     this.config = loadAppConfig({ reload: true });
+    this.entitlements = new EntitlementService(this.prisma, this.config, this.cache);
     return this.config;
   }
 

@@ -26,3 +26,6 @@ minimumReleaseAgeExclude:
   - playwright-core@1.62.0
   - playwright@1.62.0
   - postcss@8.5.23
+
+patchedDependencies:
+  zod@4.4.3: patches/zod@4.4.3.patch

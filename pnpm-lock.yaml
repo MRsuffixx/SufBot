@@ -12,6 +12,9 @@ overrides:
   sharp: 0.35.3
   valibot: 1.4.2
 
+patchedDependencies:
+  zod@4.4.3: dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790
+
 importers:
 
   .:
@@ -111,7 +114,7 @@ importers:
         version: 4.1.10(@types/node@24.13.3)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
 
   apps/api:
     dependencies:
@@ -156,7 +159,7 @@ importers:
         version: 5.10.0
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -202,7 +205,7 @@ importers:
         version: 14.27.0
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -266,7 +269,7 @@ importers:
         version: 3.6.0
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -353,7 +356,7 @@ importers:
         version: link:../shared
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -379,9 +382,12 @@ importers:
       '@sufbot/shared':
         specifier: workspace:*
         version: link:../shared
+      stripe:
+        specifier: 22.3.2
+        version: 22.3.2(@types/node@24.13.3)
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -403,7 +409,7 @@ importers:
         version: 5.11.1
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -425,7 +431,7 @@ importers:
         version: 17.4.2
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -487,7 +493,7 @@ importers:
         version: link:../permissions
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -577,7 +583,7 @@ importers:
         version: 5.81.2
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -593,7 +599,7 @@ importers:
     dependencies:
       zod:
         specifier: 4.4.3
-        version: 4.4.3
+        version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
     devDependencies:
       '@sufbot/typescript-config':
         specifier: workspace:*
@@ -4273,6 +4279,15 @@ packages:
     resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
     engines: {node: '>=14.16'}
 
+  stripe@22.3.2:
+    resolution: {integrity: sha512-O13QOvgEIQvDlTy6Ubb5kB980wpbhmoZNsgCXKILjCMZS67f+bW+6w99k3gnSi/N1lkryoj1WYdpGT5Wc5edjg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   styled-jsx@5.1.6:
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
@@ -6878,8 +6893,8 @@ snapshots:
       '@babel/parser': 7.29.7
       eslint: 9.39.5(jiti@2.7.0)
       hermes-parser: 0.25.1
-      zod: 4.4.3
-      zod-validation-error: 4.0.2(zod@4.4.3)
+      zod: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
+      zod-validation-error: 4.0.2(zod@4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790))
     transitivePeerDependencies:
       - supports-color
 
@@ -8355,6 +8370,10 @@ snapshots:
 
   strip-json-comments@5.0.3: {}
 
+  stripe@22.3.2(@types/node@24.13.3):
+    optionalDependencies:
+      '@types/node': 24.13.3
+
   styled-jsx@5.1.6(@babel/core@7.29.7)(react@19.2.8):
     dependencies:
       client-only: 0.0.1
@@ -8695,8 +8714,8 @@ snapshots:
       grammex: 3.1.13
       graphmatch: 1.1.1
 
-  zod-validation-error@4.0.2(zod@4.4.3):
+  zod-validation-error@4.0.2(zod@4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)):
     dependencies:
-      zod: 4.4.3
+      zod: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
 
-  zod@4.4.3: {}
+  zod@4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790): {}

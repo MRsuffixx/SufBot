@@ -1,0 +1,42 @@
+diff --git a/v3/helpers/enumUtil.js b/v3/helpers/enumUtil.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v3/helpers/enumUtil.js
++++ b/v3/helpers/enumUtil.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
+diff --git a/v3/helpers/partialUtil.js b/v3/helpers/partialUtil.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v3/helpers/partialUtil.js
++++ b/v3/helpers/partialUtil.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
+diff --git a/v3/helpers/typeAliases.js b/v3/helpers/typeAliases.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v3/helpers/typeAliases.js
++++ b/v3/helpers/typeAliases.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
+diff --git a/v3/standard-schema.js b/v3/standard-schema.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v3/standard-schema.js
++++ b/v3/standard-schema.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
+diff --git a/v4/core/json-schema.js b/v4/core/json-schema.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v4/core/json-schema.js
++++ b/v4/core/json-schema.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
+diff --git a/v4/core/standard-schema.js b/v4/core/standard-schema.js
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..635c65f98d59121a6f3528a905774dc4abc86c7e 100644
+--- a/v4/core/standard-schema.js
++++ b/v4/core/standard-schema.js
+@@ -1 +1,2 @@
++// Kept non-empty for reliable pnpm extraction on Windows/OneDrive.
+ export {};
