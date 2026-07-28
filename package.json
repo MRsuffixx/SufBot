@@ -97,6 +97,7 @@
     "@sufbot/discord": "workspace:*",
     "@sufbot/eslint-config": "workspace:*",
     "@sufbot/logger": "workspace:*",
+    "@sufbot/onboarding": "workspace:*",
     "@sufbot/permissions": "workspace:*",
     "@sufbot/queue": "workspace:*",
     "@sufbot/shared": "workspace:*",

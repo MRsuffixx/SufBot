@@ -52,6 +52,9 @@ importers:
       '@sufbot/logger':
         specifier: workspace:*
         version: link:packages/logger
+      '@sufbot/onboarding':
+        specifier: workspace:*
+        version: link:packages/onboarding
       '@sufbot/permissions':
         specifier: workspace:*
         version: link:packages/permissions
