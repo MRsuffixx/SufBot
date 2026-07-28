@@ -1,7 +1,12 @@
 import 'server-only';
 
 import { DistributedCache } from '@sufbot/cache';
-import { StripeBillingProvider, type BillingProvider, type BillingProviderName } from '@sufbot/billing';
+import {
+  PaytrBillingProvider,
+  StripeBillingProvider,
+  type BillingProvider,
+  type BillingProviderName,
+} from '@sufbot/billing';
 import { loadAppConfig, loadWebEnvironment } from '@sufbot/config';
 import { getPrismaClient } from '@sufbot/database';
 import { createLogger } from '@sufbot/logger';
@@ -31,8 +36,29 @@ const stripeBillingProvider = new StripeBillingProvider({
     ? {}
     : { portalConfigurationId: webEnvironment.STRIPE_PORTAL_CONFIGURATION_ID }),
 });
+const paytrBillingProvider = new PaytrBillingProvider({
+  config: appConfig,
+  environment: webEnvironment.NODE_ENV,
+  ...(webEnvironment.PAYTR_MERCHANT_ID === undefined
+    ? {}
+    : { merchantId: webEnvironment.PAYTR_MERCHANT_ID }),
+  ...(webEnvironment.PAYTR_MERCHANT_KEY === undefined
+    ? {}
+    : { merchantKey: webEnvironment.PAYTR_MERCHANT_KEY }),
+  ...(webEnvironment.PAYTR_MERCHANT_SALT === undefined
+    ? {}
+    : { merchantSalt: webEnvironment.PAYTR_MERCHANT_SALT }),
+  ...(webEnvironment.PAYTR_CALLBACK_URL === undefined
+    ? {}
+    : { callbackUrl: webEnvironment.PAYTR_CALLBACK_URL }),
+  iframeCapabilityEnabled: webEnvironment.PAYTR_IFRAME_ENABLED,
+  recurringCapabilityEnabled: webEnvironment.PAYTR_RECURRING_ENABLED,
+  cardStorageCapabilityEnabled: webEnvironment.PAYTR_CARD_STORAGE_ENABLED,
+  approvedCurrencies: webEnvironment.PAYTR_APPROVED_CURRENCIES,
+});
 export const billingProviders: ReadonlyMap<BillingProviderName, BillingProvider> = new Map([
   ['STRIPE', stripeBillingProvider],
+  ['PAYTR', paytrBillingProvider],
 ]);
 export const cache = new DistributedCache(webEnvironment.REDIS_URL, {
   namespace: `${appConfig.cache.namespace}:${webEnvironment.NODE_ENV}`,
