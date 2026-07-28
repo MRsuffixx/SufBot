@@ -20,6 +20,43 @@ export function BillingCheckoutForm({
       <input type="hidden" name="planCode" value={planCode} />
       <input type="hidden" name="provider" value={provider} />
       <input type="hidden" name="idempotencyKey" value={createId('mut')} />
+      {provider === 'PAYTR' ? (
+        <div className="grid gap-3">
+          <input
+            required
+            type="email"
+            name="billingEmail"
+            placeholder="Billing email"
+            maxLength={100}
+            className="rounded-xl border bg-transparent px-3 py-2"
+          />
+          <input
+            required
+            name="billingFullName"
+            placeholder="Full name"
+            minLength={2}
+            maxLength={60}
+            className="rounded-xl border bg-transparent px-3 py-2"
+          />
+          <input
+            required
+            name="billingAddress"
+            placeholder="Billing address"
+            minLength={3}
+            maxLength={400}
+            className="rounded-xl border bg-transparent px-3 py-2"
+          />
+          <input
+            required
+            type="tel"
+            name="billingPhone"
+            placeholder="Phone"
+            minLength={7}
+            maxLength={20}
+            className="rounded-xl border bg-transparent px-3 py-2"
+          />
+        </div>
+      ) : null}
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"

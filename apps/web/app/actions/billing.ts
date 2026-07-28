@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies, headers } from 'next/headers';
+import { isIP } from 'node:net';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -80,7 +81,24 @@ export const createBillingCheckoutAction = async (formData: FormData): Promise<v
     provider: formData.get('provider'),
     planCode: formData.get('planCode'),
     confirmationAccepted: formData.get('confirmationAccepted') === 'true',
+    ...(formData.get('billingEmail') === null
+      ? {}
+      : {
+          billingContact: {
+            email: formData.get('billingEmail'),
+            fullName: formData.get('billingFullName'),
+            address: formData.get('billingAddress'),
+            phone: formData.get('billingPhone'),
+          },
+        }),
   });
+  const paytrCustomer =
+    input.provider === 'PAYTR' && input.billingContact !== undefined
+      ? {
+          ...input.billingContact,
+          userIp: await trustedRequestIp(),
+        }
+      : undefined;
   const result = await checkoutService().createCheckout({
     userId: session.user.id,
     guildId,
@@ -89,6 +107,7 @@ export const createBillingCheckoutAction = async (formData: FormData): Promise<v
     successUrl: `${appConfig.application.websiteUrl}/premium/status`,
     cancelUrl: `${appConfig.application.websiteUrl}/dashboard/guilds/${guildId}/premium?checkout=cancelled`,
     requestId: await requestId(),
+    ...(paytrCustomer === undefined ? {} : { paytrCustomer }),
   });
   if (result.kind === 'unavailable') {
     redirect(
@@ -112,6 +131,21 @@ export const createBillingCheckoutAction = async (formData: FormData): Promise<v
       ? result.url
       : `${appConfig.application.websiteUrl}/premium/paytr`,
   );
+};
+
+const trustedRequestIp = async (): Promise<string> => {
+  const requestHeaders = await headers();
+  const candidates = [
+    requestHeaders.get('x-real-ip'),
+    requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim(),
+  ];
+  const address = candidates.find(
+    (candidate): candidate is string => candidate !== null && isIP(candidate) !== 0,
+  );
+  if (address === undefined) {
+    throw new Error('A validated client IP is required for PayTR.');
+  }
+  return address;
 };
 
 export const cancelBillingAction = async (

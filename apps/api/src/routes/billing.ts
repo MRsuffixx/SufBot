@@ -126,6 +126,14 @@ export const registerBillingRoutes = async (
         successUrl: `${dependencies.config.application.websiteUrl}/premium/status`,
         cancelUrl: `${dependencies.config.application.websiteUrl}/premium?checkout=cancelled`,
         requestId: request.id,
+        ...(input.billingContact === undefined
+          ? {}
+          : {
+              paytrCustomer: {
+                ...input.billingContact,
+                userIp: request.ip,
+              },
+            }),
       });
       return { success: true, data: result, requestId: request.id };
     },
