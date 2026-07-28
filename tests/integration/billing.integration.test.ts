@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  BillingCheckoutService,
   EntitlementService,
   PremiumEntitlement,
   SubscriptionReconciliationService,
   assertPersistedPlanMatchesConfig,
   ensureConfiguredPlan,
   entitlementsForFeatureSet,
+  type BillingProvider,
 } from '@sufbot/billing';
 import { loadAppConfig } from '@sufbot/config';
 import { createPrismaClient, type PrismaClient } from '@sufbot/database';
@@ -136,6 +138,85 @@ run('billing PostgreSQL invariants', () => {
       code: 'CONFLICT',
     });
 
+    await prisma.billingPlan.delete({ where: { code: isolatedConfig.billing.plan.code } });
+  });
+
+  it('bootstraps a missing trusted plan before creating a checkout', async () => {
+    const isolatedConfig = structuredClone(config);
+    isolatedConfig.billing.enabled = true;
+    isolatedConfig.billing.providers.stripe.enabled = true;
+    isolatedConfig.billing.plan.code = 'premium_monthly_checkout_regression';
+    const provider: BillingProvider = {
+      provider: 'STRIPE',
+      checkCapabilities: async () => ({
+        provider: 'STRIPE',
+        configured: true,
+        credentialsPresent: true,
+        hostedInitialPayment: true,
+        cardStorage: true,
+        recurring: true,
+        merchantInitiatedRenewal: false,
+        supportedCurrencies: ['USD'],
+        testMode: true,
+        callbackConfigured: true,
+        callbackReachable: true,
+        ready: true,
+        reasonCodes: [],
+      }),
+      createCheckout: async (input) => ({
+        kind: 'redirect',
+        providerSessionId: `test_${input.checkoutSessionId}`,
+        url: 'https://checkout.stripe.test/session',
+        expiresAt: input.expiresAt,
+      }),
+      cancelSubscription: async (input) => ({
+        providerSubscriptionId: input.providerSubscriptionId,
+        cancelAtPeriodEnd: true,
+      }),
+      resumeSubscription: async (input) => ({
+        providerSubscriptionId: input.providerSubscriptionId,
+        cancelAtPeriodEnd: false,
+      }),
+      verifyAndParseWebhook: async () => {
+        throw new Error('not used');
+      },
+      retrieveSubscription: async () => {
+        throw new Error('not used');
+      },
+      reconcileSubscription: async () => {
+        throw new Error('not used');
+      },
+    };
+    await prisma.billingPlan.deleteMany({ where: { code: isolatedConfig.billing.plan.code } });
+
+    const result = await new BillingCheckoutService(
+      prisma,
+      isolatedConfig,
+      new Map([['STRIPE', provider]]),
+      'test',
+    ).createCheckout({
+      userId: purchaserUserId,
+      guildId: guildA,
+      provider: 'STRIPE',
+      planCode: isolatedConfig.billing.plan.code,
+      successUrl: 'https://app.test/billing/success',
+      cancelUrl: 'https://app.test/billing/cancel',
+      requestId: 'billing-checkout-plan-regression',
+    });
+
+    expect(result.kind).toBe('redirect');
+    await expect(
+      prisma.billingPlan.count({ where: { code: isolatedConfig.billing.plan.code } }),
+    ).resolves.toBe(1);
+    await expect(
+      prisma.checkoutSession.count({
+        where: { guildId: guildA, planCode: isolatedConfig.billing.plan.code },
+      }),
+    ).resolves.toBe(1);
+
+    await prisma.billingAuditEvent.deleteMany({ where: { guildId: guildA } });
+    await prisma.checkoutSession.deleteMany({ where: { guildId: guildA } });
+    await prisma.guildSubscription.deleteMany({ where: { guildId: guildA } });
     await prisma.billingPlan.delete({ where: { code: isolatedConfig.billing.plan.code } });
   });
 
