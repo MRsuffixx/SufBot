@@ -5,6 +5,7 @@ const featureFlags = [
   { key: 'module:moderation', enabled: true },
   { key: 'module:logging', enabled: false },
   { key: 'module:welcome', enabled: false },
+  { key: 'module:onboarding', enabled: true },
   { key: 'module:automod', enabled: false },
 ] as const;
 
@@ -13,6 +14,7 @@ const moduleDefinitions = [
   { key: 'moderation', enabledByDefault: false },
   { key: 'logging', enabledByDefault: false },
   { key: 'welcome', enabledByDefault: false },
+  { key: 'onboarding', enabledByDefault: false },
   { key: 'automod', enabledByDefault: false },
 ] as const;
 

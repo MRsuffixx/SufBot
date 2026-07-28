@@ -499,7 +499,39 @@ export const moderationModule = {
   defaultTimeoutMinutes: number;
 }>;
 
-export const builtInModules = [generalModule, moderationModule] as const;
+export const onboardingModule = {
+  metadata: {
+    key: 'onboarding',
+    name: 'Member Onboarding',
+    description: 'Welcome, verification, automatic roles, and member departure workflows.',
+    version: 1,
+    premium: false,
+  },
+  configSchema: z.object({
+    managedByOnboardingDomain: z.literal(true),
+  }),
+  defaultConfig: { managedByOnboardingDomain: true },
+  commands: [],
+  eventListeners: [
+    'guildMemberAdd',
+    'guildMemberRemove',
+    'guildMemberUpdate',
+    'channelDelete',
+    'roleDelete',
+  ],
+  dashboardSettings: [],
+  permissionRequirements: [
+    'module.onboarding.view',
+    'module.onboarding.edit',
+    'module.onboarding.test',
+  ],
+  cacheInvalidation: {
+    segments: ['config', 'module:onboarding'],
+    eventType: 'guild.config.updated',
+  },
+} satisfies BotModuleDefinition<{ managedByOnboardingDomain: true }>;
+
+export const builtInModules = [generalModule, moderationModule, onboardingModule] as const;
 
 export const commandMetadata = new Map(
   builtInModules.flatMap((module) => module.commands).map((metadata) => [metadata.name, metadata]),

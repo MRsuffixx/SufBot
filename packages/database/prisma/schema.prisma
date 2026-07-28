@@ -133,6 +133,52 @@ enum BackgroundJobStatus {
   DEAD_LETTERED
 }
 
+enum OnboardingVerificationStatus {
+  PENDING
+  CHALLENGE_CREATED
+  FAILED
+  LOCKED
+  VERIFIED
+  EXPIRED
+  MANUALLY_VERIFIED
+  BYPASSED
+}
+
+enum OnboardingEventStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum OnboardingResourceHealth {
+  NOT_CONFIGURED
+  PENDING
+  HEALTHY
+  PARTIAL
+  BROKEN
+}
+
+enum VerificationSetupMode {
+  EVERYONE_VISIBLE
+  DEDICATED_UNVERIFIED_ROLE
+}
+
+enum OnboardingCaptchaType {
+  IMAGE_TEXT
+  ARITHMETIC
+  BUTTON_SEQUENCE
+  MODAL_TEXT
+}
+
+enum OnboardingRoleGrantCondition {
+  CAPTCHA_ONLY
+  SCREENING_ONLY
+  EITHER
+  BOTH
+}
+
 model User {
   id             String       @id @default(uuid()) @db.Uuid
   discordId      String       @unique @db.VarChar(20)
@@ -233,6 +279,9 @@ model Guild {
   checkoutSessions     CheckoutSession[]
   billingAuditEvents   BillingAuditEvent[]
   billingNotifications BillingNotification[]
+  onboardingConfig     GuildOnboardingConfig?
+  memberVerifications  MemberVerification[]
+  onboardingEvents     OnboardingEvent[]
 
   @@index([ownerDiscordId])
   @@index([botInstalled, leftAt])
@@ -265,6 +314,96 @@ model GuildModule {
 
   @@unique([guildId, moduleKey])
   @@index([guildId, enabled])
+}
+
+model GuildOnboardingConfig {
+  guildId               String                       @id @db.VarChar(20)
+  welcomeEnabled        Boolean                      @default(false)
+  goodbyeEnabled        Boolean                      @default(false)
+  verificationEnabled   Boolean                      @default(false)
+  autoRoleEnabled       Boolean                      @default(false)
+  welcomeCardEnabled    Boolean                      @default(false)
+  verificationChannelId String?                      @db.VarChar(20)
+  verifiedRoleId        String?                      @db.VarChar(20)
+  unverifiedRoleId      String?                      @db.VarChar(20)
+  verificationMessageId String?                      @db.VarChar(20)
+  setupMode             VerificationSetupMode        @default(EVERYONE_VISIBLE)
+  captchaType           OnboardingCaptchaType        @default(IMAGE_TEXT)
+  roleGrantCondition    OnboardingRoleGrantCondition @default(CAPTCHA_ONLY)
+  resourceHealth        OnboardingResourceHealth     @default(NOT_CONFIGURED)
+  welcomeConfig         Json                         @default("{}")
+  goodbyeConfig         Json                         @default("{}")
+  verificationConfig    Json                         @default("{}")
+  autoRoleConfig        Json                         @default("{}")
+  welcomeCardConfig     Json                         @default("{}")
+  setupSnapshot         Json                         @default("{}")
+  version               Int                          @default(1)
+  lastWelcomeAt         DateTime?
+  lastGoodbyeAt         DateTime?
+  lastVerificationAt    DateTime?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([verificationEnabled, resourceHealth])
+  @@index([welcomeEnabled])
+  @@index([goodbyeEnabled])
+}
+
+model MemberVerification {
+  id                           String                       @id @default(uuid()) @db.Uuid
+  guildId                      String                       @db.VarChar(20)
+  userId                       String                       @db.VarChar(20)
+  status                       OnboardingVerificationStatus @default(PENDING)
+  method                       OnboardingCaptchaType?
+  attemptCount                 Int                          @default(0)
+  captchaVerified              Boolean                      @default(false)
+  membershipScreeningCompleted Boolean                      @default(false)
+  rolesGranted                 Boolean                      @default(false)
+  welcomeSent                  Boolean                      @default(false)
+  dmSent                       Boolean                      @default(false)
+  lastAttemptAt                DateTime?
+  verifiedAt                   DateTime?
+  verifiedBy                   String?                      @db.VarChar(20)
+  failureReason                String?                      @db.VarChar(100)
+  roleGrantedAt                DateTime?
+  unverifiedRoleRemovedAt      DateTime?
+  closedAt                     DateTime?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@index([guildId, status])
+  @@index([guildId, verifiedAt])
+  @@index([createdAt])
+}
+
+model OnboardingEvent {
+  id             String                @id @default(uuid()) @db.Uuid
+  guildId        String                @db.VarChar(20)
+  userId         String?               @db.VarChar(20)
+  eventType      String                @db.VarChar(64)
+  status         OnboardingEventStatus @default(PENDING)
+  idempotencyKey String                @unique @db.VarChar(128)
+  correlationId  String                @db.VarChar(128)
+  attemptCount   Int                   @default(0)
+  errorCode      String?               @db.VarChar(64)
+  failureReason  String?               @db.VarChar(255)
+  details        Json                  @default("{}")
+  occurredAt     DateTime              @default(now())
+  processedAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId, occurredAt(sort: Desc)])
+  @@index([guildId, eventType, occurredAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model GuildRolePermission {

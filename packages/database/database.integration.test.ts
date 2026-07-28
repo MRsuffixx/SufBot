@@ -49,8 +49,8 @@ describeDatabase('database integration', () => {
       client().featureFlag.count({
         where: { scopeKey: 'platform', key: { startsWith: 'module:' } },
       }),
-    ).resolves.toBe(5);
-    await expect(client().moduleDefinition.count()).resolves.toBe(5);
+    ).resolves.toBe(6);
+    await expect(client().moduleDefinition.count()).resolves.toBe(6);
     await expect(client().localeDefinition.count()).resolves.toBe(2);
     await expect(
       client().platformConfiguration.count({ where: { key: 'defaults' } }),

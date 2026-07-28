@@ -10,6 +10,11 @@ const PlanLimitsSchema = z
     ticketPanels: PlanLimitSchema,
     customCommands: PlanLimitSchema,
     moderationHistoryDays: PlanLimitSchema,
+    welcomeConfigurations: PlanLimitSchema,
+    goodbyeConfigurations: PlanLimitSchema,
+    autoRoles: PlanLimitSchema,
+    verificationPanels: PlanLimitSchema,
+    customCardBackgrounds: PlanLimitSchema,
   })
   .strict();
 

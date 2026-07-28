@@ -18,7 +18,7 @@
     "registerCommandsGlobally": false,
     "developmentGuildIds": [],
     "requiredInvitePermissions": ["Administrator"],
-    "intents": ["Guilds"],
+    "intents": ["Guilds", "GuildMembers"],
     "partials": ["GuildMember", "User"],
     "sharding": {
       "enabled": false,
@@ -106,13 +106,23 @@
         "automodRules": 3,
         "ticketPanels": 1,
         "customCommands": 5,
-        "moderationHistoryDays": 7
+        "moderationHistoryDays": 7,
+        "welcomeConfigurations": 1,
+        "goodbyeConfigurations": 1,
+        "autoRoles": 3,
+        "verificationPanels": 1,
+        "customCardBackgrounds": 0
       },
       "premium": {
         "automodRules": 100,
         "ticketPanels": 25,
         "customCommands": 100,
-        "moderationHistoryDays": 365
+        "moderationHistoryDays": 365,
+        "welcomeConfigurations": 10,
+        "goodbyeConfigurations": 10,
+        "autoRoles": 25,
+        "verificationPanels": 10,
+        "customCardBackgrounds": 20
       }
     }
   },

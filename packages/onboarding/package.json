@@ -1,0 +1,32 @@
+{
+  "name": "@sufbot/onboarding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "sufbot-source": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
+    "dev:build": "tsup src/index.ts --format esm --sourcemap",
+    "dev": "tsup src/index.ts --format esm --watch --sourcemap",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@sufbot/cache": "workspace:*",
+    "@sufbot/database": "workspace:*",
+    "@sufbot/shared": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@sufbot/typescript-config": "workspace:*",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3"
+  }
+}

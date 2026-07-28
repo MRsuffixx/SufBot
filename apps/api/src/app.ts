@@ -20,6 +20,7 @@ import { registerGuildRoutes } from './routes/guilds.js';
 import { registerInternalRoutes } from './routes/internal.js';
 import { registerBillingWebhookRoutes } from './routes/billing-webhooks.js';
 import { registerBillingRoutes } from './routes/billing.js';
+import { registerOnboardingRoutes } from './routes/onboarding.js';
 import { MetricsRegistry } from './metrics.js';
 import type { ApiDependencies } from './types.js';
 
@@ -212,6 +213,7 @@ export const buildApi = async (dependencies: ApiDependencies): Promise<FastifyIn
   await registerSystemRoutes(app, dependencies, metrics);
   await registerUserRoutes(app, dependencies);
   await registerGuildRoutes(app, dependencies);
+  await registerOnboardingRoutes(app, dependencies);
   await registerBillingRoutes(app, dependencies);
   await registerInternalRoutes(app, dependencies);
   await registerBillingWebhookRoutes(app, dependencies, metrics);

@@ -5,6 +5,7 @@ export function GuildNav({ guildId }: { guildId: string }) {
     ['', 'Overview'],
     ['/settings', 'Settings'],
     ['/modules', 'Modules'],
+    ['/onboarding', 'Onboarding'],
     ['/commands', 'Command access'],
     ['/premium', 'Premium'],
     ['/audit-logs', 'Audit logs'],
