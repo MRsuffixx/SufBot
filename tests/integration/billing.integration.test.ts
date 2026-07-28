@@ -3,6 +3,8 @@ import {
   EntitlementService,
   PremiumEntitlement,
   SubscriptionReconciliationService,
+  assertPersistedPlanMatchesConfig,
+  ensureConfiguredPlan,
   entitlementsForFeatureSet,
 } from '@sufbot/billing';
 import { loadAppConfig } from '@sufbot/config';
@@ -113,6 +115,28 @@ run('billing PostgreSQL invariants', () => {
     expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
     expect(attempts.filter((attempt) => attempt.status === 'rejected')).toHaveLength(1);
     await expect(prisma.guildSubscription.count({ where: { guildId: guildA } })).resolves.toBe(1);
+  });
+
+  it('creates a missing configured plan once and still rejects persisted price drift', async () => {
+    const isolatedConfig = structuredClone(config);
+    isolatedConfig.billing.plan.code = 'premium_monthly_regression';
+    await prisma.billingPlan.deleteMany({ where: { code: isolatedConfig.billing.plan.code } });
+
+    const [first, second] = await Promise.all([
+      ensureConfiguredPlan(prisma, isolatedConfig),
+      ensureConfiguredPlan(prisma, isolatedConfig),
+    ]);
+    expect(first.id).toBe(second.id);
+    await expect(
+      prisma.billingPlan.count({ where: { code: isolatedConfig.billing.plan.code } }),
+    ).resolves.toBe(1);
+
+    isolatedConfig.billing.plan.priceMinor += 1;
+    await expect(assertPersistedPlanMatchesConfig(prisma, isolatedConfig)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+
+    await prisma.billingPlan.delete({ where: { code: isolatedConfig.billing.plan.code } });
   });
 
   it('deduplicates provider events by provider and provider event ID', async () => {

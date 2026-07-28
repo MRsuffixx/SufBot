@@ -46,6 +46,7 @@ describeServices('local service integration', () => {
       '20260728000400_billing_notifications',
       '20260728000500_billing_risk_blocks',
       '20260728000600_billing_risk_block_actors',
+      '20260728221648',
     ]);
   });
 

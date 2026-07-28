@@ -3,6 +3,7 @@ import {
   StripeBillingProvider,
   assertPersistedPlanMatchesConfig,
   configuredPlan,
+  syncConfiguredPlan,
   type CurrencyCode,
   type ProviderCapabilities,
 } from '../../packages/billing/src/index.js';
@@ -111,6 +112,20 @@ const checkPlans = async (): Promise<void> => {
   }
 };
 
+const syncPlans = async (): Promise<void> => {
+  const plan = configuredPlan(config);
+  const databaseUrl = value('DATABASE_URL');
+  if (databaseUrl === undefined) throw new Error('DATABASE_URL_MISSING');
+  const prisma = createPrismaClient(databaseUrl);
+  try {
+    await syncConfiguredPlan(prisma, config);
+    await assertPersistedPlanMatchesConfig(prisma, config);
+    process.stdout.write(`persisted billing plan synchronized from config: ${plan.code}\n`);
+  } finally {
+    await prisma.$disconnect();
+  }
+};
+
 const checkProviders = async (): Promise<ProviderCapabilities[]> => {
   const results = await Promise.all([
     stripeProvider.checkCapabilities(),
@@ -142,6 +157,9 @@ try {
       break;
     case 'plans:check':
       await checkPlans();
+      break;
+    case 'plans:sync':
+      await syncPlans();
       break;
     case 'stripe:check':
       printProvider(await stripeProvider.checkCapabilities());

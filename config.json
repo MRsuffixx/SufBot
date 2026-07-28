@@ -76,7 +76,7 @@
     "backgroundJobs": true
   },
   "billing": {
-    "enabled": false,
+    "enabled": true,
     "plan": {
       "code": "premium_monthly",
       "displayName": "SufBot Premium",
@@ -88,7 +88,7 @@
     },
     "providers": {
       "stripe": {
-        "enabled": false
+        "enabled": true
       },
       "paytr": {
         "enabled": false,

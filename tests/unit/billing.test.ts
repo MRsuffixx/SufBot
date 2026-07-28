@@ -34,6 +34,8 @@ describe('billing foundation', () => {
   it('rejects unsafe billing exposure and malformed provider price overrides', () => {
     const noProvider = structuredClone(committedConfig());
     noProvider.billing.enabled = true;
+    noProvider.billing.providers.stripe.enabled = false;
+    noProvider.billing.providers.paytr.enabled = false;
     expect(AppConfigSchema.safeParse(noProvider).success).toBe(false);
 
     const floatingPrice = structuredClone(committedConfig());

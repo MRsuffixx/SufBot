@@ -62,6 +62,7 @@
     "billing:config:check": "tsx infrastructure/scripts/billing.ts config:check",
     "billing:providers:check": "tsx infrastructure/scripts/billing.ts providers:check",
     "billing:plans:check": "tsx infrastructure/scripts/billing.ts plans:check",
+    "billing:plans:sync": "tsx infrastructure/scripts/billing.ts plans:sync",
     "billing:stripe:check": "tsx infrastructure/scripts/billing.ts stripe:check",
     "billing:paytr:check": "tsx infrastructure/scripts/billing.ts paytr:check",
     "billing:reconcile": "tsx infrastructure/scripts/billing-operations.ts reconcile",

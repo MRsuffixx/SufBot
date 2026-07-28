@@ -7,7 +7,7 @@ import {
   type BillingProviderName,
   type CheckoutResponse,
 } from './contracts.js';
-import { assertPersistedPlanMatchesConfig, configuredPlan } from './plan.js';
+import { configuredPlan, ensureConfiguredPlan } from './plan.js';
 import {
   createBillingIdempotencyKey,
   createCheckoutNonce,
@@ -89,8 +89,8 @@ export class BillingCheckoutService {
       };
     }
 
-    await assertPersistedPlanMatchesConfig(this.prisma, this.config);
-    const [guild, user, billingPlan, existing] = await Promise.all([
+    const billingPlan = await ensureConfiguredPlan(this.prisma, this.config);
+    const [guild, user, existing] = await Promise.all([
       this.prisma.guild.findUnique({
         where: { id: input.guildId },
         select: { botInstalled: true, leftAt: true },
@@ -99,7 +99,6 @@ export class BillingCheckoutService {
         where: { id: input.userId },
         select: { id: true, deletedAt: true },
       }),
-      this.prisma.billingPlan.findUnique({ where: { code: plan.code } }),
       this.prisma.guildSubscription.findFirst({
         where: {
           guildId: input.guildId,
@@ -123,7 +122,6 @@ export class BillingCheckoutService {
       throw new NotFoundError('Installed guild');
     }
     if (user === null || user.deletedAt !== null) throw new NotFoundError('Purchaser');
-    if (billingPlan === null) throw new NotFoundError('Configured billing plan');
     if (existing !== null) {
       throw new ConflictError('This guild already has an effective Premium subscription.');
     }

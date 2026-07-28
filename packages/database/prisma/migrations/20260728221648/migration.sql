@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "GuildEntitlement_guildId_key_source_reference_key" RENAME TO "GuildEntitlement_guildId_entitlementKey_source_sourceRefere_key";
