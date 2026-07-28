@@ -25,6 +25,13 @@ export type CreateGuildCheckoutInput = {
   successUrl: string;
   cancelUrl: string;
   requestId: string;
+  paytrCustomer?: {
+    userIp: string;
+    email: string;
+    fullName: string;
+    address: string;
+    phone: string;
+  };
   now?: Date;
 };
 
@@ -211,6 +218,9 @@ export class BillingCheckoutService {
         ...(existingCustomer?.status === 'ACTIVE'
           ? { providerCustomerId: existingCustomer.providerCustomerId }
           : {}),
+        ...(input.paytrCustomer === undefined
+          ? {}
+          : { paytrCustomer: input.paytrCustomer }),
       });
       await this.prisma.checkoutSession.update({
         where: { id: records.checkoutSessionId },

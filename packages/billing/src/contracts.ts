@@ -39,6 +39,15 @@ export const CheckoutRequestSchema = z
     provider: BillingProviderNameSchema,
     planCode: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/),
     confirmationAccepted: z.literal(true),
+    billingContact: z
+      .object({
+        email: z.email().max(100),
+        fullName: z.string().trim().min(2).max(60),
+        address: z.string().trim().min(3).max(400),
+        phone: z.string().trim().min(7).max(20),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type CheckoutRequest = z.infer<typeof CheckoutRequestSchema>;
@@ -306,6 +315,13 @@ export type CreateCheckoutInput = {
   expiresAt: Date;
   idempotencyKey: string;
   providerCustomerId?: string;
+  paytrCustomer?: {
+    userIp: string;
+    email: string;
+    fullName: string;
+    address: string;
+    phone: string;
+  };
 };
 
 export type CreateCheckoutResult = z.infer<typeof CheckoutResponseSchema>;

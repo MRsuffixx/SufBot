@@ -218,6 +218,27 @@ const OptionalBooleanSchema = z.preprocess(
   emptyStringToUndefined,
   z.stringbool().default(false),
 );
+const OptionalCurrencyListSchema = z.preprocess(
+  emptyStringToUndefined,
+  z
+    .string()
+    .default('')
+    .transform((value, context) => {
+      const currencies = value
+        .split(',')
+        .map((currency) => currency.trim().toUpperCase())
+        .filter(Boolean);
+      const parsed = z.array(CurrencySchema).safeParse([...new Set(currencies)]);
+      if (!parsed.success) {
+        context.addIssue({
+          code: 'custom',
+          message: 'must be a comma-separated list of supported currency codes',
+        });
+        return z.NEVER;
+      }
+      return parsed.data;
+    }),
+);
 const BillingServerEnvironmentShape = {
   STRIPE_SECRET_KEY: OptionalSecretSchema,
   STRIPE_PUBLISHABLE_KEY: OptionalStringSchema,
@@ -228,8 +249,10 @@ const BillingServerEnvironmentShape = {
   PAYTR_MERCHANT_KEY: OptionalSecretSchema,
   PAYTR_MERCHANT_SALT: OptionalSecretSchema,
   PAYTR_CALLBACK_URL: OptionalUrlSchema,
+  PAYTR_IFRAME_ENABLED: OptionalBooleanSchema,
   PAYTR_RECURRING_ENABLED: OptionalBooleanSchema,
   PAYTR_CARD_STORAGE_ENABLED: OptionalBooleanSchema,
+  PAYTR_APPROVED_CURRENCIES: OptionalCurrencyListSchema,
   BILLING_INTERNAL_SIGNING_SECRET: OptionalSecretSchema,
   BILLING_ENCRYPTION_KEY: OptionalEncryptionKeySchema,
 } as const;
