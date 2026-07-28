@@ -46,9 +46,58 @@ export const DeadLetterJobSchema = z.object({
   failedAt: z.iso.datetime(),
 });
 
+const DiscordSnowflakeSchema = z.string().regex(/^\d{17,20}$/);
+const OnboardingJobBaseSchema = z.object({
+  idempotencyKey: z.string().min(8).max(128),
+  correlationId: z.string().min(1).max(128),
+  guildId: DiscordSnowflakeSchema,
+  userId: DiscordSnowflakeSchema,
+  deliverAt: z.iso.datetime(),
+});
+
+export const OnboardingJobSchema = z.discriminatedUnion('job', [
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.send-welcome-channel'),
+    joinedAt: z.iso.datetime(),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.send-welcome-dm'),
+    joinedAt: z.iso.datetime(),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.enum([
+      'onboarding.test-welcome-channel',
+      'onboarding.test-welcome-dm',
+      'onboarding.test-goodbye-channel',
+    ]),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.send-goodbye-channel'),
+    leftAt: z.iso.datetime(),
+    snapshot: z
+      .object({
+        username: z.string().min(1).max(32),
+        displayName: z.string().min(1).max(100),
+        globalName: z.string().max(100).nullable(),
+        avatarUrl: z.string().url().max(2048),
+        accountCreatedAt: z.iso.datetime(),
+        joinedAt: z.iso.datetime().nullable(),
+        roleNames: z.array(z.string().min(1).max(100)).max(100),
+        bot: z.boolean(),
+      })
+      .strict(),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.delete-message'),
+    channelId: DiscordSnowflakeSchema,
+    messageId: DiscordSnowflakeSchema,
+  }).strict(),
+]);
+
 export type AuditJob = z.infer<typeof AuditJobSchema>;
 export type AnalyticsJob = z.infer<typeof AnalyticsJobSchema>;
 export type CleanupJob = z.infer<typeof CleanupJobSchema>;
+export type OnboardingJob = z.infer<typeof OnboardingJobSchema>;
 
 const connectionFromUrl = (redisUrl: string): ConnectionOptions => {
   const url = new URL(redisUrl);
@@ -149,6 +198,16 @@ export class QueueRegistry {
         : {}),
     });
     return job.id ?? sha256(identity);
+  }
+
+  public async enqueueOnboarding(input: OnboardingJob): Promise<string> {
+    const payload = OnboardingJobSchema.parse(input);
+    const job = await this.get(QueueName.DiscordNotifications).add(payload.job, payload, {
+      jobId: sha256(payload.idempotencyKey),
+      deduplication: { id: payload.idempotencyKey },
+      delay: Math.max(0, new Date(payload.deliverAt).getTime() - Date.now()),
+    });
+    return job.id ?? sha256(payload.idempotencyKey);
   }
 
   public async close(): Promise<void> {

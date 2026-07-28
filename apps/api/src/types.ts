@@ -22,6 +22,7 @@ export type ApiDependencies = {
   logger: Logger;
   billingProviders: ReadonlyMap<BillingProviderName, BillingProvider>;
   billingQueue?: Pick<QueueRegistry, 'enqueueBilling'>;
+  onboardingQueue?: Pick<QueueRegistry, 'enqueueOnboarding'>;
 };
 
 declare module 'fastify' {

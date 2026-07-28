@@ -68,6 +68,7 @@ const app = await buildApi({
   logger,
   billingProviders,
   billingQueue,
+  onboardingQueue: billingQueue,
 });
 let stopping = false;
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { OnboardingRepository } from '@sufbot/onboarding';
+import { OnboardingEventJournal, OnboardingRepository } from '@sufbot/onboarding';
 import { createPrismaClient, type PrismaClient } from '@sufbot/database';
 import { getSafeLocalTestDatabaseUrl } from './environment.js';
 
@@ -122,6 +122,7 @@ run('onboarding PostgreSQL invariants', () => {
   });
 
   it('deduplicates gateway side effects through event idempotency keys', async () => {
+    const journal = new OnboardingEventJournal(prisma);
     const event = {
       guildId: guildA,
       userId: '982000000000000020',
@@ -129,11 +130,18 @@ run('onboarding PostgreSQL invariants', () => {
       idempotencyKey: 'onboarding-member-joined-982000000000000020',
       correlationId: 'onboarding-event-integration',
     };
-    const attempts = await Promise.allSettled([
-      prisma.onboardingEvent.create({ data: event }),
-      prisma.onboardingEvent.create({ data: event }),
+    const attempts = await Promise.all([
+      journal.claim(event),
+      journal.claim(event),
     ]);
-    expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
-    expect(attempts.filter((attempt) => attempt.status === 'rejected')).toHaveLength(1);
+    expect(attempts.filter(Boolean)).toHaveLength(1);
+    await journal.complete({ idempotencyKey: event.idempotencyKey });
+    await expect(journal.claim(event)).resolves.toBe(false);
+    await expect(
+      prisma.onboardingEvent.findUniqueOrThrow({
+        where: { idempotencyKey: event.idempotencyKey },
+        select: { status: true, attemptCount: true },
+      }),
+    ).resolves.toEqual({ status: 'SUCCEEDED', attemptCount: 1 });
   });
 });

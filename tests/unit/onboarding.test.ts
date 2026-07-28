@@ -5,6 +5,10 @@ import {
   VerificationConfigSchema,
   WelcomeCardConfigSchema,
   WelcomeConfigSchema,
+  neutralizeMassMentions,
+  renderOnboardingMessage,
+  renderOnboardingTemplate,
+  safeTemplateText,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -51,5 +55,46 @@ describe('onboarding contracts', () => {
     expect(welcome.channelId).toBeNull();
     expect(welcome.message.content).toContain('{user.mention}');
     expect(welcome.message.allowedMentions.allowEveryoneMention).toBe(false);
+  });
+
+  it('renders only declared variables without evaluating template content', () => {
+    const rendered = renderOnboardingTemplate(
+      '{user.displayName} joined {server.name}; {unknown.value}; ${process.env.SECRET}',
+      {
+        'user.displayName': 'Ada',
+        'server.name': 'SufBot',
+      },
+    );
+    expect(rendered.value).toBe(
+      'Ada joined SufBot; {unknown.value}; ${process.env.SECRET}',
+    );
+    expect(rendered.warnings).toEqual([
+      { code: 'UNKNOWN_VARIABLE', variable: 'unknown.value' },
+      { code: 'UNKNOWN_VARIABLE', variable: 'process.env.SECRET' },
+    ]);
+  });
+
+  it('keeps mass mentions inert and limits real mentions to the joining user', () => {
+    expect(neutralizeMassMentions('@everyone @here')).toBe('@\u200beveryone @\u200bhere');
+    expect(safeTemplateText('`@everyone`')).toBe('\u02cb@\u200beveryone\u02cb');
+    const message = OnboardingMessageSchema.parse({
+      mode: 'TEXT',
+      content: 'Welcome {user.mention} to {server.name}',
+    });
+    const rendered = renderOnboardingMessage(
+      message,
+      {
+        'user.mention': '<@12345678901234567>',
+        'server.name': safeTemplateText('@everyone'),
+      },
+      '12345678901234567',
+    );
+    expect(rendered.content).toContain('@\u200beveryone');
+    expect(rendered.allowedMentions).toEqual({
+      users: ['12345678901234567'],
+      roles: [],
+      parse: [],
+      repliedUser: false,
+    });
   });
 });

@@ -18,9 +18,11 @@ import { DistributedCache, ServiceHeartbeat } from '@sufbot/cache';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { createId } from '@sufbot/shared';
+import { QueueRegistry } from '@sufbot/queue';
 import { BotServices } from './services.js';
 import { GuildStatusService } from './guild-status.js';
 import { CommandRegistrationManager } from './command-registration.js';
+import { OnboardingService } from './onboarding-service.js';
 
 const env = loadBotEnvironment();
 const config = loadAppConfig();
@@ -44,6 +46,7 @@ const heartbeat = new ServiceHeartbeat(env.REDIS_URL, {
   service: 'bot',
   logger,
 });
+const queues = new QueueRegistry(env.REDIS_URL, config.queue);
 await cache.connect();
 container.sufbot = new BotServices(env, prisma, cache, logger, config);
 
@@ -67,7 +70,7 @@ const clientOptions: ClientOptions = {
   ...(config.discord.sharding.enabled ? { shards: 'auto' as const } : {}),
 };
 const client = new SapphireClient(clientOptions);
-const runtimeServices: { guildStatus?: GuildStatusService } = {};
+const runtimeServices: { guildStatus?: GuildStatusService; onboarding?: OnboardingService } = {};
 const startedInteractions = new Map<string, number>();
 
 client.on(SapphireEvents.ChatInputCommandRun, (interaction) => {
@@ -164,10 +167,12 @@ const shutdown = async (signal: string): Promise<void> => {
   const forceExit = setTimeout(() => process.exit(1), 20_000);
   forceExit.unref();
   client.destroy();
+  if (runtimeServices.onboarding !== undefined) await runtimeServices.onboarding.close();
   if (runtimeServices.guildStatus !== undefined) await runtimeServices.guildStatus.close();
   await heartbeat.close();
   await stopInvalidation();
   await cache.close();
+  await queues.close();
   await disconnectPrisma();
   clearTimeout(forceExit);
   logger.info('bot graceful shutdown completed');
@@ -251,5 +256,9 @@ const guildStatus = new GuildStatusService(client, container.sufbot);
 runtimeServices.guildStatus = guildStatus;
 container.sufbot.guildStatus = guildStatus;
 await guildStatus.start();
+const onboarding = new OnboardingService(client, container.sufbot, queues);
+runtimeServices.onboarding = onboarding;
+container.sufbot.onboarding = onboarding;
+await onboarding.start();
 await heartbeat.start();
 logger.info('SufBot bot is ready');

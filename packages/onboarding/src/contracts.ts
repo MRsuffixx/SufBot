@@ -271,6 +271,14 @@ export const AutoRoleUpdateSchema = z
 export const WelcomeCardUpdateSchema = z
   .object({ expectedVersion: z.number().int().positive(), config: WelcomeCardConfigSchema })
   .strict();
+export const OnboardingPreviewInputSchema = z
+  .object({ message: OnboardingMessageSchema })
+  .strict();
+export const OnboardingTestRequestSchema = z
+  .object({
+    delivery: z.enum(['WELCOME_CHANNEL', 'WELCOME_DM', 'GOODBYE_CHANNEL']),
+  })
+  .strict();
 
 export const OnboardingConfigResponseSchema = z
   .object({

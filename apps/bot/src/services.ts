@@ -8,6 +8,7 @@ import type { Logger } from '@sufbot/logger';
 import type { PlatformRole } from '@sufbot/permissions';
 import { CommandRegistrationStatusSchema, type CommandRegistrationStatus } from '@sufbot/discord';
 import type { GuildStatusService } from './guild-status.js';
+import type { OnboardingService } from './onboarding-service.js';
 
 const AuthorizationStateSchema = z.object({
   enabledModules: z.array(z.string()),
@@ -46,6 +47,7 @@ export class BotServices {
   public entitlements: EntitlementService;
   public config: AppConfig;
   public guildStatus: GuildStatusService | undefined;
+  public onboarding: OnboardingService | undefined;
   #commandRegistrationStatus: CommandRegistrationStatus = CommandRegistrationStatusSchema.parse({
     status: 'unknown',
     mode: 'disabled',

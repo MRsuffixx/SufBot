@@ -4,12 +4,16 @@ import {
   AutoRoleUpdateSchema,
   GoodbyeUpdateSchema,
   OnboardingBasicsInputSchema,
+  OnboardingPreviewInputSchema,
   OnboardingRepository,
+  OnboardingTestRequestSchema,
   VerificationUpdateSchema,
   WelcomeCardUpdateSchema,
   WelcomeUpdateSchema,
+  renderOnboardingMessage,
+  safeTemplateText,
 } from '@sufbot/onboarding';
-import { PaginationSchema } from '@sufbot/shared';
+import { AppError, PaginationSchema } from '@sufbot/shared';
 import { createApiKeyAuthenticator, createGuildAccessGuard } from '../authentication.js';
 import type { ApiDependencies } from '../types.js';
 
@@ -95,6 +99,84 @@ export const registerOnboardingRoutes = async (
         },
       });
       return { success: true, data: records, requestId: request.id };
+    },
+  });
+
+  app.post('/v1/guilds/:guildId/onboarding/preview', {
+    preHandler: [authenticate, write],
+    config: { rateLimit: { max: 10, timeWindow: 60_000, ban: 0 } },
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      const input = OnboardingPreviewInputSchema.parse(request.body);
+      const context = request.authContext;
+      if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+      return {
+        success: true,
+        data: renderOnboardingMessage(
+          input.message,
+          {
+            user: `<@${context.discordUserId}>`,
+            'user.mention': `<@${context.discordUserId}>`,
+            'user.id': context.discordUserId,
+            'user.username': 'preview-user',
+            'user.displayName': 'Preview User',
+            'user.globalName': 'Preview User',
+            'user.tag': 'preview-user',
+            'user.avatar': 'https://cdn.discordapp.com/embed/avatars/0.png',
+            server: 'Preview Server',
+            'server.name': 'Preview Server',
+            'server.id': guildId,
+            'server.memberCount': 42,
+            'member.number': 42,
+            'member.roles': safeTemplateText('@everyone'),
+            date: new Date(),
+            time: new Date(),
+            datetime: new Date(),
+          },
+          context.discordUserId,
+        ),
+        requestId: request.id,
+      };
+    },
+  });
+
+  app.post('/v1/guilds/:guildId/onboarding/test', {
+    preHandler: [authenticate, write],
+    config: { rateLimit: { max: 3, timeWindow: 60_000, ban: 0 } },
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      const input = OnboardingTestRequestSchema.parse(request.body);
+      const context = request.authContext;
+      if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+      if (dependencies.onboardingQueue === undefined) {
+        throw new AppError({
+          code: 'ONBOARDING_QUEUE_UNAVAILABLE',
+          message: 'Onboarding test delivery is temporarily unavailable.',
+          statusCode: 503,
+        });
+      }
+      const job =
+        input.delivery === 'WELCOME_CHANNEL'
+          ? ('onboarding.test-welcome-channel' as const)
+          : input.delivery === 'WELCOME_DM'
+            ? ('onboarding.test-welcome-dm' as const)
+            : ('onboarding.test-goodbye-channel' as const);
+      const queuedAt = new Date().toISOString();
+      await dependencies.onboardingQueue.enqueueOnboarding({
+        job,
+        idempotencyKey: `test:${input.delivery}:${guildId}:${context.discordUserId}:${request.id}`,
+        correlationId: request.id,
+        guildId,
+        userId: context.discordUserId,
+        deliverAt: queuedAt,
+      });
+      return {
+        success: true,
+        data: { status: 'QUEUED', delivery: input.delivery, referenceId: request.id },
+        requestId: request.id,
+      };
     },
   });
 
