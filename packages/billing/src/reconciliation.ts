@@ -58,7 +58,13 @@ export class SubscriptionReconciliationService {
 
   public async applyState(
     input: SubscriptionStateUpdate,
-  ): Promise<{ subscriptionId: string; guildId: string; version: number; entitlementVersion: number }> {
+  ): Promise<{
+    subscriptionId: string;
+    guildId: string;
+    version: number;
+    entitlementVersion: number;
+    cacheInvalidationPublished: boolean;
+  }> {
     const nextStatus = SubscriptionStatusSchema.parse(input.nextStatus);
     const now = input.now ?? new Date();
     const result = await this.prisma.$transaction(async (transaction) => {
@@ -223,11 +229,16 @@ export class SubscriptionReconciliationService {
       };
     });
 
-    await this.entitlements.invalidateGuildEntitlements(
-      result.guildId,
-      result.entitlementVersion,
-      result.subscriptionId,
-    );
-    return result;
+    let cacheInvalidationPublished = true;
+    try {
+      await this.entitlements.invalidateGuildEntitlements(
+        result.guildId,
+        result.entitlementVersion,
+        result.subscriptionId,
+      );
+    } catch {
+      cacheInvalidationPublished = false;
+    }
+    return { ...result, cacheInvalidationPublished };
   }
 }
