@@ -50,6 +50,7 @@ export const CheckoutResponseSchema = z.discriminatedUnion('kind', [
       checkoutSessionId: z.uuid(),
       url: z.url(),
       expiresAt: z.iso.datetime(),
+      statusToken: z.string().min(32).max(128),
     })
     .strict(),
   z
@@ -58,6 +59,7 @@ export const CheckoutResponseSchema = z.discriminatedUnion('kind', [
       checkoutSessionId: z.uuid(),
       iframeToken: z.string().min(16).max(4096),
       expiresAt: z.iso.datetime(),
+      statusToken: z.string().min(32).max(128),
     })
     .strict(),
   z
@@ -74,6 +76,8 @@ export type CheckoutResponse = z.infer<typeof CheckoutResponseSchema>;
 export const GuildBillingStatusSchema = z
   .object({
     guildId: DiscordSnowflakeSchema,
+    subscriptionId: z.uuid().nullable(),
+    version: z.number().int().positive().nullable(),
     planCode: z.string().max(64).nullable(),
     provider: BillingProviderNameSchema.nullable(),
     status: SubscriptionStatusSchema.nullable(),
@@ -172,12 +176,16 @@ export const NormalizedProviderEventSchema = z.discriminatedUnion('type', [
     periodEnd: z.iso.datetime(),
     providerPaymentId: z.string().min(1).max(255).optional(),
     providerInvoiceId: z.string().min(1).max(255).optional(),
+    amountMinor: z.number().int().nonnegative().safe().optional(),
+    currency: CurrencyCodeSchema.optional(),
   }),
   subscriptionEvent('subscription.renewed', {
     periodStart: z.iso.datetime(),
     periodEnd: z.iso.datetime(),
     providerPaymentId: z.string().min(1).max(255).optional(),
     providerInvoiceId: z.string().min(1).max(255).optional(),
+    amountMinor: z.number().int().nonnegative().safe().optional(),
+    currency: CurrencyCodeSchema.optional(),
   }),
   subscriptionEvent('subscription.payment_failed', {
     failureCode: z.string().min(1).max(100).optional(),
@@ -197,15 +205,68 @@ export const NormalizedProviderEventSchema = z.discriminatedUnion('type', [
   subscriptionEvent('subscription.refunded', {
     providerPaymentId: z.string().min(1).max(255),
     fullRefund: z.boolean(),
+    amountMinor: z.number().int().nonnegative().safe(),
+    currency: CurrencyCodeSchema,
   }),
   subscriptionEvent('subscription.disputed', {
     providerPaymentId: z.string().min(1).max(255),
+    amountMinor: z.number().int().nonnegative().safe(),
+    currency: CurrencyCodeSchema,
   }),
   subscriptionEvent('subscription.dispute_resolved', {
     providerPaymentId: z.string().min(1).max(255),
+    amountMinor: z.number().int().nonnegative().safe(),
+    currency: CurrencyCodeSchema,
   }),
 ]);
-export type NormalizedProviderEvent = z.infer<typeof NormalizedProviderEventSchema>;
+type NormalizedProviderEventBase = {
+  provider: BillingProviderName;
+  providerEventId: string;
+  providerSubscriptionId: string;
+  environment: 'development' | 'test' | 'production';
+  occurredAt: string;
+  providerStateVersion?: string | undefined;
+  providerObjectId?: string | undefined;
+  internalCheckoutSessionId?: string | undefined;
+  providerCustomerId?: string | undefined;
+  correlationId: string;
+};
+
+export type NormalizedProviderEvent = NormalizedProviderEventBase &
+  (
+    | { type: 'subscription.pending' }
+    | {
+        type: 'subscription.activated' | 'subscription.renewed';
+        periodStart: string;
+        periodEnd: string;
+        providerPaymentId?: string | undefined;
+        providerInvoiceId?: string | undefined;
+        amountMinor?: number | undefined;
+        currency?: CurrencyCode | undefined;
+      }
+    | { type: 'subscription.payment_failed'; failureCode?: string | undefined }
+    | { type: 'subscription.grace_started'; gracePeriodEndsAt: string }
+    | { type: 'subscription.cancel_scheduled'; periodEnd: string }
+    | { type: 'subscription.cancelled' | 'subscription.expired'; effectiveAt: string }
+    | {
+        type: 'subscription.refunded';
+        providerPaymentId: string;
+        fullRefund: boolean;
+        amountMinor: number;
+        currency: CurrencyCode;
+      }
+    | {
+        type: 'subscription.disputed' | 'subscription.dispute_resolved';
+        providerPaymentId: string;
+        amountMinor: number;
+        currency: CurrencyCode;
+      }
+  );
+
+export const parseNormalizedProviderEvent = (
+  value: unknown,
+): NormalizedProviderEvent =>
+  NormalizedProviderEventSchema.parse(value) as NormalizedProviderEvent;
 
 export const BillingWorkerPayloadSchema = z.discriminatedUnion('job', [
   z
@@ -248,6 +309,20 @@ export type CreateCheckoutInput = {
 };
 
 export type CreateCheckoutResult = z.infer<typeof CheckoutResponseSchema>;
+
+export type ProviderCheckoutResult =
+  | {
+      kind: 'redirect';
+      providerSessionId: string;
+      url: string;
+      expiresAt: Date;
+    }
+  | {
+      kind: 'iframe';
+      providerSessionId: string;
+      iframeToken: string;
+      expiresAt: Date;
+    };
 
 export type RawWebhookInput = {
   rawBody: Buffer;
@@ -327,7 +402,7 @@ export type ReconciliationResult = {
 export interface BillingProvider {
   readonly provider: BillingProviderName;
   checkCapabilities(): Promise<ProviderCapabilities>;
-  createCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutResult>;
+  createCheckout(input: CreateCheckoutInput): Promise<ProviderCheckoutResult>;
   cancelSubscription(input: CancelSubscriptionInput): Promise<CancelSubscriptionResult>;
   resumeSubscription(input: ResumeSubscriptionInput): Promise<ResumeSubscriptionResult>;
   createManagementSession?(

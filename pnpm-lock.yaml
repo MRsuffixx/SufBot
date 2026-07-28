@@ -97,6 +97,9 @@ importers:
       prettier:
         specifier: 3.9.6
         version: 3.9.6
+      stripe:
+        specifier: 22.3.2
+        version: 22.3.2(@types/node@24.13.3)
       tsx:
         specifier: 4.23.1
         version: 4.23.1
@@ -136,6 +139,9 @@ importers:
       '@sufbot/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@sufbot/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@sufbot/cache':
         specifier: workspace:*
         version: link:../../packages/cache
@@ -222,6 +228,9 @@ importers:
       '@sufbot/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@sufbot/billing':
+        specifier: workspace:*
+        version: link:../../packages/billing
       '@sufbot/cache':
         specifier: workspace:*
         version: link:../../packages/cache

@@ -178,6 +178,8 @@ export class EntitlementService {
     ]);
     return {
       guildId,
+      subscriptionId: subscription?.id ?? null,
+      version: subscription?.version ?? null,
       planCode: subscription?.planCode ?? null,
       provider: subscription?.provider ?? null,
       status: subscription?.status ?? null,

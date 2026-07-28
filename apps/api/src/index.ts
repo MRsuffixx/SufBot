@@ -1,5 +1,6 @@
 import { loadApiEnvironment, loadAppConfig } from '@sufbot/config';
 import { DistributedCache } from '@sufbot/cache';
+import { StripeBillingProvider } from '@sufbot/billing';
 import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import { buildApi } from './app.js';
@@ -21,9 +22,31 @@ const cache = new DistributedCache(env.REDIS_URL, {
   invalidationChannel: config.cache.invalidationChannel,
   logger,
 });
+const stripeProvider = new StripeBillingProvider({
+  config,
+  environment: env.NODE_ENV,
+  ...(env.STRIPE_SECRET_KEY === undefined
+    ? {}
+    : { secretKey: env.STRIPE_SECRET_KEY }),
+  ...(env.STRIPE_WEBHOOK_SECRET === undefined
+    ? {}
+    : { webhookSecret: env.STRIPE_WEBHOOK_SECRET }),
+  ...(env.STRIPE_PRICE_ID === undefined ? {} : { priceId: env.STRIPE_PRICE_ID }),
+  ...(env.STRIPE_PORTAL_CONFIGURATION_ID === undefined
+    ? {}
+    : { portalConfigurationId: env.STRIPE_PORTAL_CONFIGURATION_ID }),
+});
+const billingProviders = new Map([['STRIPE' as const, stripeProvider]]);
 
 await cache.connect();
-const app = await buildApi({ config, env, prisma, cache, logger });
+const app = await buildApi({
+  config,
+  env,
+  prisma,
+  cache,
+  logger,
+  billingProviders,
+});
 let stopping = false;
 
 const shutdown = async (signal: string): Promise<void> => {

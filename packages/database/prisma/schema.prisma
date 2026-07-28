@@ -537,8 +537,8 @@ model PaymentTransaction {
 
   @@unique([provider, idempotencyKey])
   @@unique([provider, merchantOrderId])
-  @@unique([provider, providerPaymentId])
-  @@unique([provider, providerInvoiceId, type])
+  @@index([provider, providerPaymentId])
+  @@index([provider, providerInvoiceId])
   @@index([guildId, createdAt(sort: Desc)])
   @@index([subscriptionId, createdAt(sort: Desc)])
   @@index([status, createdAt])

@@ -6,6 +6,7 @@ export function GuildNav({ guildId }: { guildId: string }) {
     ['/settings', 'Settings'],
     ['/modules', 'Modules'],
     ['/commands', 'Command access'],
+    ['/premium', 'Premium'],
     ['/audit-logs', 'Audit logs'],
   ] as const;
   return (

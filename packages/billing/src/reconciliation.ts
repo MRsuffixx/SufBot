@@ -40,6 +40,38 @@ export type SubscriptionStateUpdate = {
   source: 'webhook' | 'callback' | 'reconciliation' | 'worker' | 'admin';
   actorType?: 'SYSTEM' | 'WORKER' | 'PROVIDER' | 'STAFF';
   actorUserId?: string;
+  providerEventRecordId?: string;
+  payment?: {
+    provider: 'STRIPE' | 'PAYTR';
+    providerPaymentId?: string;
+    providerInvoiceId?: string;
+    merchantOrderId?: string;
+    idempotencyKey: string;
+    type:
+      | 'INITIAL'
+      | 'RENEWAL'
+      | 'RETRY'
+      | 'REFUND'
+      | 'PARTIAL_REFUND'
+      | 'CHARGEBACK'
+      | 'REVERSAL';
+    status:
+      | 'PENDING'
+      | 'SUCCEEDED'
+      | 'FAILED'
+      | 'REFUNDED'
+      | 'PARTIALLY_REFUNDED'
+      | 'DISPUTED'
+      | 'REVERSED'
+      | 'UNKNOWN';
+    amountMinor: number;
+    currency: string;
+    failureCode?: string;
+    failureMessageSanitized?: string;
+    paidAt?: Date;
+    refundedAt?: Date;
+    disputedAt?: Date;
+  };
   now?: Date;
 };
 
@@ -133,6 +165,70 @@ export class SubscriptionReconciliationService {
         where: { id: current.id },
       });
 
+      if (input.payment !== undefined) {
+        await transaction.paymentTransaction.upsert({
+          where: {
+            provider_idempotencyKey: {
+              provider: input.payment.provider,
+              idempotencyKey: input.payment.idempotencyKey,
+            },
+          },
+          create: {
+            guildId: updated.guildId,
+            purchaserUserId: updated.purchaserUserId,
+            subscriptionId: updated.id,
+            provider: input.payment.provider,
+            ...(input.payment.providerPaymentId === undefined
+              ? {}
+              : { providerPaymentId: input.payment.providerPaymentId }),
+            ...(input.payment.providerInvoiceId === undefined
+              ? {}
+              : { providerInvoiceId: input.payment.providerInvoiceId }),
+            ...(input.payment.merchantOrderId === undefined
+              ? {}
+              : { merchantOrderId: input.payment.merchantOrderId }),
+            idempotencyKey: input.payment.idempotencyKey,
+            type: input.payment.type,
+            status: input.payment.status,
+            amountMinor: input.payment.amountMinor,
+            currency: input.payment.currency,
+            ...(input.payment.failureCode === undefined
+              ? {}
+              : { failureCode: input.payment.failureCode }),
+            ...(input.payment.failureMessageSanitized === undefined
+              ? {}
+              : { failureMessageSanitized: input.payment.failureMessageSanitized }),
+            ...(input.payment.paidAt === undefined
+              ? {}
+              : { paidAt: input.payment.paidAt }),
+            ...(input.payment.refundedAt === undefined
+              ? {}
+              : { refundedAt: input.payment.refundedAt }),
+            ...(input.payment.disputedAt === undefined
+              ? {}
+              : { disputedAt: input.payment.disputedAt }),
+          },
+          update: {
+            status: input.payment.status,
+            ...(input.payment.failureCode === undefined
+              ? {}
+              : { failureCode: input.payment.failureCode }),
+            ...(input.payment.failureMessageSanitized === undefined
+              ? {}
+              : { failureMessageSanitized: input.payment.failureMessageSanitized }),
+            ...(input.payment.paidAt === undefined
+              ? {}
+              : { paidAt: input.payment.paidAt }),
+            ...(input.payment.refundedAt === undefined
+              ? {}
+              : { refundedAt: input.payment.refundedAt }),
+            ...(input.payment.disputedAt === undefined
+              ? {}
+              : { disputedAt: input.payment.disputedAt }),
+          },
+        });
+      }
+
       const grant = subscriptionGrantsPremium(updated, now);
       const desiredEntitlements = grant.grants
         ? entitlementsForFeatureSet(updated.featureSetVersion)
@@ -221,6 +317,18 @@ export class SubscriptionReconciliationService {
           source: input.source,
         },
       });
+      if (input.providerEventRecordId !== undefined) {
+        await transaction.billingProviderEvent.update({
+          where: { id: input.providerEventRecordId },
+          data: {
+            processingStatus: 'PROCESSED',
+            processedAt: now,
+            attemptCount: { increment: 1 },
+            failureCode: null,
+            lastErrorSanitized: null,
+          },
+        });
+      }
       return {
         subscriptionId: updated.id,
         guildId: updated.guildId,

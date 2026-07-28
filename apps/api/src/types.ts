@@ -1,4 +1,5 @@
 import type { DistributedCache } from '@sufbot/cache';
+import type { BillingProvider, BillingProviderName } from '@sufbot/billing';
 import type { AppConfig, ApiEnvironment } from '@sufbot/config';
 import type { PrismaClient } from '@sufbot/database/generated';
 import type { Logger } from '@sufbot/logger';
@@ -18,6 +19,7 @@ export type ApiDependencies = {
   prisma: PrismaClient;
   cache: DistributedCache;
   logger: Logger;
+  billingProviders: ReadonlyMap<BillingProviderName, BillingProvider>;
 };
 
 declare module 'fastify' {
