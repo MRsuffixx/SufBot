@@ -43,6 +43,12 @@ export type VerificationSetupResult = {
   health: 'HEALTHY' | 'PARTIAL' | 'BROKEN';
 };
 
+export type VerificationResourceKind =
+  | 'verification-channel'
+  | 'verified-role'
+  | 'unverified-role'
+  | 'verification-message';
+
 const jsonValue = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
@@ -313,6 +319,58 @@ export class OnboardingRepository {
       return updated;
     });
     if (record !== null) await this.#publish(record);
+  }
+
+  public async markVerificationResourceDeleted(
+    guildId: string,
+    resource: { kind: VerificationResourceKind; id: string },
+    actor: OnboardingActor,
+  ): Promise<boolean> {
+    const record = await this.prisma.$transaction(async (transaction) => {
+      const current = await transaction.guildOnboardingConfig.findUnique({
+        where: { guildId },
+      });
+      if (current === null) return null;
+      const matches =
+        (resource.kind === 'verification-channel' &&
+          current.verificationChannelId === resource.id) ||
+        (resource.kind === 'verified-role' && current.verifiedRoleId === resource.id) ||
+        (resource.kind === 'unverified-role' && current.unverifiedRoleId === resource.id) ||
+        (resource.kind === 'verification-message' &&
+          current.verificationMessageId === resource.id);
+      if (!matches) return null;
+
+      const updated = await transaction.guildOnboardingConfig.update({
+        where: { guildId },
+        data: {
+          resourceHealth: 'BROKEN',
+          version: { increment: 1 },
+        },
+      });
+      await appendAuditLog(transaction, {
+        guildId,
+        actorDiscordId: actor.actorDiscordId,
+        action: 'onboarding.verification-resource.deleted',
+        resourceType: resource.kind,
+        resourceId: resource.id,
+        previousValue: {
+          resourceHealth: current.resourceHealth,
+          configurationVersion: current.version,
+        },
+        newValue: {
+          resourceHealth: updated.resourceHealth,
+          configurationVersion: updated.version,
+        },
+        requestId: actor.requestId,
+        outcome: 'FAILURE',
+        failureReason: 'A configured Discord verification resource was deleted.',
+        metadata: { source: actor.source },
+      });
+      return updated;
+    });
+    if (record === null) return false;
+    await this.#publish(record);
+    return true;
   }
 
   async #ensure(guildId: string): Promise<GuildOnboardingConfig> {

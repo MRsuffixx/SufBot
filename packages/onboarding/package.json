@@ -22,6 +22,7 @@
     "@sufbot/cache": "workspace:*",
     "@sufbot/database": "workspace:*",
     "@sufbot/shared": "workspace:*",
+    "ioredis": "5.11.1",
     "zod": "4.4.3"
   },
   "devDependencies": {

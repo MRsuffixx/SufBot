@@ -447,6 +447,48 @@ export class OnboardingService {
     });
   }
 
+  public async handleChannelDelete(guildId: string, channelId: string): Promise<void> {
+    await this.#markDeletedResource(guildId, 'verification-channel', channelId);
+  }
+
+  public async handleRoleDelete(guildId: string, roleId: string): Promise<void> {
+    const verified = await this.#markDeletedResource(guildId, 'verified-role', roleId);
+    if (!verified) {
+      await this.#markDeletedResource(guildId, 'unverified-role', roleId);
+    }
+  }
+
+  public async handleMessageDelete(guildId: string, messageId: string): Promise<void> {
+    await this.#markDeletedResource(guildId, 'verification-message', messageId);
+  }
+
+  async #markDeletedResource(
+    guildId: string,
+    kind:
+      | 'verification-channel'
+      | 'verified-role'
+      | 'unverified-role'
+      | 'verification-message',
+    resourceId: string,
+  ): Promise<boolean> {
+    const changed = await this.#repository.markVerificationResourceDeleted(
+      guildId,
+      { kind, id: resourceId },
+      {
+        actorDiscordId: this.client.user.id,
+        requestId: `discord-delete:${kind}:${resourceId}`,
+        source: 'bot',
+      },
+    );
+    if (changed) {
+      this.services.logger.warn(
+        { guildId, resourceId, resourceKind: kind },
+        'configured verification resource was deleted; setup requires repair',
+      );
+    }
+    return changed;
+  }
+
   async #enqueue(payload: OnboardingJob): Promise<void> {
     await this.queues.enqueueOnboarding(payload);
     this.services.logger.debug(

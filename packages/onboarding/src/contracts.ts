@@ -447,6 +447,7 @@ export type OnboardingDiscordResources = z.infer<typeof OnboardingDiscordResourc
 export type WelcomeConfig = z.infer<typeof WelcomeConfigSchema>;
 export type GoodbyeConfig = z.infer<typeof GoodbyeConfigSchema>;
 export type VerificationConfig = z.infer<typeof VerificationConfigSchema>;
+export type OnboardingCaptchaType = z.infer<typeof OnboardingCaptchaTypeSchema>;
 export type AutoRoleConfig = z.infer<typeof AutoRoleConfigSchema>;
 export type WelcomeCardConfig = z.infer<typeof WelcomeCardConfigSchema>;
 export type OnboardingMessage = z.infer<typeof OnboardingMessageSchema>;
