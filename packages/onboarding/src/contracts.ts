@@ -48,6 +48,7 @@ export const OnboardingEmbedSchema = z
     authorIconUrl: OptionalHttpsUrlSchema.prefault(''),
     authorUrl: OptionalHttpsUrlSchema.prefault(''),
     title: z.string().max(256).default(''),
+    titleUrl: OptionalHttpsUrlSchema.prefault(''),
     description: z.string().max(4096).default(''),
     thumbnailUrl: OptionalHttpsUrlSchema.prefault(''),
     imageUrl: OptionalHttpsUrlSchema.prefault(''),

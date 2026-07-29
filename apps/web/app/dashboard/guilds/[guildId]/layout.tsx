@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { GuildNav } from '@/components/guild-nav';
+import { PageContainer, PermissionWarning } from '@/components/dashboard/page-primitives';
 import { requireDashboardSession } from '@/lib/session';
 import { loadGuildInstallation, requireLiveGuildAccess } from '@/lib/discord';
 import { prisma } from '@/lib/runtime';
@@ -38,34 +38,16 @@ export default async function GuildLayout({
     },
   });
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-[.18em] text-violet-600">
-          Guild control
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-black tracking-tight">{guild.name}</h1>
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-              installation.state === 'configured' || installation.state === 'installed-online'
-                ? 'bg-emerald-500/10 text-emerald-500'
-                : installation.state === 'missing-permissions'
-                  ? 'bg-red-500/10 text-red-500'
-                  : 'bg-amber-500/10 text-amber-500'
-            }`}
-          >
-            {installation.state === 'configured'
-              ? 'Connected'
-              : installation.state === 'installed-online'
-                ? 'Online'
-                : installation.state === 'missing-permissions'
-                  ? 'Permissions required'
-                  : 'Bot offline'}
-          </span>
-        </div>
-      </div>
-      <GuildNav guildId={guildId} />
-      <div className="pt-7">{children}</div>
-    </div>
+    <PageContainer width="wide">
+      {installation.requiresReauthorization ? (
+        <PermissionWarning
+          title="Bot permissions need attention"
+          description={`${guild.name} is connected, but SufBot cannot safely operate every configured module until its Discord permissions are repaired.`}
+          actionHref={`/invite?${new URLSearchParams({ guildId, intent: 'repair' })}`}
+          actionLabel="Fix permissions"
+        />
+      ) : null}
+      <div className={installation.requiresReauthorization ? 'pt-5' : ''}>{children}</div>
+    </PageContainer>
   );
 }

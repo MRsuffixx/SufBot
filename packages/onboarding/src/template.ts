@@ -98,7 +98,12 @@ export const renderOnboardingMessage = (
                     ...(embed.authorUrl === null ? {} : { url: embed.authorUrl }),
                   },
                 }),
-            ...(embed.title === '' ? {} : { title: render(embed.title) }),
+            ...(embed.title === ''
+              ? {}
+              : {
+                  title: render(embed.title),
+                  ...(embed.titleUrl === null ? {} : { url: embed.titleUrl }),
+                }),
             ...(embed.description === '' ? {} : { description: render(embed.description) }),
             ...(embed.thumbnailUrl === null ? {} : { thumbnailUrl: embed.thumbnailUrl }),
             ...(embed.imageUrl === null ? {} : { imageUrl: embed.imageUrl }),

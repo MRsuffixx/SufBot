@@ -55,7 +55,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setPending = useCallback((form: HTMLFormElement, nextPending: boolean) => {
-    setActiveForm((current) => current ?? form);
+    if (nextPending) setActiveForm((current) => current ?? form);
     setPendingState(nextPending);
   }, []);
 
