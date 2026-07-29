@@ -81,7 +81,7 @@ run('PayTR verified callback lifecycle', () => {
         planCode: plan.code,
         environment: 'test',
         nonceHash: 'c'.repeat(64),
-        expiresAt: new Date('2026-07-29T00:00:00.000Z'),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         state: 'PROVIDER_PENDING',
         amountMinorSnapshot: plan.amountMinor,
         currencySnapshot: plan.currency,
