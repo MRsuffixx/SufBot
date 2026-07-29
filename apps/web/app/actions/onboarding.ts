@@ -15,6 +15,7 @@ import {
   validateGoodbyeResources,
   validateWelcomeResources,
 } from '@sufbot/onboarding';
+import type { OnboardingMessage } from '@sufbot/onboarding';
 import { AuthorizationError, ValidationError, createId, isAppError } from '@sufbot/shared';
 import type { ActionState } from './guild';
 import { requireLiveGuildAccess } from '@/lib/discord';
@@ -28,8 +29,41 @@ const OptionalGuildResourceIdSchema = z
   .union([GuildIdSchema, z.literal('')])
   .transform((value) => (value === '' ? null : value));
 const MessageModeSchema = z.enum(['TEXT', 'EMBED', 'TEXT_AND_EMBED']);
+const UnknownVariablePolicySchema = z.enum(['PRESERVE', 'EMPTY']);
 const DeliverySchema = z.enum(['ON_JOIN', 'AFTER_VERIFICATION', 'BOTH']);
 const RoleIdListSchema = z.array(GuildIdSchema).max(25);
+
+const parseMessageFormData = (
+  formData: FormData,
+  fieldPrefix: 'message' | 'dmMessage',
+  current: OnboardingMessage,
+): OnboardingMessage => {
+  const mode = formData.get(`${fieldPrefix}Mode`);
+  const content = formData.get(`${fieldPrefix}Content`);
+  const embed = formData.get(`${fieldPrefix}Embed`);
+  const mentionUser = formData.get(`${fieldPrefix}MentionUser`);
+  const unknownVariablePolicy = formData.get(`${fieldPrefix}UnknownVariablePolicy`);
+  const deleteAfterSeconds = formData.get(`${fieldPrefix}DeleteAfterSeconds`);
+  return {
+    ...current,
+    mode: mode === null ? current.mode : MessageModeSchema.parse(mode),
+    content: content === null ? current.content : String(content),
+    embed:
+      typeof embed === 'string' && embed !== ''
+        ? (JSON.parse(embed) as OnboardingMessage['embed'])
+        : current.embed,
+    allowedMentions: {
+      ...current.allowedMentions,
+      mentionUser: mentionUser === null ? current.allowedMentions.mentionUser : mentionUser === 'true',
+    },
+    unknownVariablePolicy:
+      unknownVariablePolicy === null
+        ? current.unknownVariablePolicy
+        : UnknownVariablePolicySchema.parse(unknownVariablePolicy),
+    deleteAfterSeconds:
+      deleteAfterSeconds === null ? current.deleteAfterSeconds : Number(deleteAfterSeconds),
+  };
+};
 
 const safeAction = async (operation: () => Promise<string>): Promise<ActionState> => {
   try {
@@ -156,19 +190,11 @@ export const updateWelcomeConfigAction = async (
       ignoreBots: formData.get('ignoreBots') === 'on',
       minimumAccountAgeHours: Number(formData.get('minimumAccountAgeHours')),
       attachWelcomeCard: formData.get('attachWelcomeCard') === 'on',
-      message: {
-        ...current.welcome.message,
-        mode: MessageModeSchema.parse(formData.get('messageMode')),
-        content: String(formData.get('messageContent') ?? ''),
-      },
+      message: parseMessageFormData(formData, 'message', current.welcome.message),
       dmEnabled: formData.get('dmEnabled') === 'on',
       dmDelivery: DeliverySchema.parse(formData.get('dmDelivery')),
       dmDelaySeconds: Number(formData.get('dmDelaySeconds')),
-      dmMessage: {
-        ...current.welcome.dmMessage,
-        mode: MessageModeSchema.parse(formData.get('dmMessageMode')),
-        content: String(formData.get('dmMessageContent') ?? ''),
-      },
+      dmMessage: parseMessageFormData(formData, 'dmMessage', current.welcome.dmMessage),
     });
     await requireValidResources(context.guildId, (resources) =>
       validateWelcomeResources(config, resources),
@@ -202,11 +228,7 @@ export const updateGoodbyeConfigAction = async (
       ignoreBots: formData.get('ignoreBots') === 'on',
       includeJoinDuration: formData.get('includeJoinDuration') === 'on',
       includeLastKnownRoles: formData.get('includeLastKnownRoles') === 'on',
-      message: {
-        ...current.goodbye.message,
-        mode: MessageModeSchema.parse(formData.get('messageMode')),
-        content: String(formData.get('messageContent') ?? ''),
-      },
+      message: parseMessageFormData(formData, 'message', current.goodbye.message),
     });
     await requireValidResources(context.guildId, (resources) =>
       validateGoodbyeResources(config, resources),
