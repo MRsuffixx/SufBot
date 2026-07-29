@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { OnboardingEventJournal, OnboardingRepository } from '@sufbot/onboarding';
+import {
+  OnboardingEventJournal,
+  OnboardingRepository,
+  VerificationSetupRequestSchema,
+} from '@sufbot/onboarding';
 import { createPrismaClient, type PrismaClient } from '@sufbot/database';
 import { getSafeLocalTestDatabaseUrl } from './environment.js';
 
@@ -143,5 +147,75 @@ run('onboarding PostgreSQL invariants', () => {
         select: { status: true, attemptCount: true },
       }),
     ).resolves.toEqual({ status: 'SUCCEEDED', attemptCount: 1 });
+  });
+
+  it('serializes verification setup through a pending state and audited completion', async () => {
+    const repository = new OnboardingRepository(prisma);
+    const initial = await repository.get(guildA);
+    const request = VerificationSetupRequestSchema.parse({
+      expectedVersion: initial.version,
+      operation: 'SETUP',
+      mode: 'EVERYONE_VISIBLE',
+      channel: { strategy: 'CREATE', name: 'verify' },
+      verifiedRole: { strategy: 'CREATE', name: 'verified' },
+      migration: { mode: 'NONE' },
+      confirmed: true,
+    });
+    const actor = {
+      actorUserId: userId,
+      actorDiscordId: ownerDiscordId,
+      requestId: 'verification-setup-integration',
+      source: 'dashboard' as const,
+    };
+    const pending = await repository.beginVerificationSetup(request, guildA, actor);
+    expect(pending.resourceHealth).toBe('PENDING');
+    await expect(
+      repository.updateBasics(
+        {
+          welcomeEnabled: true,
+          goodbyeEnabled: false,
+          verificationEnabled: true,
+          autoRoleEnabled: false,
+          welcomeCardEnabled: false,
+          expectedVersion: pending.version,
+        },
+        guildA,
+        actor,
+      ),
+    ).rejects.toThrow(/in progress/u);
+    const completed = await repository.completeVerificationSetup(
+      {
+        pendingVersion: pending.version,
+        mode: 'EVERYONE_VISIBLE',
+        verificationChannelId: '982000000000000030',
+        verifiedRoleId: '982000000000000031',
+        unverifiedRoleId: null,
+        verificationMessageId: '982000000000000032',
+        setupSnapshot: { panelNonceHash: 'hash-only' },
+        health: 'HEALTHY',
+      },
+      guildA,
+      actor,
+    );
+    expect(completed).toMatchObject({
+      verificationEnabled: true,
+      resourceHealth: 'HEALTHY',
+      verificationChannelId: '982000000000000030',
+      verifiedRoleId: '982000000000000031',
+    });
+    await expect(
+      prisma.guildAuditLog.count({
+        where: {
+          guildId: guildA,
+          requestId: actor.requestId,
+          action: {
+            in: [
+              'onboarding.verification-setup.started',
+              'onboarding.verification-setup.completed',
+            ],
+          },
+        },
+      }),
+    ).resolves.toBe(2);
   });
 });

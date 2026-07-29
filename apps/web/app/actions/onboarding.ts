@@ -8,6 +8,7 @@ import {
   GoodbyeConfigSchema,
   OnboardingDiscordResourcesSchema,
   OnboardingRepository,
+  VerificationSetupRequestSchema,
   WelcomeConfigSchema,
   validateAutoRoleResources,
   validateGoodbyeResources,
@@ -16,7 +17,7 @@ import {
 import { AuthorizationError, ValidationError, createId, isAppError } from '@sufbot/shared';
 import type { ActionState } from './guild';
 import { requireLiveGuildAccess } from '@/lib/discord';
-import { cache, ensureCacheConnection, prisma } from '@/lib/runtime';
+import { cache, ensureCacheConnection, onboardingQueue, prisma } from '@/lib/runtime';
 import { validateMutationOrigin } from '@/lib/server-security';
 import { requireDashboardSession } from '@/lib/session';
 
@@ -43,12 +44,7 @@ const safeAction = async (operation: () => Promise<string>): Promise<ActionState
   }
 };
 
-const requireValidResources = async (
-  guildId: string,
-  validator: (
-    resources: z.infer<typeof OnboardingDiscordResourcesSchema>,
-  ) => readonly { message: string }[],
-): Promise<void> => {
+const loadOnboardingResources = async (guildId: string) => {
   const resources = await cache.readRuntimeState(
     'bot:onboarding-resources',
     guildId,
@@ -59,6 +55,16 @@ const requireValidResources = async (
       'Live Discord channels and roles are unavailable. Confirm the bot is online.',
     );
   }
+  return resources;
+};
+
+const requireValidResources = async (
+  guildId: string,
+  validator: (
+    resources: z.infer<typeof OnboardingDiscordResourcesSchema>,
+  ) => readonly { message: string }[],
+): Promise<void> => {
+  const resources = await loadOnboardingResources(guildId);
   const issue = validator(resources)[0];
   if (issue !== undefined) throw new ValidationError(issue.message);
 };
@@ -244,4 +250,130 @@ export const updateAutoRoleConfigAction = async (
     );
     revalidatePath(`/dashboard/guilds/${context.guildId}/onboarding/roles`);
     return `Automatic role configuration saved at version ${updated.version}.`;
+  });
+
+export const setupVerificationAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAction(async () => {
+    const context = await prepareMutation(formData);
+    const repository = new OnboardingRepository(prisma, cache);
+    const operation = z
+      .enum(['SETUP', 'REPAIR', 'RESEND', 'DRY_RUN'])
+      .parse(formData.get('operation'));
+    const mode = z
+      .enum(['EVERYONE_VISIBLE', 'DEDICATED_UNVERIFIED_ROLE'])
+      .parse(formData.get('mode'));
+    const memberIds = String(formData.get('memberIds') ?? '')
+      .split(/[\s,]+/u)
+      .map((memberId) => memberId.trim())
+      .filter(Boolean);
+    const parseColor = (value: FormDataEntryValue | null): number => {
+      const text = String(value ?? '').replace(/^#/u, '');
+      return Number.parseInt(text, 16);
+    };
+    const request = VerificationSetupRequestSchema.parse({
+      expectedVersion: Number(formData.get('expectedVersion')),
+      operation,
+      mode,
+      channel: {
+        strategy: formData.get('channelStrategy'),
+        channelId: OptionalGuildResourceIdSchema.parse(formData.get('channelId')),
+        name: formData.get('channelName'),
+        categoryId: OptionalGuildResourceIdSchema.parse(formData.get('categoryId')),
+      },
+      verifiedRole: {
+        strategy: formData.get('verifiedRoleStrategy'),
+        roleId: OptionalGuildResourceIdSchema.parse(formData.get('verifiedRoleId')),
+        name: formData.get('verifiedRoleName'),
+        color: parseColor(formData.get('verifiedRoleColor')),
+        hoist: formData.get('verifiedRoleHoist') === 'on',
+        mentionable: formData.get('verifiedRoleMentionable') === 'on',
+      },
+      unverifiedRole:
+        mode === 'DEDICATED_UNVERIFIED_ROLE'
+          ? {
+              strategy: formData.get('unverifiedRoleStrategy'),
+              roleId: OptionalGuildResourceIdSchema.parse(formData.get('unverifiedRoleId')),
+              name: formData.get('unverifiedRoleName'),
+              color: parseColor(formData.get('unverifiedRoleColor')),
+              hoist: formData.get('unverifiedRoleHoist') === 'on',
+              mentionable: formData.get('unverifiedRoleMentionable') === 'on',
+            }
+          : null,
+      restrictedChannelIds: formData.getAll('restrictedChannelIds').map(String),
+      migration: {
+        mode: formData.get('migrationMode'),
+        memberIds,
+        maxCount: Number(formData.get('migrationMaxCount')),
+      },
+      confirmed: formData.get('confirmed') === 'on',
+    });
+    const resources = await loadOnboardingResources(context.guildId);
+    if (
+      (request.channel.strategy === 'CREATE' || request.restrictedChannelIds.length > 0) &&
+      !resources.bot.canManageChannels
+    ) {
+      throw new ValidationError('The bot needs Manage Channels for this setup.');
+    }
+    if (
+      (request.verifiedRole.strategy === 'CREATE' ||
+        request.unverifiedRole?.strategy === 'CREATE') &&
+      !resources.bot.canManageRoles
+    ) {
+      throw new ValidationError('The bot needs Manage Roles for this setup.');
+    }
+    if (
+      request.channel.strategy === 'EXISTING' &&
+      !resources.channels.some(
+        (channel) =>
+          channel.id === request.channel.channelId &&
+          channel.type === 'TEXT' &&
+          channel.canManage,
+      )
+    ) {
+      throw new ValidationError('The selected verification channel is not manageable.');
+    }
+    for (const selection of [request.verifiedRole, request.unverifiedRole]) {
+      if (selection === null || selection.strategy === 'CREATE') continue;
+      if (
+        !resources.roles.some(
+          (role) => role.id === selection.roleId && role.assignable,
+        )
+      ) {
+        throw new ValidationError('A selected verification role is not assignable.');
+      }
+    }
+    const pending =
+      request.operation === 'DRY_RUN'
+        ? await repository.get(context.guildId)
+        : await repository.beginVerificationSetup(request, context.guildId, context.actor);
+    try {
+      await onboardingQueue.enqueueOnboarding({
+        job: 'onboarding.verification-setup',
+        idempotencyKey: `verification-setup:${context.guildId}:${context.actor.requestId}`,
+        correlationId: context.actor.requestId,
+        guildId: context.guildId,
+        userId: context.actor.actorDiscordId,
+        deliverAt: new Date().toISOString(),
+        pendingVersion: pending.version,
+        request,
+      });
+    } catch (error) {
+      if (request.operation !== 'DRY_RUN') {
+        await repository.failVerificationSetup(
+          context.guildId,
+          pending.version,
+          context.actor,
+          'The verification setup job could not be queued.',
+          false,
+        );
+      }
+      throw error;
+    }
+    revalidatePath(`/dashboard/guilds/${context.guildId}/onboarding/verification`);
+    return request.operation === 'DRY_RUN'
+      ? `Dry-run queued. Reference: ${context.actor.requestId}`
+      : `Verification setup queued at version ${pending.version}.`;
   });

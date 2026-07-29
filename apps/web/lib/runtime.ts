@@ -10,6 +10,7 @@ import {
 import { loadAppConfig, loadWebEnvironment } from '@sufbot/config';
 import { getPrismaClient } from '@sufbot/database';
 import { createLogger } from '@sufbot/logger';
+import { QueueRegistry } from '@sufbot/queue';
 
 export const appConfig = loadAppConfig();
 export const webEnvironment = loadWebEnvironment();
@@ -70,6 +71,7 @@ export const cache = new DistributedCache(webEnvironment.REDIS_URL, {
   invalidationChannel: appConfig.cache.invalidationChannel,
   logger: webLogger,
 });
+export const onboardingQueue = new QueueRegistry(webEnvironment.REDIS_URL, appConfig.queue);
 
 let cacheConnection: Promise<void> | undefined;
 export const ensureCacheConnection = (): Promise<void> => {
