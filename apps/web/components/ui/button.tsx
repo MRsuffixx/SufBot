@@ -3,21 +3,27 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-sm font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-standard)] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:translate-y-px',
   {
     variants: {
       variant: {
         default:
-          'bg-violet-600 px-4 py-2.5 text-white shadow-lg shadow-violet-600/20 hover:bg-violet-500',
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover hover:text-primary-foreground',
         secondary:
-          'border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 hover:bg-[var(--surface-strong)]',
-        ghost: 'px-3 py-2 hover:bg-[var(--surface)]',
-        danger: 'bg-red-600 px-4 py-2.5 text-white hover:bg-red-500',
+          'border-border bg-surface-elevated text-foreground shadow-xs hover:border-border-strong hover:bg-surface-secondary',
+        outline:
+          'border-border-strong bg-transparent text-foreground hover:bg-surface-secondary',
+        ghost: 'bg-transparent text-muted-foreground hover:bg-surface-secondary hover:text-foreground',
+        danger: 'bg-danger text-white shadow-sm hover:bg-danger/90 hover:text-white',
+        premium:
+          'border-premium/30 bg-premium-surface text-premium shadow-xs hover:border-premium/50 hover:bg-premium-surface/75 hover:text-premium',
       },
       size: {
-        default: 'h-10',
-        lg: 'h-12 px-6 text-base',
-        sm: 'h-8 px-3 text-xs',
+        default: 'h-[var(--control-height)] px-4',
+        lg: 'h-[var(--control-height-lg)] px-5 text-[0.9375rem]',
+        sm: 'h-[var(--control-height-sm)] px-3 text-xs',
+        icon: 'size-[var(--control-height)]',
+        'icon-sm': 'size-[var(--control-height-sm)]',
       },
     },
     defaultVariants: { variant: 'default', size: 'default' },

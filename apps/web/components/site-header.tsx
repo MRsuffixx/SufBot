@@ -7,15 +7,15 @@ import { buttonVariants } from './ui/button';
 export async function SiteHeader() {
   const session = await auth();
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[color:var(--background)/.88] backdrop-blur-xl">
+    <header className="site-header sticky top-0 z-40 border-b border-border bg-background/88 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
         <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
-          <span className="grid size-9 place-items-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-500/25">
+          <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-md">
             <Bot size={20} />
           </span>
           SufBot
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-[var(--muted)] md:flex">
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           <Link href="/features">Features</Link>
           <Link href="/commands">Commands</Link>
           <Link href="/status">Status</Link>

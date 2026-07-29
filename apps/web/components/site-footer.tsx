@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-[var(--border)] py-10 text-sm text-[var(--muted)]">
+    <footer className="site-footer border-t border-border py-10 text-sm text-muted-foreground">
       <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-5 sm:flex-row">
         <p>© 2026 MRsuffix. SufBot is not affiliated with Discord.</p>
         <nav className="flex flex-wrap gap-5">

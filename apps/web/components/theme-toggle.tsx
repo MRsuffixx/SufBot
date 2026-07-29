@@ -1,37 +1,50 @@
 'use client';
 
-import { Moon, Sun } from 'lucide-react';
+import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 
+type ThemePreference = 'light' | 'dark' | 'system';
+
+const themeOrder: readonly ThemePreference[] = ['system', 'light', 'dark'];
+
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const [theme, setTheme] = useState<ThemePreference>('system');
 
   useEffect(() => {
     const stored = window.localStorage.getItem('sufbot-theme');
-    const shouldUseDark =
-      stored === 'dark' ||
-      (stored === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.dataset.theme = shouldUseDark ? 'dark' : 'light';
-    setDark(shouldUseDark);
+    const preference: ThemePreference =
+      stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+    document.documentElement.dataset.theme = preference;
+    setTheme(preference);
   }, []);
 
   const toggle = (): void => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.dataset.theme = next ? 'dark' : 'light';
-    window.localStorage.setItem('sufbot-theme', next ? 'dark' : 'light');
+    const currentIndex = themeOrder.indexOf(theme);
+    const next = themeOrder[(currentIndex + 1) % themeOrder.length] ?? 'system';
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    window.localStorage.setItem('sufbot-theme', next);
   };
+
+  const label =
+    theme === 'system'
+      ? 'Theme: system. Switch to light theme'
+      : theme === 'light'
+        ? 'Theme: light. Switch to dark theme'
+        : 'Theme: dark. Switch to system theme';
+  const Icon = theme === 'system' ? Monitor : theme === 'light' ? Sun : Moon;
 
   return (
     <Button
       type="button"
       variant="ghost"
-      size="sm"
-      aria-label={dark ? 'Use light theme' : 'Use dark theme'}
+      size="icon-sm"
+      aria-label={label}
+      title={label}
       onClick={toggle}
     >
-      {dark ? <Sun size={17} /> : <Moon size={17} />}
+      <Icon size={16} aria-hidden="true" />
     </Button>
   );
 }

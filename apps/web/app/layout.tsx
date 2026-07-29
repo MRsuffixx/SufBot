@@ -27,9 +27,22 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const themeBootstrap = `
+  try {
+    var value = localStorage.getItem('sufbot-theme');
+    document.documentElement.dataset.theme =
+      value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
+  } catch (_) {
+    document.documentElement.dataset.theme = 'system';
+  }
+`;
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body>
         <SiteHeader />
         {children}
