@@ -29,10 +29,10 @@ logs.
 
 The logs dashboard and `/analytics` endpoint use plan-bounded history (7 days free, 365 Premium by
 default). The worker schedules `cleanup.onboarding-events` every 24 hours and also submits one
-date-deduplicated startup cleanup. It resolves each guild's current entitlement, deletes only that
-guild's expired onboarding events in bounded batches, records the job idempotently, and dead-letters
-exhausted failures. PostgreSQL backups must be encrypted and restore-tested; Redis captcha data does
-not require backup.
+initial run when the scheduler is first installed. It resolves each guild's current entitlement,
+deletes only that guild's expired onboarding events in bounded batches, records each scheduled job
+idempotently, and dead-letters exhausted failures. PostgreSQL backups must be encrypted and
+restore-tested; Redis captcha data does not require backup.
 
 Real Discord behavior must be tested only in an owned test guild. Record channel/role/panel IDs and
 test results without copying secrets or captcha values.

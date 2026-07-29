@@ -746,19 +746,6 @@ await cleanupWorker.waitUntilReady();
 await onboardingImageWorker.waitUntilReady();
 await billingCache.connect();
 await heartbeat.start();
-const retentionJobKey = `onboarding-retention:${new Date().toISOString().slice(0, 10)}`;
-await cleanupQueue.add(
-  'cleanup.onboarding-events',
-  {
-    idempotencyKey: retentionJobKey,
-    before: new Date().toISOString(),
-    resource: 'onboarding-events',
-  },
-  {
-    jobId: sha256(retentionJobKey),
-    deduplication: { id: retentionJobKey },
-  },
-);
 await cleanupQueue.upsertJobScheduler(
   'onboarding-event-retention-v1',
   { every: 24 * 60 * 60 * 1_000 },
