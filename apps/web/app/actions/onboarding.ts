@@ -328,20 +328,14 @@ export const setupVerificationAction = async (
       request.channel.strategy === 'EXISTING' &&
       !resources.channels.some(
         (channel) =>
-          channel.id === request.channel.channelId &&
-          channel.type === 'TEXT' &&
-          channel.canManage,
+          channel.id === request.channel.channelId && channel.type === 'TEXT' && channel.canManage,
       )
     ) {
       throw new ValidationError('The selected verification channel is not manageable.');
     }
     for (const selection of [request.verifiedRole, request.unverifiedRole]) {
       if (selection === null || selection.strategy === 'CREATE') continue;
-      if (
-        !resources.roles.some(
-          (role) => role.id === selection.roleId && role.assignable,
-        )
-      ) {
+      if (!resources.roles.some((role) => role.id === selection.roleId && role.assignable)) {
         throw new ValidationError('A selected verification role is not assignable.');
       }
     }

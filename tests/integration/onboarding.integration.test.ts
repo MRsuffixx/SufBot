@@ -134,10 +134,7 @@ run('onboarding PostgreSQL invariants', () => {
       idempotencyKey: 'onboarding-member-joined-982000000000000020',
       correlationId: 'onboarding-event-integration',
     };
-    const attempts = await Promise.all([
-      journal.claim(event),
-      journal.claim(event),
-    ]);
+    const attempts = await Promise.all([journal.claim(event), journal.claim(event)]);
     expect(attempts.filter(Boolean)).toHaveLength(1);
     await journal.complete({ idempotencyKey: event.idempotencyKey });
     await expect(journal.claim(event)).resolves.toBe(false);

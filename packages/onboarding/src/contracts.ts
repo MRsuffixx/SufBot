@@ -184,8 +184,7 @@ export const VerificationConfigSchema = z
       .default('Too many failed attempts. Please wait before trying again.'),
     panelMessage: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
-      content:
-        'Welcome to {server.name}! Press the button below to verify that you are human.',
+      content: 'Welcome to {server.name}! Press the button below to verify that you are human.',
     }),
   })
   .strict();

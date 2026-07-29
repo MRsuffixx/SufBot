@@ -1,7 +1,4 @@
-import type {
-  OnboardingConfigResponse,
-  OnboardingDiscordResources,
-} from '@sufbot/onboarding';
+import type { OnboardingConfigResponse, OnboardingDiscordResources } from '@sufbot/onboarding';
 import { setupVerificationAction } from '@/app/actions/onboarding';
 import { ActionForm } from './action-form';
 
@@ -192,12 +189,12 @@ export function VerificationSetupForm({
         <p className="mt-2 leading-6 text-[var(--muted)]">
           The verification channel will deny sending and threads to members, hide itself from the
           verified role, and allow the bot to send embeds and attachments. Explicitly selected
-          restricted channels will deny View Channel to @everyone and allow it to the verified
-          role. Existing overwrite values are snapshotted for repair and rollback.
+          restricted channels will deny View Channel to @everyone and allow it to the verified role.
+          Existing overwrite values are snapshotted for repair and rollback.
         </p>
         <label className="mt-4 flex items-start gap-3 font-semibold">
-          <input type="checkbox" name="confirmed" className="mt-0.5 size-5 accent-violet-600" />
-          I reviewed and approve these channel and role changes. Dry runs do not require this box.
+          <input type="checkbox" name="confirmed" className="mt-0.5 size-5 accent-violet-600" />I
+          reviewed and approve these channel and role changes. Dry runs do not require this box.
         </label>
       </div>
       {resources === null ? (

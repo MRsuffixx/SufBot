@@ -259,8 +259,7 @@ export const registerOnboardingRoutes = async (
       });
     }
     if (
-      (input.verifiedRole.strategy === 'CREATE' ||
-        input.unverifiedRole?.strategy === 'CREATE') &&
+      (input.verifiedRole.strategy === 'CREATE' || input.unverifiedRole?.strategy === 'CREATE') &&
       !resources.bot.canManageRoles
     ) {
       throw new AppError({
@@ -286,9 +285,7 @@ export const registerOnboardingRoutes = async (
     )) {
       if (
         role === null ||
-        !resources.roles.some(
-          (candidate) => candidate.id === role.roleId && candidate.assignable,
-        )
+        !resources.roles.some((candidate) => candidate.id === role.roleId && candidate.assignable)
       ) {
         throw new AppError({
           code: 'ONBOARDING_ROLE_NOT_ASSIGNABLE',
@@ -312,9 +309,7 @@ export const registerOnboardingRoutes = async (
     if (
       input.restrictedChannelIds.some(
         (channelId) =>
-          !resources.channels.some(
-            (channel) => channel.id === channelId && channel.canManage,
-          ),
+          !resources.channels.some((channel) => channel.id === channelId && channel.canManage),
       )
     ) {
       throw new AppError({

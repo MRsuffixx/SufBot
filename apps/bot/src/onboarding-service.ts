@@ -942,9 +942,35 @@ export class OnboardingService {
       throw new TypeError('VERIFICATION_SETUP_VERSION_MISMATCH');
     }
     if (!botMember.permissions.has(PermissionFlagsBits.ManageChannels)) {
+      if (request.operation !== 'DRY_RUN') {
+        await this.#repository.failVerificationSetup(
+          guild.id,
+          payload.pendingVersion,
+          {
+            actorDiscordId: payload.userId,
+            requestId: payload.correlationId,
+            source: 'bot',
+          },
+          'The bot is missing Manage Channels.',
+          false,
+        );
+      }
       throw new TypeError('BOT_MANAGE_CHANNELS_PERMISSION_MISSING');
     }
     if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      if (request.operation !== 'DRY_RUN') {
+        await this.#repository.failVerificationSetup(
+          guild.id,
+          payload.pendingVersion,
+          {
+            actorDiscordId: payload.userId,
+            requestId: payload.correlationId,
+            source: 'bot',
+          },
+          'The bot is missing Manage Roles.',
+          false,
+        );
+      }
       throw new TypeError('BOT_MANAGE_ROLES_PERMISSION_MISSING');
     }
     if (request.operation === 'DRY_RUN') {
@@ -1111,7 +1137,13 @@ export class OnboardingService {
     for (const selection of [request.verifiedRole, request.unverifiedRole]) {
       if (selection === null || selection.strategy === 'CREATE') continue;
       const role = selection.roleId === null ? null : guild.roles.cache.get(selection.roleId);
-      if (role === undefined || role === null || !role.editable || role.managed || role.id === guild.id) {
+      if (
+        role === undefined ||
+        role === null ||
+        !role.editable ||
+        role.managed ||
+        role.id === guild.id
+      ) {
         throw new TypeError('VERIFICATION_ROLE_INVALID');
       }
     }
@@ -1124,7 +1156,9 @@ export class OnboardingService {
       willCreateUnverifiedRole: request.unverifiedRole?.strategy === 'CREATE',
       restrictedChannelCount: request.restrictedChannelIds.length,
       migrationCandidateCount: candidates.length,
-      migrationPreview: candidates.slice(0, 15).map((member) => `${member.id}:${member.displayName}`),
+      migrationPreview: candidates
+        .slice(0, 15)
+        .map((member) => `${member.id}:${member.displayName}`),
     };
   }
 
@@ -1311,12 +1345,12 @@ export class OnboardingService {
           code: failure.code,
         })),
       );
-      if (
-        payload.unverifiedRoleId !== null &&
-        member.roles.cache.has(payload.unverifiedRoleId)
-      ) {
+      if (payload.unverifiedRoleId !== null && member.roles.cache.has(payload.unverifiedRoleId)) {
         await member.roles
-          .remove(payload.unverifiedRoleId, `SufBot verification migration ${payload.correlationId}`)
+          .remove(
+            payload.unverifiedRoleId,
+            `SufBot verification migration ${payload.correlationId}`,
+          )
           .catch(() => {
             result.failed.push({ roleId: member.id, code: 'UNVERIFIED_ROLE_REMOVAL_FAILED' });
           });
@@ -1345,7 +1379,9 @@ export class OnboardingService {
       migration.mode === 'MANUAL'
         ? (
             await Promise.all(
-              migration.memberIds.map((memberId) => guild.members.fetch(memberId).catch(() => null)),
+              migration.memberIds.map((memberId) =>
+                guild.members.fetch(memberId).catch(() => null),
+              ),
             )
           ).filter((member): member is GuildMember => member !== null)
         : [...(await guild.members.fetch()).values()];

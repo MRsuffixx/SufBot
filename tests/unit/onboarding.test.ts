@@ -4,6 +4,7 @@ import {
   OnboardingDiscordResourcesSchema,
   OnboardingMessageSchema,
   VerificationConfigSchema,
+  VerificationSetupRequestSchema,
   WelcomeCardConfigSchema,
   WelcomeConfigSchema,
   neutralizeMassMentions,
@@ -178,5 +179,31 @@ describe('onboarding contracts', () => {
     expect(validateAutoRoleResources(roles, resources)).toMatchObject([
       { code: 'ROLE_NOT_ASSIGNABLE' },
     ]);
+  });
+
+  it('requires explicit permission confirmation and a role for dedicated mode', () => {
+    const base = {
+      expectedVersion: 1,
+      operation: 'SETUP',
+      mode: 'DEDICATED_UNVERIFIED_ROLE',
+      channel: { strategy: 'CREATE', name: 'verify' },
+      verifiedRole: { strategy: 'CREATE', name: 'verified' },
+      migration: { mode: 'NONE' },
+    };
+    expect(VerificationSetupRequestSchema.safeParse(base).success).toBe(false);
+    expect(
+      VerificationSetupRequestSchema.safeParse({
+        ...base,
+        confirmed: true,
+        unverifiedRole: { strategy: 'CREATE', name: 'unverified' },
+      }).success,
+    ).toBe(true);
+    expect(
+      VerificationSetupRequestSchema.safeParse({
+        ...base,
+        operation: 'DRY_RUN',
+        unverifiedRole: { strategy: 'CREATE', name: 'unverified' },
+      }).success,
+    ).toBe(true);
   });
 });

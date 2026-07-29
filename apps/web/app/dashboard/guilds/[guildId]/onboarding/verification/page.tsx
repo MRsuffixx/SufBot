@@ -1,7 +1,4 @@
-import {
-  OnboardingDiscordResourcesSchema,
-  OnboardingRepository,
-} from '@sufbot/onboarding';
+import { OnboardingDiscordResourcesSchema, OnboardingRepository } from '@sufbot/onboarding';
 import { createId } from '@sufbot/shared';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { Card } from '@/components/ui/card';
@@ -16,11 +13,7 @@ export default async function VerificationPage({
   const { guildId } = await params;
   const [config, resources] = await Promise.all([
     new OnboardingRepository(prisma, cache).get(guildId),
-    cache.readRuntimeState(
-      'bot:onboarding-resources',
-      guildId,
-      OnboardingDiscordResourcesSchema,
-    ),
+    cache.readRuntimeState('bot:onboarding-resources', guildId, OnboardingDiscordResourcesSchema),
   ]);
   return (
     <OnboardingSectionShell
@@ -47,9 +40,7 @@ export default async function VerificationPage({
           </div>
           <div>
             <dt className="font-bold">Verified role</dt>
-            <dd className="mt-1 text-[var(--muted)]">
-              {config.verifiedRoleId ?? 'Not created'}
-            </dd>
+            <dd className="mt-1 text-[var(--muted)]">{config.verifiedRoleId ?? 'Not created'}</dd>
           </div>
         </dl>
         <VerificationSetupForm
