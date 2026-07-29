@@ -5,3 +5,4 @@ export * from './repository.js';
 export * from './resources.js';
 export * from './roles.js';
 export * from './template.js';
+export * from './welcome-card.js';

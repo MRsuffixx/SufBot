@@ -613,6 +613,9 @@ importers:
       ioredis:
         specifier: 5.11.1
         version: 5.11.1
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@24.13.3)
       zod:
         specifier: 4.4.3
         version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)

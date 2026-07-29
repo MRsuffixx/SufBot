@@ -17,6 +17,7 @@ export const QueueName = {
   DeadLetter: 'dead-letter',
   Billing: 'billing',
   BillingNotifications: 'billing-notifications',
+  OnboardingImages: 'onboarding-images',
 } as const;
 
 export const AuditJobSchema = z.object({
@@ -122,10 +123,41 @@ export const OnboardingJobSchema = z.discriminatedUnion('job', [
   }).strict(),
 ]);
 
+export const WelcomeCardGenerationJobSchema = z
+  .object({
+    job: z.literal('onboarding.generate-welcome-card'),
+    idempotencyKey: z.string().min(8).max(128),
+    correlationId: z.string().min(1).max(128),
+    guildId: DiscordSnowflakeSchema,
+    userId: DiscordSnowflakeSchema,
+    configurationVersion: z.number().int().positive(),
+    avatarUrl: z.url().max(2048),
+    serverIconUrl: z.url().max(2048).nullable(),
+    text: z
+      .object({
+        title: z.string().max(120),
+        subtitle: z.string().max(200),
+        body: z.string().max(300),
+        memberCount: z.string().max(100),
+      })
+      .strict(),
+  })
+  .strict();
+
+export const WelcomeCardGenerationResultSchema = z
+  .object({
+    dataBase64: z.string().max(12_000_000),
+    contentType: z.enum(['image/png', 'image/jpeg']),
+    filename: z.enum(['welcome-card.png', 'welcome-card.jpg']),
+  })
+  .strict();
+
 export type AuditJob = z.infer<typeof AuditJobSchema>;
 export type AnalyticsJob = z.infer<typeof AnalyticsJobSchema>;
 export type CleanupJob = z.infer<typeof CleanupJobSchema>;
 export type OnboardingJob = z.infer<typeof OnboardingJobSchema>;
+export type WelcomeCardGenerationJob = z.infer<typeof WelcomeCardGenerationJobSchema>;
+export type WelcomeCardGenerationResult = z.infer<typeof WelcomeCardGenerationResultSchema>;
 
 const connectionFromUrl = (redisUrl: string): ConnectionOptions => {
   const url = new URL(redisUrl);
