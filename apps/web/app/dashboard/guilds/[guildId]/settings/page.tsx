@@ -8,6 +8,29 @@ import {
 import { GuildSettingsForm } from '@/components/guild-settings-form';
 import { prisma } from '@/lib/runtime';
 
+const changePipeline = [
+  {
+    icon: CheckCircle2,
+    title: 'Validate',
+    description: 'Form values and version are validated before mutation.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Authorize',
+    description: 'Discord authority is refreshed for the acting user.',
+  },
+  {
+    icon: RadioTower,
+    title: 'Commit',
+    description: 'Settings and audit records commit in one transaction.',
+  },
+  {
+    icon: Languages,
+    title: 'Synchronize',
+    description: 'Local and Redis caches receive a versioned event.',
+  },
+] as const;
+
 export default async function GuildSettingsPage({
   params,
 }: {
@@ -46,16 +69,11 @@ export default async function GuildSettingsPage({
         description="Every settings update follows the same guarded path."
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          {[
-            [CheckCircle2, 'Validate', 'Form values and version are validated before mutation.'],
-            [ShieldCheck, 'Authorize', 'Discord authority is refreshed for the acting user.'],
-            [RadioTower, 'Commit', 'Settings and audit records commit in one transaction.'],
-            [Languages, 'Synchronize', 'Local and Redis caches receive a versioned event.'],
-          ].map(([Icon, title, description]) => (
-            <SettingsCard key={String(title)} className="p-4">
+          {changePipeline.map(({ icon: Icon, title, description }) => (
+            <SettingsCard key={title} className="p-4">
               <Icon size={17} className="text-primary" />
-              <h3 className="mt-3 text-sm font-semibold">{String(title)}</h3>
-              <p className="type-help mt-1">{String(description)}</p>
+              <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+              <p className="type-help mt-1">{description}</p>
             </SettingsCard>
           ))}
         </div>

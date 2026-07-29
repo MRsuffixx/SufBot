@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { AlertTriangle, Crown, Inbox, LoaderCircle, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function PageContainer({

@@ -225,6 +225,7 @@ export function validateBuilderMessage(message: MessageTemplate): BuilderValidat
   for (const [path, value] of [
     ['embed.authorIconUrl', message.embed.authorIconUrl],
     ['embed.authorUrl', message.embed.authorUrl],
+    ['embed.titleUrl', message.embed.titleUrl],
     ['embed.thumbnailUrl', message.embed.thumbnailUrl],
     ['embed.imageUrl', message.embed.imageUrl],
     ['embed.footerIconUrl', message.embed.footerIconUrl],

@@ -32,9 +32,10 @@ describe('dashboard responsive navigation model', () => {
       (item) => item.href === '/dashboard/guilds/123456789012345678',
     );
     expect(overview).toBeDefined();
+    if (overview === undefined) throw new Error('Guild overview navigation item is missing.');
     expect(
       isNavigationItemActive(
-        overview!,
+        overview,
         '/dashboard/guilds/123456789012345678/onboarding/welcome',
       ),
     ).toBe(false);
