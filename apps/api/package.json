@@ -15,7 +15,7 @@
     "@fastify/helmet": "13.1.0",
     "@fastify/rate-limit": "11.1.0",
     "@fastify/swagger": "9.8.1",
-    "@fastify/swagger-ui": "6.1.0",
+    "@fastify/swagger-ui": "6.1.1",
     "@sufbot/auth": "workspace:*",
     "@sufbot/billing": "workspace:*",
     "@sufbot/cache": "workspace:*",

@@ -88,7 +88,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.62.0",
-    "@prisma/config": "7.9.0",
+    "@prisma/config": "7.9.1",
     "@sufbot/auth": "workspace:*",
     "@sufbot/billing": "workspace:*",
     "@sufbot/cache": "workspace:*",
