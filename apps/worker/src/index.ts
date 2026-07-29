@@ -545,10 +545,10 @@ const cleanupOnboardingEvents = async (): Promise<number> => {
 
   while (true) {
     const configurations = await prisma.guildOnboardingConfig.findMany({
-      orderBy: { id: 'asc' },
+      orderBy: { guildId: 'asc' },
       take: pageSize,
-      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
-      select: { id: true, guildId: true },
+      ...(cursor === undefined ? {} : { cursor: { guildId: cursor }, skip: 1 }),
+      select: { guildId: true },
     });
     if (configurations.length === 0) break;
 
@@ -573,7 +573,7 @@ const cleanupOnboardingEvents = async (): Promise<number> => {
       }
     }
 
-    cursor = configurations.at(-1)?.id;
+    cursor = configurations.at(-1)?.guildId;
     if (configurations.length < pageSize || cursor === undefined) break;
   }
 
