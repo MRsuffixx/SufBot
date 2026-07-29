@@ -16,6 +16,7 @@ import {
   isPostVerificationConditionSatisfied,
   validateAutoRoleResources,
   validateWelcomeResources,
+  createCaptchaMaterial,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -205,5 +206,20 @@ describe('onboarding contracts', () => {
         unverifiedRole: { strategy: 'CREATE', name: 'unverified' },
       }).success,
     ).toBe(true);
+  });
+
+  it('generates bounded captcha material without ambiguous image characters', () => {
+    const image = createCaptchaMaterial('IMAGE_TEXT', 8);
+    expect(image.imageText).toMatch(/^[A-HJ-NP-Z2-9]{8}$/u);
+    expect(image.expectedAnswer).toBe(image.imageText);
+
+    const arithmetic = createCaptchaMaterial('ARITHMETIC', 6);
+    expect(arithmetic.publicPrompt).toMatch(/^What is \d+ [−+] \d+\?$/u);
+    expect(Number.isInteger(Number(arithmetic.expectedAnswer))).toBe(true);
+
+    const sequence = createCaptchaMaterial('BUTTON_SEQUENCE', 8);
+    expect(sequence.sequenceChoices).toHaveLength(5);
+    expect(sequence.sequenceTarget).toHaveLength(5);
+    expect(sequence.expectedAnswer).toMatch(/^[0-4]{5}$/u);
   });
 });

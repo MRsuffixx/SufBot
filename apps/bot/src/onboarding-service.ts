@@ -280,11 +280,7 @@ export class OnboardingService {
       connection: queues.connection,
       prefix: deadLetterIdentity.prefix,
     });
-    this.#verificationInteractions = new VerificationInteractionService(
-      client,
-      services,
-      queues,
-    );
+    this.#verificationInteractions = new VerificationInteractionService(client, services, queues);
   }
 
   public async start(): Promise<void> {
@@ -326,11 +322,7 @@ export class OnboardingService {
     challengeId: string,
     signature: string,
   ): Promise<unknown> {
-    return this.#verificationInteractions.handleAnswerButton(
-      interaction,
-      challengeId,
-      signature,
-    );
+    return this.#verificationInteractions.handleAnswerButton(interaction, challengeId, signature);
   }
 
   public async handleCaptchaSequence(
@@ -524,11 +516,7 @@ export class OnboardingService {
 
   async #markDeletedResource(
     guildId: string,
-    kind:
-      | 'verification-channel'
-      | 'verified-role'
-      | 'unverified-role'
-      | 'verification-message',
+    kind: 'verification-channel' | 'verified-role' | 'unverified-role' | 'verification-message',
     resourceId: string,
   ): Promise<boolean> {
     const changed = await this.#repository.markVerificationResourceDeleted(

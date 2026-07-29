@@ -215,4 +215,58 @@ run('onboarding PostgreSQL invariants', () => {
       }),
     ).resolves.toBe(2);
   });
+
+  it('marks a configured verification resource deletion unhealthy and tenant-scoped', async () => {
+    const repository = new OnboardingRepository(prisma);
+    const initial = await repository.get(guildA);
+    const request = VerificationSetupRequestSchema.parse({
+      expectedVersion: initial.version,
+      operation: 'SETUP',
+      mode: 'EVERYONE_VISIBLE',
+      channel: { strategy: 'CREATE', name: 'verify' },
+      verifiedRole: { strategy: 'CREATE', name: 'verified' },
+      migration: { mode: 'NONE' },
+      confirmed: true,
+    });
+    const actor = {
+      actorUserId: userId,
+      actorDiscordId: ownerDiscordId,
+      requestId: 'verification-resource-delete',
+      source: 'bot' as const,
+    };
+    const pending = await repository.beginVerificationSetup(request, guildA, actor);
+    await repository.completeVerificationSetup(
+      {
+        pendingVersion: pending.version,
+        mode: 'EVERYONE_VISIBLE',
+        verificationChannelId: '982000000000000040',
+        verifiedRoleId: '982000000000000041',
+        unverifiedRoleId: null,
+        verificationMessageId: '982000000000000042',
+        setupSnapshot: { panelNonceHash: 'a'.repeat(64) },
+        health: 'HEALTHY',
+      },
+      guildA,
+      actor,
+    );
+    await expect(
+      repository.markVerificationResourceDeleted(
+        guildA,
+        { kind: 'verification-channel', id: '982000000000000040' },
+        actor,
+      ),
+    ).resolves.toBe(true);
+    await expect(repository.get(guildA)).resolves.toMatchObject({ resourceHealth: 'BROKEN' });
+    await expect(repository.get(guildB)).resolves.toMatchObject({
+      resourceHealth: 'NOT_CONFIGURED',
+    });
+    await expect(
+      prisma.guildAuditLog.count({
+        where: {
+          guildId: guildA,
+          action: 'onboarding.verification-resource.deleted',
+        },
+      }),
+    ).resolves.toBe(1);
+  });
 });

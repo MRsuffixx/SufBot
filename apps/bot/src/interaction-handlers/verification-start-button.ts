@@ -10,9 +10,7 @@ export class VerificationStartButtonHandler extends InteractionHandler {
   }
 
   public override parse(interaction: ButtonInteraction) {
-    const match = /^verify:v1:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/u.exec(
-      interaction.customId,
-    );
+    const match = /^verify:v1:([A-Za-z0-9_-]{22}):([A-Za-z0-9_-]{22})$/u.exec(interaction.customId);
     return match === null ? this.none() : this.some({ nonce: match[1], signature: match[2] });
   }
 

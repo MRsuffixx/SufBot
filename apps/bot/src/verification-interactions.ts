@@ -569,12 +569,7 @@ export class VerificationInteractionService {
     return { config, member };
   }
 
-  #answerModal(
-    guildId: string,
-    userId: string,
-    challengeId: string,
-    prompt: string,
-  ): ModalBuilder {
+  #answerModal(guildId: string, userId: string, challengeId: string, prompt: string): ModalBuilder {
     const signature = this.#challengeSignature('modal', guildId, userId, challengeId);
     return new ModalBuilder()
       .setCustomId(`captcha:v1:modal:${challengeId}:${signature}`)
@@ -597,18 +592,8 @@ export class VerificationInteractionService {
     return `captcha:v1:answer:${challengeId}:${signature}`;
   }
 
-  #sequenceButtonId(
-    guildId: string,
-    userId: string,
-    challengeId: string,
-    choice: number,
-  ): string {
-    const signature = this.#challengeSignature(
-      `sequence:${choice}`,
-      guildId,
-      userId,
-      challengeId,
-    );
+  #sequenceButtonId(guildId: string, userId: string, challengeId: string, choice: number): string {
+    const signature = this.#challengeSignature(`sequence:${choice}`, guildId, userId, challengeId);
     return `captcha:v1:sequence:${challengeId}:${choice}:${signature}`;
   }
 
@@ -637,21 +622,13 @@ export class VerificationInteractionService {
     challengeId: string,
     signature: string,
   ): boolean {
-    if (
-      !/^[A-Za-z0-9_-]{24}$/u.test(challengeId) ||
-      !/^[A-Za-z0-9_-]{22}$/u.test(signature)
-    ) {
+    if (!/^[A-Za-z0-9_-]{24}$/u.test(challengeId) || !/^[A-Za-z0-9_-]{22}$/u.test(signature)) {
       return false;
     }
-    return secureEqual(
-      this.#challengeSignature(kind, guildId, userId, challengeId),
-      signature,
-    );
+    return secureEqual(this.#challengeSignature(kind, guildId, userId, challengeId), signature);
   }
 
-  async #unavailable(
-    interaction: ButtonInteraction | ModalSubmitInteraction,
-  ): Promise<unknown> {
+  async #unavailable(interaction: ButtonInteraction | ModalSubmitInteraction): Promise<unknown> {
     const locale = await this.services.localeForGuild(interaction.guildId);
     const response = {
       content: localized(locale, 'unavailable'),

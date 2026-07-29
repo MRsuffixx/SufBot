@@ -13,9 +13,7 @@ export class CaptchaAnswerButtonHandler extends InteractionHandler {
     const match = /^captcha:v1:answer:([A-Za-z0-9_-]{24}):([A-Za-z0-9_-]{22})$/u.exec(
       interaction.customId,
     );
-    return match === null
-      ? this.none()
-      : this.some({ challengeId: match[1], signature: match[2] });
+    return match === null ? this.none() : this.some({ challengeId: match[1], signature: match[2] });
   }
 
   public async run(

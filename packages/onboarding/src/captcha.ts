@@ -248,12 +248,7 @@ return {'CREATED', '0'}
       normalizeCaptchaAnswer(answer).slice(0, 64),
     );
     if (compareHashes(state.expectedHash, candidateHash)) {
-      const consumed = await this.#consumeSuccess(
-        guildId,
-        userId,
-        challengeId,
-        state.expectedHash,
-      );
+      const consumed = await this.#consumeSuccess(guildId, userId, challengeId, state.expectedHash);
       return consumed ? { status: 'SUCCESS' } : this.#missingResult(guildId, userId, challengeId);
     }
     return this.#recordFailure(

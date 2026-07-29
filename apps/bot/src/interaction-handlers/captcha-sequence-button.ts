@@ -10,10 +10,9 @@ export class CaptchaSequenceButtonHandler extends InteractionHandler {
   }
 
   public override parse(interaction: ButtonInteraction) {
-    const match =
-      /^captcha:v1:sequence:([A-Za-z0-9_-]{24}):([0-4]):([A-Za-z0-9_-]{22})$/u.exec(
-        interaction.customId,
-      );
+    const match = /^captcha:v1:sequence:([A-Za-z0-9_-]{24}):([0-4]):([A-Za-z0-9_-]{22})$/u.exec(
+      interaction.customId,
+    );
     return match === null
       ? this.none()
       : this.some({

@@ -44,10 +44,7 @@ export type VerificationSetupResult = {
 };
 
 export type VerificationResourceKind =
-  | 'verification-channel'
-  | 'verified-role'
-  | 'unverified-role'
-  | 'verification-message';
+  'verification-channel' | 'verified-role' | 'unverified-role' | 'verification-message';
 
 const jsonValue = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -336,8 +333,7 @@ export class OnboardingRepository {
           current.verificationChannelId === resource.id) ||
         (resource.kind === 'verified-role' && current.verifiedRoleId === resource.id) ||
         (resource.kind === 'unverified-role' && current.unverifiedRoleId === resource.id) ||
-        (resource.kind === 'verification-message' &&
-          current.verificationMessageId === resource.id);
+        (resource.kind === 'verification-message' && current.verificationMessageId === resource.id);
       if (!matches) return null;
 
       const updated = await transaction.guildOnboardingConfig.update({
