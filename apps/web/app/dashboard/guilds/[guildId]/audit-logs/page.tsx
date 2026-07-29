@@ -1,59 +1,63 @@
+import { DataTable, type DataTableColumn } from '@/components/dashboard/data-table';
+import { PageHeader } from '@/components/dashboard/page-primitives';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { prisma } from '@/lib/runtime';
+
+const columns: readonly DataTableColumn[] = [
+  { key: 'time', label: 'Time', sortable: true },
+  { key: 'action', label: 'Action', sortable: true },
+  { key: 'actor', label: 'Actor', sortable: true },
+  { key: 'resource', label: 'Resource', sortable: true },
+  { key: 'outcome', label: 'Outcome', sortable: true },
+  { key: 'request', label: 'Request ID', hideOnMobile: true },
+];
 
 export default async function AuditLogsPage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
   const events = await prisma.guildAuditLog.findMany({
     where: { guildId },
     orderBy: { createdAt: 'desc' },
-    take: 50,
+    take: 100,
   });
   return (
-    <Card>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold">Append-oriented audit log</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Latest 50 sensitive actions. Secrets are redacted before insertion.
-          </p>
-        </div>
-        <span className="text-xs text-[var(--muted)]">{events.length} event(s)</span>
-      </div>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs uppercase tracking-wide text-[var(--muted)]">
-            <tr>
-              <th className="py-3">Time</th>
-              <th>Action</th>
-              <th>Actor</th>
-              <th>Resource</th>
-              <th>Outcome</th>
-              <th>Request</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {events.map((event) => (
-              <tr key={event.id}>
-                <td className="py-4 text-xs text-[var(--muted)]">
-                  {event.createdAt.toLocaleString()}
-                </td>
-                <td className="font-semibold">{event.action}</td>
-                <td>{event.actorDiscordId ?? 'system'}</td>
-                <td>{event.resourceType}</td>
-                <td className={event.outcome === 'SUCCESS' ? 'text-emerald-500' : 'text-red-500'}>
-                  {event.outcome}
-                </td>
-                <td>
-                  <code className="text-xs">{event.requestId}</code>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {events.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[var(--muted)]">No audit events yet.</p>
-        ) : null}
-      </div>
-    </Card>
+    <>
+      <PageHeader
+        eyebrow="Logging"
+        title="Audit log"
+        description="Sensitive configuration actions are append-oriented and redacted before insertion."
+        status={<Badge variant="neutral">{events.length} events</Badge>}
+      />
+      <Card className="overflow-hidden p-0">
+        <DataTable
+          columns={columns}
+          rows={events.map((event) => ({
+            id: event.id,
+            cells: {
+              time: {
+                value: event.createdAt.toLocaleString(),
+                sortValue: event.createdAt.getTime(),
+                tone: 'muted',
+              },
+              action: { value: event.action },
+              actor: {
+                value: event.actorDiscordId ?? 'system',
+                mono: event.actorDiscordId !== null,
+              },
+              resource: { value: event.resourceType },
+              outcome: {
+                value: event.outcome,
+                tone: event.outcome === 'SUCCESS' ? 'success' : 'danger',
+              },
+              request: { value: event.requestId, mono: true },
+            },
+          }))}
+          searchPlaceholder="Search actions, actors, resources, or request IDs…"
+          emptyTitle="No audit events yet"
+          emptyDescription="Audited configuration changes will appear here."
+          pageSize={20}
+        />
+      </Card>
+    </>
   );
 }
