@@ -39,7 +39,13 @@ export const AnalyticsJobSchema = z.object({
 export const CleanupJobSchema = z.object({
   idempotencyKey: z.string().min(8).max(128),
   before: z.iso.datetime(),
-  resource: z.enum(['audit-logs', 'sessions', 'access-grants', 'command-usage']),
+  resource: z.enum([
+    'audit-logs',
+    'sessions',
+    'access-grants',
+    'command-usage',
+    'onboarding-events',
+  ]),
 });
 
 export const DeadLetterJobSchema = z.object({

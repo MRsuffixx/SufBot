@@ -150,6 +150,7 @@ const downloadOnce = async (input: string): Promise<{ buffer?: Buffer; redirect?
           }
           chunks.push(chunk);
         });
+        response.once('error', reject);
         response.once('end', () => resolve({ buffer: Buffer.concat(chunks) }));
       },
     );

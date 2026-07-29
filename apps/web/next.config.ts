@@ -22,7 +22,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1'],
   poweredByHeader: false,
   reactStrictMode: true,
-  serverExternalPackages: ['@prisma/adapter-pg', 'pg'],
+  // BullMQ's ESM barrel contains runtime exports for declaration-only modules.
+  // Keep queue infrastructure on the Node.js side of the server boundary so
+  // Turbopack does not attempt to bundle those type-only paths.
+  serverExternalPackages: ['@prisma/adapter-pg', 'bullmq', 'ioredis', 'pg'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.discordapp.com' },

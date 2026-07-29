@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BillingWorkerPayloadSchema } from '@sufbot/billing';
-import { OnboardingJobSchema, QueueName, createQueueIdentity } from '@sufbot/queue';
+import {
+  CleanupJobSchema,
+  OnboardingJobSchema,
+  QueueName,
+  createQueueIdentity,
+} from '@sufbot/queue';
 
 describe('BullMQ queue identity', () => {
   it('keeps the namespace in the supported key prefix instead of the queue name', () => {
@@ -57,5 +62,17 @@ describe('BullMQ queue identity', () => {
         deliverAt: 'not-a-date',
       }).success,
     ).toBe(false);
+  });
+
+  it('accepts only declared retention cleanup resources', () => {
+    const scheduled = {
+      idempotencyKey: 'onboarding-retention-scheduled',
+      before: '2026-07-29T00:00:00.000Z',
+      resource: 'onboarding-events',
+    };
+    expect(CleanupJobSchema.safeParse(scheduled).success).toBe(true);
+    expect(CleanupJobSchema.safeParse({ ...scheduled, resource: 'captcha-answers' }).success).toBe(
+      false,
+    );
   });
 });

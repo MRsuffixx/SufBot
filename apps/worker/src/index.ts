@@ -16,6 +16,7 @@ import { disconnectPrisma, getPrismaClient } from '@sufbot/database';
 import { createRuntimeLogger } from '@sufbot/logger/runtime';
 import {
   AuditJobSchema,
+  CleanupJobSchema,
   DeadLetterJobSchema,
   QueueName,
   QueueRegistry,
@@ -59,10 +60,12 @@ const billingNotificationIdentity = createQueueIdentity(
   config.queue.prefix,
   QueueName.BillingNotifications,
 );
+const cleanupIdentity = createQueueIdentity(config.queue.prefix, QueueName.Cleanup);
 const onboardingImageIdentity = createQueueIdentity(
   config.queue.prefix,
   QueueName.OnboardingImages,
 );
+const cleanupQueue = registry.get(QueueName.Cleanup);
 const deadLetterQueue = new Queue(deadLetterIdentity.name, {
   connection: registry.connection,
   prefix: deadLetterIdentity.prefix,
@@ -533,6 +536,70 @@ const onboardingImageWorker = new Worker(
   },
 );
 
+const cleanupOnboardingEvents = async (): Promise<number> => {
+  const pageSize = 100;
+  const deleteBatchSize = 1_000;
+  const maximumDeleteBatchesPerGuild = 100;
+  let cursor: string | undefined;
+  let deletedTotal = 0;
+
+  while (true) {
+    const configurations = await prisma.guildOnboardingConfig.findMany({
+      orderBy: { id: 'asc' },
+      take: pageSize,
+      ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+      select: { id: true, guildId: true },
+    });
+    if (configurations.length === 0) break;
+
+    for (const onboarding of configurations) {
+      const plan = await entitlementService.getGuildLimits(onboarding.guildId);
+      const cutoff = new Date(
+        Date.now() - plan.limits.moderationHistoryDays * 24 * 60 * 60 * 1_000,
+      );
+      for (let batch = 0; batch < maximumDeleteBatchesPerGuild; batch += 1) {
+        const expired = await prisma.onboardingEvent.findMany({
+          where: { guildId: onboarding.guildId, occurredAt: { lt: cutoff } },
+          orderBy: { id: 'asc' },
+          take: deleteBatchSize,
+          select: { id: true },
+        });
+        if (expired.length === 0) break;
+        const deleted = await prisma.onboardingEvent.deleteMany({
+          where: { id: { in: expired.map((event) => event.id) } },
+        });
+        deletedTotal += deleted.count;
+        if (expired.length < deleteBatchSize) break;
+      }
+    }
+
+    cursor = configurations.at(-1)?.id;
+    if (configurations.length < pageSize || cursor === undefined) break;
+  }
+
+  return deletedTotal;
+};
+
+const cleanupWorker = new Worker(
+  cleanupIdentity.name,
+  async (job: Job): Promise<void> => {
+    const payload = CleanupJobSchema.parse(job.data);
+    await runRecordedBillingJob(QueueName.Cleanup, job, async () => {
+      if (payload.resource !== 'onboarding-events') {
+        throw new Error('CLEANUP_RESOURCE_UNSUPPORTED');
+      }
+      const deleted = await cleanupOnboardingEvents();
+      logger.info({ resource: payload.resource, deleted }, 'privacy retention cleanup completed');
+    });
+  },
+  {
+    connection: registry.connection,
+    prefix: cleanupIdentity.prefix,
+    concurrency: 1,
+    lockDuration: 120_000,
+  },
+);
+
 auditWorker.on('failed', (job, error) => {
   logger.error({ err: error, jobId: job?.id, attemptsMade: job?.attemptsMade }, 'audit job failed');
   if (job === undefined) return;
@@ -569,10 +636,10 @@ auditWorker.on('failed', (job, error) => {
 });
 auditWorker.on('error', (error) => logger.error({ err: error }, 'audit worker connection error'));
 
-const trackBillingFailure = (queueName: string, job: Job | undefined, error: Error): void => {
+const trackRecordedJobFailure = (queueName: string, job: Job | undefined, error: Error): void => {
   logger.error(
     { err: error, queueName, jobId: job?.id, attemptsMade: job?.attemptsMade },
-    'billing job failed',
+    'recorded background job failed',
   );
   if (job === undefined) return;
   const configuredAttempts =
@@ -584,7 +651,7 @@ const trackBillingFailure = (queueName: string, job: Job | undefined, error: Err
       data: {
         status: job.attemptsMade >= configuredAttempts ? 'DEAD_LETTERED' : 'FAILED',
         lastError: error.message.slice(0, 500),
-        errorCode: 'BILLING_JOB_FAILED',
+        errorCode: queueName === QueueName.Cleanup ? 'CLEANUP_JOB_FAILED' : 'BILLING_JOB_FAILED',
       },
     })
     .catch((databaseError: unknown) =>
@@ -605,15 +672,19 @@ const trackBillingFailure = (queueName: string, job: Job | undefined, error: Err
   }
 };
 
-billingWorker.on('failed', (job, error) => trackBillingFailure(QueueName.Billing, job, error));
+billingWorker.on('failed', (job, error) => trackRecordedJobFailure(QueueName.Billing, job, error));
 billingNotificationWorker.on('failed', (job, error) =>
-  trackBillingFailure(QueueName.BillingNotifications, job, error),
+  trackRecordedJobFailure(QueueName.BillingNotifications, job, error),
 );
+cleanupWorker.on('failed', (job, error) => trackRecordedJobFailure(QueueName.Cleanup, job, error));
 billingWorker.on('error', (error) =>
   logger.error({ err: error }, 'billing worker connection error'),
 );
 billingNotificationWorker.on('error', (error) =>
   logger.error({ err: error }, 'billing notification worker connection error'),
+);
+cleanupWorker.on('error', (error) =>
+  logger.error({ err: error }, 'cleanup worker connection error'),
 );
 onboardingImageWorker.on('failed', (job, error) => {
   logger.warn(
@@ -656,6 +727,7 @@ const shutdown = async (signal: string): Promise<void> => {
   await auditWorker.close();
   await billingWorker.close();
   await billingNotificationWorker.close();
+  await cleanupWorker.close();
   await onboardingImageWorker.close();
   await billingCache.close();
   await deadLetterQueue.close();
@@ -670,15 +742,42 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 await auditWorker.waitUntilReady();
 await billingWorker.waitUntilReady();
 await billingNotificationWorker.waitUntilReady();
+await cleanupWorker.waitUntilReady();
 await onboardingImageWorker.waitUntilReady();
 await billingCache.connect();
 await heartbeat.start();
+const retentionJobKey = `onboarding-retention:${new Date().toISOString().slice(0, 10)}`;
+await cleanupQueue.add(
+  'cleanup.onboarding-events',
+  {
+    idempotencyKey: retentionJobKey,
+    before: new Date().toISOString(),
+    resource: 'onboarding-events',
+  },
+  {
+    jobId: sha256(retentionJobKey),
+    deduplication: { id: retentionJobKey },
+  },
+);
+await cleanupQueue.upsertJobScheduler(
+  'onboarding-event-retention-v1',
+  { every: 24 * 60 * 60 * 1_000 },
+  {
+    name: 'cleanup.onboarding-events',
+    data: {
+      idempotencyKey: 'onboarding-retention-scheduled',
+      before: new Date().toISOString(),
+      resource: 'onboarding-events',
+    },
+  },
+);
 logger.info(
   {
     queues: [
       QueueName.Audit,
       QueueName.Billing,
       QueueName.BillingNotifications,
+      QueueName.Cleanup,
       QueueName.OnboardingImages,
     ],
   },
