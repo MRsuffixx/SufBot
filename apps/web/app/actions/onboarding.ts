@@ -9,6 +9,7 @@ import {
   OnboardingDiscordResourcesSchema,
   OnboardingRepository,
   VerificationSetupRequestSchema,
+  WelcomeCardConfigSchema,
   WelcomeConfigSchema,
   validateAutoRoleResources,
   validateGoodbyeResources,
@@ -250,6 +251,49 @@ export const updateAutoRoleConfigAction = async (
     );
     revalidatePath(`/dashboard/guilds/${context.guildId}/onboarding/roles`);
     return `Automatic role configuration saved at version ${updated.version}.`;
+  });
+
+export const updateWelcomeCardConfigAction = async (
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> =>
+  safeAction(async () => {
+    const context = await prepareMutation(formData);
+    const repository = new OnboardingRepository(prisma, cache);
+    const current = await repository.get(context.guildId);
+    const parseColor = (name: string): number =>
+      Number.parseInt(String(formData.get(name) ?? '').replace(/^#/u, ''), 16);
+    const config = WelcomeCardConfigSchema.parse({
+      ...current.welcomeCard,
+      width: Number(formData.get('width')),
+      height: Number(formData.get('height')),
+      backgroundUrl: String(formData.get('backgroundUrl') ?? ''),
+      backgroundFit: formData.get('backgroundFit'),
+      backgroundPosition: formData.get('backgroundPosition'),
+      overlayOpacity: Number(formData.get('overlayOpacity')),
+      textColor: parseColor('textColor'),
+      accentColor: parseColor('accentColor'),
+      avatarSize: Number(formData.get('avatarSize')),
+      avatarBorderWidth: Number(formData.get('avatarBorderWidth')),
+      avatarBorderColor: parseColor('avatarBorderColor'),
+      avatarShape: formData.get('avatarShape'),
+      textAlignment: formData.get('textAlignment'),
+      font: formData.get('font'),
+      titleTemplate: formData.get('titleTemplate'),
+      subtitleTemplate: formData.get('subtitleTemplate'),
+      bodyTemplate: formData.get('bodyTemplate'),
+      memberCountTemplate: formData.get('memberCountTemplate'),
+      showServerIcon: formData.get('showServerIcon') === 'on',
+      format: formData.get('format'),
+      quality: Number(formData.get('quality')),
+    });
+    const updated = await repository.updateWelcomeCard(
+      { expectedVersion: Number(formData.get('expectedVersion')), config },
+      context.guildId,
+      context.actor,
+    );
+    revalidatePath(`/dashboard/guilds/${context.guildId}/onboarding/welcome-card`);
+    return `Welcome card configuration saved at version ${updated.version}.`;
   });
 
 export const setupVerificationAction = async (

@@ -17,6 +17,8 @@ import {
   validateAutoRoleResources,
   validateWelcomeResources,
   createCaptchaMaterial,
+  generateWelcomeCard,
+  validateRemoteImageUrl,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -221,5 +223,32 @@ describe('onboarding contracts', () => {
     expect(sequence.sequenceChoices).toHaveLength(5);
     expect(sequence.sequenceTarget).toHaveLength(5);
     expect(sequence.expectedAnswer).toMatch(/^[0-4]{5}$/u);
+  });
+
+  it('blocks local image targets and renders bounded welcome cards in memory', async () => {
+    await expect(validateRemoteImageUrl('https://127.0.0.1/private.png')).rejects.toThrow(
+      /non-public/u,
+    );
+    await expect(validateRemoteImageUrl('http://example.com/image.png')).rejects.toThrow(
+      /public HTTPS/u,
+    );
+    const onePixelPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    const config = WelcomeCardConfigSchema.parse({ width: 640, height: 240 });
+    const generated = await generateWelcomeCard({
+      config,
+      avatar: onePixelPng,
+      text: {
+        title: 'WELCOME',
+        subtitle: '<script>not executable</script>',
+        body: 'Welcome to SufBot',
+        memberCount: 'Member #42',
+      },
+    });
+    expect(generated.filename).toBe('welcome-card.png');
+    expect(generated.buffer.subarray(1, 4).toString()).toBe('PNG');
+    expect(generated.buffer.length).toBeLessThan(8 * 1024 * 1024);
   });
 });

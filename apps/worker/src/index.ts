@@ -18,9 +18,15 @@ import {
   DeadLetterJobSchema,
   QueueName,
   QueueRegistry,
+  WelcomeCardGenerationJobSchema,
   createQueueIdentity,
 } from '@sufbot/queue';
 import { sha256 } from '@sufbot/shared';
+import {
+  OnboardingRepository,
+  fetchSafeRemoteImage,
+  generateWelcomeCard,
+} from '@sufbot/onboarding';
 
 const env = loadWorkerEnvironment();
 const config = loadAppConfig();
@@ -51,6 +57,10 @@ const billingIdentity = createQueueIdentity(config.queue.prefix, QueueName.Billi
 const billingNotificationIdentity = createQueueIdentity(
   config.queue.prefix,
   QueueName.BillingNotifications,
+);
+const onboardingImageIdentity = createQueueIdentity(
+  config.queue.prefix,
+  QueueName.OnboardingImages,
 );
 const deadLetterQueue = new Queue(deadLetterIdentity.name, {
   connection: registry.connection,
@@ -96,6 +106,7 @@ const subscriptionReconciliation = new SubscriptionReconciliationService(
   config,
   billingCache,
 );
+const onboardingRepository = new OnboardingRepository(prisma);
 
 const auditWorker = new Worker(
   auditIdentity.name,
@@ -480,6 +491,45 @@ const billingNotificationWorker = new Worker(
   },
 );
 
+const onboardingImageWorker = new Worker(
+  onboardingImageIdentity.name,
+  async (job: Job) => {
+    const payload = WelcomeCardGenerationJobSchema.parse(job.data);
+    const onboarding = await onboardingRepository.get(payload.guildId);
+    if (!onboarding.welcomeCardEnabled || onboarding.version !== payload.configurationVersion) {
+      throw new Error('WELCOME_CARD_CONFIGURATION_CHANGED');
+    }
+    const [avatar, background, serverIcon] = await Promise.all([
+      fetchSafeRemoteImage(payload.avatarUrl),
+      onboarding.welcomeCard.backgroundUrl === null
+        ? Promise.resolve(undefined)
+        : fetchSafeRemoteImage(onboarding.welcomeCard.backgroundUrl),
+      onboarding.welcomeCard.showServerIcon && payload.serverIconUrl !== null
+        ? fetchSafeRemoteImage(payload.serverIconUrl)
+        : Promise.resolve(undefined),
+    ]);
+    const generated = await generateWelcomeCard({
+      config: onboarding.welcomeCard,
+      text: payload.text,
+      avatar,
+      ...(background === undefined ? {} : { background }),
+      ...(serverIcon === undefined ? {} : { serverIcon }),
+    });
+    return {
+      dataBase64: generated.buffer.toString('base64'),
+      contentType: generated.contentType,
+      filename: generated.filename,
+    };
+  },
+  {
+    connection: registry.connection,
+    prefix: onboardingImageIdentity.prefix,
+    concurrency: 2,
+    lockDuration: 30_000,
+    limiter: { max: 10, duration: 1_000 },
+  },
+);
+
 auditWorker.on('failed', (job, error) => {
   logger.error({ err: error, jobId: job?.id, attemptsMade: job?.attemptsMade }, 'audit job failed');
   if (job === undefined) return;
@@ -562,6 +612,35 @@ billingWorker.on('error', (error) =>
 billingNotificationWorker.on('error', (error) =>
   logger.error({ err: error }, 'billing notification worker connection error'),
 );
+onboardingImageWorker.on('failed', (job, error) => {
+  logger.warn(
+    {
+      errorCode: error.message.slice(0, 64),
+      jobId: job?.id,
+      attemptsMade: job?.attemptsMade,
+    },
+    'welcome card generation failed',
+  );
+  if (job === undefined) return;
+  const configuredAttempts =
+    typeof job.opts.attempts === 'number' ? job.opts.attempts : config.queue.defaultAttempts;
+  if (job.attemptsMade >= configuredAttempts) {
+    const deadLetter = DeadLetterJobSchema.parse({
+      sourceQueue: QueueName.OnboardingImages,
+      sourceJobId: job.id,
+      jobName: job.name,
+      payload: job.data,
+      error: 'Welcome card generation failed after bounded retries.',
+      failedAt: new Date().toISOString(),
+    });
+    void deadLetterQueue.add('dead-letter.capture', deadLetter, {
+      jobId: sha256(`${QueueName.OnboardingImages}:${job.id ?? 'unknown'}`),
+    });
+  }
+});
+onboardingImageWorker.on('error', (error) =>
+  logger.error({ err: error }, 'welcome card worker connection error'),
+);
 
 let stopping = false;
 const shutdown = async (signal: string): Promise<void> => {
@@ -574,6 +653,7 @@ const shutdown = async (signal: string): Promise<void> => {
   await auditWorker.close();
   await billingWorker.close();
   await billingNotificationWorker.close();
+  await onboardingImageWorker.close();
   await billingCache.close();
   await deadLetterQueue.close();
   await registry.close();
@@ -587,11 +667,17 @@ process.once('SIGTERM', () => void shutdown('SIGTERM'));
 await auditWorker.waitUntilReady();
 await billingWorker.waitUntilReady();
 await billingNotificationWorker.waitUntilReady();
+await onboardingImageWorker.waitUntilReady();
 await billingCache.connect();
 await heartbeat.start();
 logger.info(
   {
-    queues: [QueueName.Audit, QueueName.Billing, QueueName.BillingNotifications],
+    queues: [
+      QueueName.Audit,
+      QueueName.Billing,
+      QueueName.BillingNotifications,
+      QueueName.OnboardingImages,
+    ],
   },
   'SufBot worker is ready',
 );

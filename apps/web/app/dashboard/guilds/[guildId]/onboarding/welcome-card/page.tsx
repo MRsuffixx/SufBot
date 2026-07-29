@@ -1,5 +1,7 @@
 import { OnboardingRepository } from '@sufbot/onboarding';
+import { createId } from '@sufbot/shared';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
+import { WelcomeCardForm } from '@/components/welcome-card-form';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
 
@@ -14,14 +16,16 @@ export default async function WelcomeCardPage({
     <OnboardingSectionShell
       guildId={guildId}
       title="Welcome card"
-      description="Bounded image dimensions, approved fonts, HTTPS-only protected asset fetching, and a message-without-card fallback."
+      description="Configure a bounded worker-rendered card with approved fonts and protected remote assets."
       status={config.welcomeCardEnabled ? 'Enabled' : 'Disabled'}
     >
       <Card>
-        <p className="text-sm text-[var(--muted)]">
-          {config.welcomeCard.width} × {config.welcomeCard.height} · {config.welcomeCard.format} ·{' '}
-          {config.welcomeCard.font}
-        </p>
+        <WelcomeCardForm
+          guildId={guildId}
+          version={config.version}
+          idempotencyKey={createId('mut')}
+          config={config.welcomeCard}
+        />
       </Card>
     </OnboardingSectionShell>
   );

@@ -57,10 +57,7 @@ export type GeneratedWelcomeCard = {
 };
 
 const assertPublicAddress = (address: string, family: 4 | 6): void => {
-  if (
-    isIP(address) !== family ||
-    blockedAddresses.check(address, family === 4 ? 'ipv4' : 'ipv6')
-  ) {
+  if (isIP(address) !== family || blockedAddresses.check(address, family === 4 ? 'ipv4' : 'ipv6')) {
     throw new TypeError('Remote image host resolved to a non-public address.');
   }
 };
@@ -100,9 +97,7 @@ export const validateRemoteImageUrl = async (
   return { url, address: selected.address, family: selected.family };
 };
 
-const downloadOnce = async (
-  input: string,
-): Promise<{ buffer?: Buffer; redirect?: string }> => {
+const downloadOnce = async (input: string): Promise<{ buffer?: Buffer; redirect?: string }> => {
   const validated = await validateRemoteImageUrl(input);
   return new Promise((resolve, reject) => {
     const operation = request(
@@ -229,11 +224,7 @@ export const generateWelcomeCard = async (
           .resize(config.width, config.height, {
             fit: config.backgroundFit === 'COVER' ? 'cover' : 'contain',
             position: config.backgroundPosition.toLowerCase() as
-              | 'center'
-              | 'top'
-              | 'bottom'
-              | 'left'
-              | 'right',
+              'center' | 'top' | 'bottom' | 'left' | 'right',
             background: color(config.accentColor),
           })
           .png()

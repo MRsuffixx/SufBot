@@ -1,7 +1,8 @@
 import { createHmac, randomBytes } from 'node:crypto';
-import { Queue, Worker, type Job } from 'bullmq';
+import { Queue, QueueEvents, Worker, type Job } from 'bullmq';
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
@@ -25,6 +26,7 @@ import {
   evaluateOnboardingRole,
   isPostVerificationConditionSatisfied,
   renderOnboardingMessage,
+  renderOnboardingTemplate,
   safeTemplateText,
   type OnboardingConfigResponse,
   type OnboardingTemplateVariables,
@@ -35,6 +37,7 @@ import {
   DeadLetterJobSchema,
   OnboardingJobSchema,
   QueueName,
+  WelcomeCardGenerationResultSchema,
   createQueueIdentity,
   type OnboardingJob,
   type QueueRegistry,
@@ -258,6 +261,8 @@ export class OnboardingService {
   readonly #journal: OnboardingEventJournal;
   readonly #identity;
   readonly #deadLetterQueue: Queue;
+  readonly #imageQueue: Queue;
+  readonly #imageQueueEvents: QueueEvents;
   readonly #verificationInteractions: VerificationInteractionService;
   #worker: Worker | undefined;
 
@@ -280,11 +285,21 @@ export class OnboardingService {
       connection: queues.connection,
       prefix: deadLetterIdentity.prefix,
     });
+    this.#imageQueue = queues.get(QueueName.OnboardingImages);
+    const imageIdentity = createQueueIdentity(
+      services.config.queue.prefix,
+      QueueName.OnboardingImages,
+    );
+    this.#imageQueueEvents = new QueueEvents(imageIdentity.name, {
+      connection: queues.connection,
+      prefix: imageIdentity.prefix,
+    });
     this.#verificationInteractions = new VerificationInteractionService(client, services, queues);
   }
 
   public async start(): Promise<void> {
     if (this.#worker !== undefined) return;
+    await this.#imageQueueEvents.waitUntilReady();
     this.#worker = new Worker(
       this.#identity.name,
       async (job: Job): Promise<void> => this.#process(OnboardingJobSchema.parse(job.data)),
@@ -306,6 +321,7 @@ export class OnboardingService {
     await this.#worker?.close();
     this.#worker = undefined;
     await this.#verificationInteractions.close();
+    await this.#imageQueueEvents.close();
     await this.#deadLetterQueue.close();
   }
 
@@ -499,6 +515,64 @@ export class OnboardingService {
     });
   }
 
+  async #welcomeCard(
+    member: GuildMember,
+    config: OnboardingConfigResponse,
+    correlationId: string,
+  ): Promise<AttachmentBuilder | null> {
+    if (!config.welcomeCardEnabled || !config.welcome.attachWelcomeCard || member.user.bot) {
+      return null;
+    }
+    try {
+      const locale = await this.services.localeForGuild(member.guild.id);
+      const variables = memberVariables(member.guild, member, locale, new Date());
+      const render = (template: string): string =>
+        renderOnboardingTemplate(template, variables, config.welcome.message.unknownVariablePolicy)
+          .value;
+      const payload = {
+        job: 'onboarding.generate-welcome-card' as const,
+        idempotencyKey: `welcome-card:${member.guild.id}:${member.id}:${correlationId}`,
+        correlationId,
+        guildId: member.guild.id,
+        userId: member.id,
+        configurationVersion: config.version,
+        avatarUrl: member.displayAvatarURL({ extension: 'png', size: 512 }),
+        serverIconUrl: member.guild.iconURL({ extension: 'png', size: 256 }),
+        text: {
+          title: render(config.welcomeCard.titleTemplate),
+          subtitle: render(config.welcomeCard.subtitleTemplate),
+          body: render(config.welcomeCard.bodyTemplate),
+          memberCount: render(config.welcomeCard.memberCountTemplate),
+        },
+      };
+      const job = await this.#imageQueue.add(payload.job, payload, {
+        jobId: sha256(payload.idempotencyKey),
+        deduplication: { id: payload.idempotencyKey },
+      });
+      const raw = await job.waitUntilFinished(this.#imageQueueEvents, 10_000);
+      const generated = WelcomeCardGenerationResultSchema.parse(raw);
+      const buffer = Buffer.from(generated.dataBase64, 'base64');
+      if (buffer.length === 0 || buffer.length > 8 * 1024 * 1024) {
+        throw new TypeError('WELCOME_CARD_RESULT_SIZE_INVALID');
+      }
+      return new AttachmentBuilder(buffer, {
+        name: generated.filename,
+        description: `Welcome card for ${member.displayName}`.slice(0, 1_024),
+      });
+    } catch (error) {
+      this.services.logger.warn(
+        {
+          err: error,
+          guildId: member.guild.id,
+          userId: member.id,
+          correlationId,
+        },
+        'welcome card generation failed; delivery will continue without an attachment',
+      );
+      return null;
+    }
+  }
+
   public async handleChannelDelete(guildId: string, channelId: string): Promise<void> {
     await this.#markDeletedResource(guildId, 'verification-channel', channelId);
   }
@@ -638,7 +712,11 @@ export class OnboardingService {
       member.id,
     );
     this.#logTemplateWarnings(rendered, payload);
-    const sent = await channel.send(asDiscordMessage(rendered));
+    const card = await this.#welcomeCard(member, config, payload.correlationId);
+    const sent = await channel.send({
+      ...asDiscordMessage(rendered),
+      ...(card === null ? {} : { files: [card] }),
+    });
     await this.#completeDelivery(payload, config, 'onboarding.welcome.sent', {
       channelId: channel.id,
       messageId: sent.id,
@@ -684,7 +762,11 @@ export class OnboardingService {
       member.id,
     );
     this.#logTemplateWarnings(rendered, payload);
-    const sent = await member.send(asDiscordMessage(rendered));
+    const card = await this.#welcomeCard(member, config, payload.correlationId);
+    const sent = await member.send({
+      ...asDiscordMessage(rendered),
+      ...(card === null ? {} : { files: [card] }),
+    });
     await this.#completeDelivery(payload, config, 'onboarding.welcome-dm.sent', {
       messageId: sent.id,
       delivery: 'dm',

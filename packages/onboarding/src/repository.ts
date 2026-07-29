@@ -23,6 +23,11 @@ import {
   type OnboardingConfigResponse,
   type VerificationSetupRequest,
 } from './contracts.js';
+import {
+  assertAutoRoleLimit,
+  assertWelcomeCardLimit,
+  type OnboardingLimitResolver,
+} from './limits.js';
 
 export type OnboardingActor = {
   actorUserId?: string;
@@ -81,6 +86,7 @@ export class OnboardingRepository {
   public constructor(
     private readonly prisma: PrismaClient,
     private readonly cache?: Pick<DistributedCache, 'getOrLoad' | 'publish'>,
+    private readonly resolveLimits?: OnboardingLimitResolver,
   ) {}
 
   public async get(guildId: string): Promise<OnboardingConfigResponse> {
@@ -150,6 +156,9 @@ export class OnboardingRepository {
 
   public async updateRoles(input: unknown, guildId: string, actor: OnboardingActor) {
     const validated = AutoRoleUpdateSchema.parse(input);
+    if (this.resolveLimits !== undefined) {
+      assertAutoRoleLimit(validated.config, await this.resolveLimits(guildId));
+    }
     return this.#update(
       guildId,
       validated.expectedVersion,
@@ -161,6 +170,9 @@ export class OnboardingRepository {
 
   public async updateWelcomeCard(input: unknown, guildId: string, actor: OnboardingActor) {
     const validated = WelcomeCardUpdateSchema.parse(input);
+    if (this.resolveLimits !== undefined) {
+      assertWelcomeCardLimit(validated.config, await this.resolveLimits(guildId));
+    }
     return this.#update(
       guildId,
       validated.expectedVersion,
