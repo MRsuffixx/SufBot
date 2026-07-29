@@ -170,6 +170,11 @@ export class CaptchaStore {
       `
 local lockTtl = redis.call('TTL', KEYS[1])
 if lockTtl > 0 then return {'LOCKED', tostring(lockTtl)} end
+local failures = tonumber(redis.call('GET', KEYS[4]) or '0')
+if failures >= tonumber(ARGV[4]) then
+  redis.call('SET', KEYS[1], '1', 'EX', ARGV[3])
+  return {'LOCKED', ARGV[3]}
+end
 if redis.call('SET', KEYS[2], '1', 'EX', ARGV[1], 'NX') == false then
   return {'RATE_LIMITED', tostring(redis.call('TTL', KEYS[2]))}
 end
@@ -178,14 +183,17 @@ if count == 1 then redis.call('EXPIRE', KEYS[3], 60) end
 if count > tonumber(ARGV[2]) then
   return {'RATE_LIMITED', tostring(redis.call('TTL', KEYS[3]))}
 end
-return {'CREATED', '0'}
+return {'CREATED', tostring(failures)}
 `,
-      3,
+      4,
       this.#lockKey(guildId, userId),
       this.#userRateKey(guildId, userId),
       this.#guildRateKey(guildId),
+      this.#failureKey(guildId, userId),
       String(this.options.userStartCooldownSeconds ?? 8),
       String(this.options.guildStartsPerMinute ?? 60),
+      String(config.lockoutSeconds),
+      String(config.maxAttempts),
     )) as [CaptchaCreateResult['status'], string];
     if (admission[0] !== 'CREATED') {
       return {
@@ -194,6 +202,7 @@ return {'CREATED', '0'}
       };
     }
 
+    const attemptsRemaining = Math.max(1, config.maxAttempts - Number(admission[1]));
     const material = createCaptchaMaterial(mode, config.captchaLength);
     const challengeId = randomBytes(18).toString('base64url');
     const normalizedAnswer = normalizeCaptchaAnswer(material.expectedAnswer);
@@ -208,7 +217,7 @@ return {'CREATED', '0'}
     transaction.hset(challengeKey, {
       expectedHash,
       mode,
-      attemptsRemaining: String(config.maxAttempts),
+      attemptsRemaining: String(attemptsRemaining),
       expectedLength: String(normalizedAnswer.length),
       progress: '',
     });
@@ -225,7 +234,7 @@ return {'CREATED', '0'}
         sequenceChoices: material.sequenceChoices,
         sequenceTarget: material.sequenceTarget,
         expiresAt: new Date(Date.now() + config.captchaExpiresSeconds * 1000).toISOString(),
-        attemptsRemaining: config.maxAttempts,
+        attemptsRemaining,
       },
     };
   }
@@ -378,12 +387,14 @@ if redis.call('HGET', KEYS[1], 'expectedHash') ~= ARGV[1] then return 0 end
 redis.call('DEL', KEYS[1])
 redis.call('DEL', KEYS[2])
 redis.call('SET', KEYS[3], '1', 'EX', 600)
+redis.call('DEL', KEYS[4])
 return 1
 `,
-      3,
+      4,
       this.#challengeKey(guildId, userId, challengeId),
       this.#activeKey(guildId, userId),
       this.#consumedKey(guildId, userId, challengeId),
+      this.#failureKey(guildId, userId),
       expectedHash,
     );
     return Number(result) === 1;
@@ -402,6 +413,8 @@ return 1
 if redis.call('HGET', KEYS[1], 'expectedHash') ~= ARGV[1] then return {'MISSING', '0'} end
 local remaining = redis.call('HINCRBY', KEYS[1], 'attemptsRemaining', -1)
 if ARGV[3] == '1' then redis.call('HSET', KEYS[1], 'progress', '') end
+local failures = redis.call('INCR', KEYS[4])
+if failures == 1 then redis.call('EXPIRE', KEYS[4], ARGV[2]) end
 if remaining <= 0 then
   redis.call('DEL', KEYS[1])
   redis.call('DEL', KEYS[2])
@@ -410,10 +423,11 @@ if remaining <= 0 then
 end
 return {'INVALID', tostring(remaining)}
 `,
-      3,
+      4,
       this.#challengeKey(guildId, userId, challengeId),
       this.#activeKey(guildId, userId),
       this.#lockKey(guildId, userId),
+      this.#failureKey(guildId, userId),
       expectedHash,
       String(lockoutSeconds),
       resetProgress ? '1' : '0',
@@ -467,6 +481,10 @@ return {'INVALID', tostring(remaining)}
 
   #guildRateKey(guildId: string): string {
     return `${this.options.namespace}:verification-rate:guild:${guildId}`;
+  }
+
+  #failureKey(guildId: string, userId: string): string {
+    return `${this.options.namespace}:verification-failures:${guildId}:${userId}`;
   }
 
   #consumedKey(guildId: string, userId: string, challengeId: string): string {

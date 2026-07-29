@@ -114,4 +114,31 @@ run('onboarding captcha Redis state machine', () => {
       }),
     ).resolves.toMatchObject({ status: 'LOCKED' });
   });
+
+  it('does not reset the failure budget when a challenge is replaced', async () => {
+    const store = createStore();
+    const userId = '986000000000000004';
+    const first = await store.create(guildId, userId, 'MODAL_TEXT', {
+      captchaLength: 6,
+      captchaExpiresSeconds: 120,
+      maxAttempts: 3,
+      lockoutSeconds: 60,
+    });
+    expect(first.status).toBe('CREATED');
+    if (first.status !== 'CREATED') return;
+    await expect(
+      store.verify(guildId, userId, first.challenge.challengeId, 'wrong', 60),
+    ).resolves.toEqual({ status: 'INVALID', attemptsRemaining: 2 });
+    await inspection?.del(`${namespace}:verification-rate:user:${guildId}:${userId}`);
+    const replacement = await store.create(guildId, userId, 'MODAL_TEXT', {
+      captchaLength: 6,
+      captchaExpiresSeconds: 120,
+      maxAttempts: 3,
+      lockoutSeconds: 60,
+    });
+    expect(replacement).toMatchObject({
+      status: 'CREATED',
+      challenge: { attemptsRemaining: 2 },
+    });
+  });
 });
