@@ -28,15 +28,6 @@
   --color-overlay: var(--overlay);
   --color-code: var(--code-background);
 
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
 }
 
 :root,
@@ -74,6 +65,20 @@
   --shadow-color: 34 39 60;
   --brand-gradient: linear-gradient(135deg, #6d5dfc 0%, #8b5cf6 52%, #bf63dc 100%);
   --premium-gradient: linear-gradient(135deg, #f8c76d 0%, #d98a31 100%);
+  --discord-preview-dark-bg: #313338;
+  --discord-preview-dark-surface: #2b2d31;
+  --discord-preview-dark-border: #3f4147;
+  --discord-preview-dark-text: #dbdee1;
+  --discord-preview-dark-strong: #f2f3f5;
+  --discord-preview-dark-muted: #949ba4;
+  --discord-preview-light-bg: #f2f3f5;
+  --discord-preview-light-surface: #ffffff;
+  --discord-preview-light-border: #d4d7dc;
+  --discord-preview-light-text: #313338;
+  --discord-preview-light-strong: #060607;
+  --discord-preview-light-muted: #5c5e66;
+  --discord-preview-link: #00a8fc;
+  --discord-preview-mention: #c9cdfb;
 
   /* Compatibility aliases for existing routes during migration */
   --foreground: var(--text);

@@ -43,7 +43,7 @@ export function AssetPicker({
       <Field
         label="Image URL"
         htmlFor={id}
-        error={valid ? undefined : 'Use a valid HTTPS URL.'}
+        {...(valid ? {} : { error: 'Use a valid HTTPS URL.' })}
       >
         <div className="relative">
           <Link2

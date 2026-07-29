@@ -215,6 +215,7 @@ const asDiscordMessage = (rendered: RenderedOnboardingMessage): MessageCreateOpt
                 },
               }),
           ...(embed.title === undefined ? {} : { title: embed.title }),
+          ...(embed.url === undefined ? {} : { url: embed.url }),
           ...(embed.description === undefined ? {} : { description: embed.description }),
           ...(embed.thumbnailUrl === undefined ? {} : { thumbnail: { url: embed.thumbnailUrl } }),
           ...(embed.imageUrl === undefined ? {} : { image: { url: embed.imageUrl } }),

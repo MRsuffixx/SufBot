@@ -380,9 +380,12 @@ export function MessageBuilder({
                   htmlFor={`${id}-content`}
                   help="Discord Markdown and template variables are supported."
                   counter={`${message.content.length} / 2,000`}
-                  error={
-                    validation.issues.find((issue) => issue.path === 'content')?.message
-                  }
+                  {...(() => {
+                    const error = validation.issues.find(
+                      (issue) => issue.path === 'content',
+                    )?.message;
+                    return error === undefined ? {} : { error };
+                  })()}
                 >
                   <div className="overflow-hidden rounded-md border border-border bg-surface-elevated focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
                     <FormattingToolbar

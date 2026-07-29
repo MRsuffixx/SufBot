@@ -1,5 +1,8 @@
 import Link from 'next/link';
-import { Card } from './ui/card';
+import { ArrowLeft, BookOpen } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-primitives';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 
 export function OnboardingSectionShell({
   guildId,
@@ -14,25 +17,36 @@ export function OnboardingSectionShell({
   status: string;
   children?: React.ReactNode;
 }) {
+  const normalized = status.toLowerCase();
+  const statusVariant =
+    normalized === 'enabled' || normalized === 'healthy'
+      ? 'success'
+      : normalized === 'disabled' || normalized === 'not_configured'
+        ? 'neutral'
+        : normalized === 'broken'
+          ? 'danger'
+          : 'warning';
   return (
-    <div className="grid gap-6">
-      <Card>
-        <Link
-          href={`/dashboard/guilds/${guildId}/onboarding`}
-          className="text-sm font-bold text-violet-600 hover:underline"
-        >
-          ← Member Onboarding
-        </Link>
-        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black">{title}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">{description}</p>
-          </div>
-          <span className="rounded-full bg-[var(--surface-strong)] px-3 py-1 text-xs font-bold">
-            {status}
-          </span>
-        </div>
-      </Card>
+    <div>
+      <PageHeader
+        eyebrow="Member onboarding"
+        title={title}
+        description={description}
+        status={<Badge variant={statusVariant}>{status.replaceAll('_', ' ')}</Badge>}
+        actions={
+          <>
+            <Link
+              href={`/dashboard/guilds/${guildId}/onboarding`}
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+            >
+              <ArrowLeft size={14} /> Onboarding
+            </Link>
+            <Link href="/docs" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+              <BookOpen size={14} /> Docs
+            </Link>
+          </>
+        }
+      />
       {children}
     </div>
   );

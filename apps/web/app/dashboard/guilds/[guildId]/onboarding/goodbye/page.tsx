@@ -2,7 +2,6 @@ import { OnboardingDiscordResourcesSchema, OnboardingRepository } from '@sufbot/
 import { createId } from '@sufbot/shared';
 import { GoodbyeMessageForm } from '@/components/onboarding-message-forms';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
-import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
 
 export default async function GoodbyePage({ params }: { params: Promise<{ guildId: string }> }) {
@@ -18,17 +17,15 @@ export default async function GoodbyePage({ params }: { params: Promise<{ guildI
       description="Use a last-known member snapshot without mass mentions or exposing sensitive history."
       status={config.goodbyeEnabled ? 'Enabled' : 'Disabled'}
     >
-      <Card>
-        <GoodbyeMessageForm
-          guildId={guildId}
-          version={config.version}
-          idempotencyKey={createId('mut')}
-          config={config.goodbye}
-          channels={(resources?.channels ?? []).filter(
-            (channel) => channel.canView && channel.canSend,
-          )}
-        />
-      </Card>
+      <GoodbyeMessageForm
+        guildId={guildId}
+        version={config.version}
+        idempotencyKey={createId('mut')}
+        config={config.goodbye}
+        channels={(resources?.channels ?? []).filter(
+          (channel) => channel.canView && channel.canSend,
+        )}
+      />
     </OnboardingSectionShell>
   );
 }

@@ -50,8 +50,10 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
     <div
       className={cn(
         'min-h-[460px] overflow-hidden p-4 transition-colors sm:p-5',
-        background === 'dark' && 'bg-[#313338] text-[#dbdee1]',
-        background === 'light' && 'bg-[#f2f3f5] text-[#313338]',
+        background === 'dark' &&
+          'bg-[var(--discord-preview-dark-bg)] text-[var(--discord-preview-dark-text)]',
+        background === 'light' &&
+          'bg-[var(--discord-preview-light-bg)] text-[var(--discord-preview-light-text)]',
         background === 'transparent' &&
           'bg-[linear-gradient(135deg,var(--surface-secondary),var(--surface-elevated))] text-foreground',
       )}
@@ -65,18 +67,30 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
         )}
       >
         <div className="flex items-start gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,#6d5dfc,#a45cdf)] text-white shadow-sm">
+          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--brand-gradient)] text-white shadow-sm">
             <Bot size={20} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className={cn('text-sm font-semibold', dark ? 'text-white' : 'text-[#060607]')}>
+              <span
+                className={cn(
+                  'text-sm font-semibold',
+                  dark ? 'text-white' : 'text-[var(--discord-preview-light-strong)]',
+                )}
+              >
                 {botName}
               </span>
-              <span className="rounded-[3px] bg-[#5865f2] px-1 py-px text-[9px] font-bold text-white">
+              <span className="rounded-[3px] bg-discord px-1 py-px text-[9px] font-bold text-white">
                 BOT
               </span>
-              <span className={cn('text-[11px]', dark ? 'text-[#949ba4]' : 'text-[#5c5e66]')}>
+              <span
+                className={cn(
+                  'text-[11px]',
+                  dark
+                    ? 'text-[var(--discord-preview-dark-muted)]'
+                    : 'text-[var(--discord-preview-light-muted)]',
+                )}
+              >
                 {timestamp}
               </span>
             </div>
@@ -91,7 +105,9 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
               <div
                 className={cn(
                   'relative mt-1 max-w-[520px] overflow-hidden rounded-[4px] border-l-4',
-                  dark ? 'bg-[#2b2d31]' : 'bg-white',
+                  dark
+                    ? 'bg-[var(--discord-preview-dark-surface)]'
+                    : 'bg-[var(--discord-preview-light-surface)]',
                 )}
                 style={{ borderLeftColor: formatHexColor(message.embed.color) }}
               >
@@ -116,7 +132,9 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                         <span
                           className={cn(
                             'truncate text-xs font-semibold',
-                            dark ? 'text-[#f2f3f5]' : 'text-[#060607]',
+                            dark
+                              ? 'text-[var(--discord-preview-dark-strong)]'
+                              : 'text-[var(--discord-preview-light-strong)]',
                           )}
                         >
                           {rendered.authorName}
@@ -127,7 +145,9 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                       <p
                         className={cn(
                           'mb-1.5 text-sm font-semibold',
-                          dark ? 'text-[#f2f3f5]' : 'text-[#060607]',
+                          dark
+                            ? 'text-[var(--discord-preview-dark-strong)]'
+                            : 'text-[var(--discord-preview-light-strong)]',
                         )}
                       >
                         <PreviewText value={rendered.title} />
@@ -137,7 +157,7 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                         href={message.embed.titleUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mb-1.5 block text-sm font-semibold text-[#00a8fc] hover:underline"
+                        className="mb-1.5 block text-sm font-semibold text-[var(--discord-preview-link)] hover:underline"
                       >
                         <PreviewText value={rendered.title} />
                       </a>
@@ -157,7 +177,9 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                             <p
                               className={cn(
                                 'text-xs font-semibold break-words',
-                                dark ? 'text-[#f2f3f5]' : 'text-[#060607]',
+                                dark
+                                  ? 'text-[var(--discord-preview-dark-strong)]'
+                                  : 'text-[var(--discord-preview-light-strong)]',
                               )}
                             >
                               <PreviewText value={field.name || 'Field name'} />
@@ -180,7 +202,9 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                       <div
                         className={cn(
                           'mt-3 flex items-center gap-2 text-[10px]',
-                          dark ? 'text-[#b5bac1]' : 'text-[#4e5058]',
+                          dark
+                            ? 'text-[var(--discord-preview-dark-text)]'
+                            : 'text-[var(--discord-preview-light-muted)]',
                         )}
                       >
                         {message.embed.footerIconUrl === null ? null : (
@@ -216,13 +240,15 @@ export const DiscordMessagePreview = memo(function DiscordMessagePreview({
                     key={attachment.id}
                     className={cn(
                       'flex items-center gap-2.5 rounded-[4px] border p-2.5 text-xs',
-                      dark ? 'border-[#3f4147] bg-[#2b2d31]' : 'border-[#d4d7dc] bg-white',
+                      dark
+                        ? 'border-[var(--discord-preview-dark-border)] bg-[var(--discord-preview-dark-surface)]'
+                        : 'border-[var(--discord-preview-light-border)] bg-[var(--discord-preview-light-surface)]',
                     )}
                   >
                     {attachment.kind.includes('IMAGE') || attachment.kind === 'WELCOME_CARD' ? (
-                      <ImageIcon size={17} className="text-[#00a8fc]" />
+                      <ImageIcon size={17} className="text-[var(--discord-preview-link)]" />
                     ) : (
-                      <FileText size={17} className="text-[#00a8fc]" />
+                      <FileText size={17} className="text-[var(--discord-preview-link)]" />
                     )}
                     <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
                     <Download size={15} />
@@ -245,7 +271,10 @@ function PreviewText({ value }: { value: string }) {
     }
     if (part.startsWith('@') || part.startsWith('#')) {
       return (
-        <span key={index} className="rounded-sm bg-[#5865f2]/20 px-0.5 text-[#c9cdfb]">
+        <span
+          key={index}
+          className="rounded-sm bg-discord/20 px-0.5 text-[var(--discord-preview-mention)]"
+        >
           {part}
         </span>
       );

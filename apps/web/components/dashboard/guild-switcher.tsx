@@ -61,7 +61,7 @@ export function GuildSwitcher({
             <Link
               key={guild.id}
               href={`/dashboard/guilds/${guild.id}`}
-              onClick={onNavigate}
+              {...(onNavigate === undefined ? {} : { onClick: onNavigate })}
               className="flex items-center gap-2.5 rounded-md px-2 py-2 hover:bg-surface-secondary"
             >
               <GuildIcon guild={guild} small />
@@ -74,7 +74,7 @@ export function GuildSwitcher({
         </div>
         <Link
           href="/dashboard/guilds"
-          onClick={onNavigate}
+          {...(onNavigate === undefined ? {} : { onClick: onNavigate })}
           className="mt-1 flex items-center gap-2 rounded-md border-t border-border px-2 pt-2 pb-1.5 text-xs font-semibold text-primary"
         >
           <Server size={14} /> {t('nav.servers')}

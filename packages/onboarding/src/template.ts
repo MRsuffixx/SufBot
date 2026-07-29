@@ -51,6 +51,7 @@ export type RenderedOnboardingMessage = {
     color: number;
     author?: { name: string; iconUrl?: string; url?: string };
     title?: string;
+    url?: string;
     description?: string;
     thumbnailUrl?: string;
     imageUrl?: string;
