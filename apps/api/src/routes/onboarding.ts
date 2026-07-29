@@ -4,6 +4,7 @@ import {
   AutoRoleUpdateSchema,
   GoodbyeUpdateSchema,
   OnboardingBasicsInputSchema,
+  OnboardingDiscordResourcesSchema,
   OnboardingPreviewInputSchema,
   OnboardingRepository,
   OnboardingTestRequestSchema,
@@ -12,6 +13,9 @@ import {
   WelcomeUpdateSchema,
   renderOnboardingMessage,
   safeTemplateText,
+  validateAutoRoleResources,
+  validateGoodbyeResources,
+  validateWelcomeResources,
 } from '@sufbot/onboarding';
 import { AppError, PaginationSchema } from '@sufbot/shared';
 import { createApiKeyAuthenticator, createGuildAccessGuard } from '../authentication.js';
@@ -40,6 +44,33 @@ export const registerOnboardingRoutes = async (
   const read = createGuildAccessGuard(dependencies, 'guild:read');
   const write = createGuildAccessGuard(dependencies, 'guild:write');
   const repository = new OnboardingRepository(dependencies.prisma, dependencies.cache);
+  const resourcesFor = async (guildId: string) => {
+    const resources = await dependencies.cache.readRuntimeState(
+      'bot:onboarding-resources',
+      guildId,
+      OnboardingDiscordResourcesSchema,
+    );
+    if (resources === null) {
+      throw new AppError({
+        code: 'ONBOARDING_RESOURCE_SNAPSHOT_UNAVAILABLE',
+        message: 'Live Discord channels and roles are unavailable. Confirm the bot is online.',
+        statusCode: 503,
+      });
+    }
+    return resources;
+  };
+  const requireValidResources = (
+    issues: readonly { code: string; message: string }[],
+  ): void => {
+    const issue = issues[0];
+    if (issue !== undefined) {
+      throw new AppError({
+        code: `ONBOARDING_${issue.code}`,
+        message: issue.message,
+        statusCode: 409,
+      });
+    }
+  };
 
   app.get('/v1/guilds/:guildId/onboarding', {
     preHandler: [authenticate, read],
@@ -72,6 +103,19 @@ export const registerOnboardingRoutes = async (
           verificationMessageConfigured: config.verificationMessageId !== null,
           version: config.version,
         },
+        requestId: request.id,
+      };
+    },
+  });
+
+  app.get('/v1/guilds/:guildId/onboarding/resources', {
+    preHandler: [authenticate, read],
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      return {
+        success: true,
+        data: await resourcesFor(guildId),
         requestId: request.id,
       };
     },
@@ -110,7 +154,8 @@ export const registerOnboardingRoutes = async (
       const { guildId } = GuildParamsSchema.parse(request.params);
       const input = OnboardingPreviewInputSchema.parse(request.body);
       const context = request.authContext;
-      if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+      if (context === undefined)
+        throw new TypeError('Authenticated route is missing auth context.');
       return {
         success: true,
         data: renderOnboardingMessage(
@@ -149,7 +194,8 @@ export const registerOnboardingRoutes = async (
       const { guildId } = GuildParamsSchema.parse(request.params);
       const input = OnboardingTestRequestSchema.parse(request.body);
       const context = request.authContext;
-      if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+      if (context === undefined)
+        throw new TypeError('Authenticated route is missing auth context.');
       if (dependencies.onboardingQueue === undefined) {
         throw new AppError({
           code: 'ONBOARDING_QUEUE_UNAVAILABLE',
@@ -234,6 +280,22 @@ export const registerOnboardingRoutes = async (
       handler: async (request) => {
         const { guildId } = GuildParamsSchema.parse(request.params);
         const input = route.schema.parse(request.body);
+        if (route.path.endsWith('/welcome')) {
+          const welcome = WelcomeUpdateSchema.parse(input);
+          requireValidResources(
+            validateWelcomeResources(welcome.config, await resourcesFor(guildId)),
+          );
+        } else if (route.path.endsWith('/goodbye')) {
+          const goodbye = GoodbyeUpdateSchema.parse(input);
+          requireValidResources(
+            validateGoodbyeResources(goodbye.config, await resourcesFor(guildId)),
+          );
+        } else if (route.path.endsWith('/roles')) {
+          const roles = AutoRoleUpdateSchema.parse(input);
+          requireValidResources(
+            validateAutoRoleResources(roles.config, await resourcesFor(guildId)),
+          );
+        }
         return {
           success: true,
           data: await route.update(input, guildId, request),

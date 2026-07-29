@@ -12,6 +12,9 @@ import { appendAuditLog } from '@sufbot/database';
 import {
   OnboardingEventJournal,
   OnboardingRepository,
+  deduplicateRoleIds,
+  evaluateOnboardingRole,
+  isPostVerificationConditionSatisfied,
   renderOnboardingMessage,
   safeTemplateText,
   type OnboardingConfigResponse,
@@ -35,12 +38,22 @@ const requiredChannelPermissions = [
   PermissionFlagsBits.EmbedLinks,
 ] as const;
 
+type RoleAssignmentResult = {
+  assigned: string[];
+  alreadyAssigned: string[];
+  failed: { roleId: string; code: string }[];
+};
+
 const eventNameForJob = (job: OnboardingJob['job']): string => {
   switch (job) {
     case 'onboarding.send-welcome-channel':
       return 'welcome.channel.send';
     case 'onboarding.send-welcome-dm':
       return 'welcome.dm.send';
+    case 'onboarding.assign-join-roles':
+      return 'roles.join.assign';
+    case 'onboarding.evaluate-member-conditions':
+      return 'roles.conditions.evaluate';
     case 'onboarding.test-welcome-channel':
       return 'welcome.channel.test';
     case 'onboarding.test-welcome-dm':
@@ -54,8 +67,13 @@ const eventNameForJob = (job: OnboardingJob['job']): string => {
   }
 };
 
-const deliveryIncludesJoin = (delivery: 'ON_JOIN' | 'AFTER_VERIFICATION' | 'BOTH'): boolean =>
-  delivery === 'ON_JOIN' || delivery === 'BOTH';
+const deliveryMatchesTrigger = (
+  delivery: 'ON_JOIN' | 'AFTER_VERIFICATION' | 'BOTH',
+  trigger: 'JOIN' | 'VERIFICATION',
+): boolean =>
+  delivery === 'BOTH' ||
+  (delivery === 'ON_JOIN' && trigger === 'JOIN') ||
+  (delivery === 'AFTER_VERIFICATION' && trigger === 'VERIFICATION');
 
 const dateVariables = (now: Date, locale: 'en' | 'tr'): OnboardingTemplateVariables => {
   const language = locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -85,7 +103,10 @@ const memberVariables = (
   'user.tag': safeTemplateText(member.user.tag),
   'user.avatar': member.displayAvatarURL({ extension: 'png', size: 256 }),
   'user.createdAt': member.user.createdAt,
-  'user.accountAge': Math.max(0, Math.floor((now.getTime() - member.user.createdTimestamp) / 86_400_000)),
+  'user.accountAge': Math.max(
+    0,
+    Math.floor((now.getTime() - member.user.createdTimestamp) / 86_400_000),
+  ),
   server: safeTemplateText(guild.name),
   'server.name': safeTemplateText(guild.name),
   'server.id': guild.id,
@@ -112,7 +133,9 @@ const goodbyeVariables = (
   const snapshot = payload.snapshot;
   const joinedAt = snapshot.joinedAt === null ? null : new Date(snapshot.joinedAt);
   const joinDuration =
-    joinedAt === null ? '' : Math.max(0, Math.floor((now.getTime() - joinedAt.getTime()) / 86_400_000));
+    joinedAt === null
+      ? ''
+      : Math.max(0, Math.floor((now.getTime() - joinedAt.getTime()) / 86_400_000));
   return {
     ...dateVariables(now, locale),
     user: safeTemplateText(snapshot.displayName),
@@ -160,9 +183,7 @@ const asDiscordMessage = (rendered: RenderedOnboardingMessage): MessageCreateOpt
               }),
           ...(embed.title === undefined ? {} : { title: embed.title }),
           ...(embed.description === undefined ? {} : { description: embed.description }),
-          ...(embed.thumbnailUrl === undefined
-            ? {}
-            : { thumbnail: { url: embed.thumbnailUrl } }),
+          ...(embed.thumbnailUrl === undefined ? {} : { thumbnail: { url: embed.thumbnailUrl } }),
           ...(embed.imageUrl === undefined ? {} : { image: { url: embed.imageUrl } }),
           ...(embed.footer === undefined
             ? {}
@@ -218,8 +239,14 @@ export class OnboardingService {
   ) {
     this.#repository = new OnboardingRepository(services.prisma, services.cache);
     this.#journal = new OnboardingEventJournal(services.prisma);
-    this.#identity = createQueueIdentity(services.config.queue.prefix, QueueName.DiscordNotifications);
-    const deadLetterIdentity = createQueueIdentity(services.config.queue.prefix, QueueName.DeadLetter);
+    this.#identity = createQueueIdentity(
+      services.config.queue.prefix,
+      QueueName.DiscordNotifications,
+    );
+    const deadLetterIdentity = createQueueIdentity(
+      services.config.queue.prefix,
+      QueueName.DeadLetter,
+    );
     this.#deadLetterQueue = new Queue(deadLetterIdentity.name, {
       connection: queues.connection,
       prefix: deadLetterIdentity.prefix,
@@ -282,7 +309,10 @@ export class OnboardingService {
       });
     }
     if (config.welcomeEnabled && (!config.welcome.ignoreBots || !member.user.bot)) {
-      if (config.welcome.channelId !== null && deliveryIncludesJoin(config.welcome.delivery)) {
+      if (
+        config.welcome.channelId !== null &&
+        deliveryMatchesTrigger(config.welcome.delivery, 'JOIN')
+      ) {
         await this.#enqueue({
           job: 'onboarding.send-welcome-channel',
           idempotencyKey: `welcome:channel:${member.guild.id}:${member.id}:${joinedAt}`,
@@ -290,10 +320,11 @@ export class OnboardingService {
           guildId: member.guild.id,
           userId: member.id,
           joinedAt,
+          trigger: 'JOIN',
           deliverAt: new Date(Date.now() + config.welcome.delaySeconds * 1000).toISOString(),
         });
       }
-      if (config.welcome.dmEnabled && deliveryIncludesJoin(config.welcome.dmDelivery)) {
+      if (config.welcome.dmEnabled && deliveryMatchesTrigger(config.welcome.dmDelivery, 'JOIN')) {
         await this.#enqueue({
           job: 'onboarding.send-welcome-dm',
           idempotencyKey: `welcome:dm:${member.guild.id}:${member.id}:${joinedAt}`,
@@ -301,10 +332,54 @@ export class OnboardingService {
           guildId: member.guild.id,
           userId: member.id,
           joinedAt,
+          trigger: 'JOIN',
           deliverAt: new Date(Date.now() + config.welcome.dmDelaySeconds * 1000).toISOString(),
         });
       }
     }
+    if (
+      config.autoRoleEnabled ||
+      (config.verificationEnabled &&
+        config.setupMode === 'DEDICATED_UNVERIFIED_ROLE' &&
+        config.unverifiedRoleId !== null)
+    ) {
+      await this.#enqueue({
+        job: 'onboarding.assign-join-roles',
+        idempotencyKey: `roles:join:${member.guild.id}:${member.id}:${joinedAt}`,
+        correlationId: `join:${member.guild.id}:${member.id}:${joinedAt}`,
+        guildId: member.guild.id,
+        userId: member.id,
+        joinedAt,
+        deliverAt: new Date(Date.now() + config.autoRole.joinDelaySeconds * 1000).toISOString(),
+      });
+    }
+  }
+
+  public async handleMemberUpdate(previous: GuildMember, member: GuildMember): Promise<void> {
+    if (previous.pending !== true || member.pending !== false) return;
+    const config = await this.#repository.get(member.guild.id);
+    if (!config.verificationEnabled && !config.autoRoleEnabled) return;
+    const joinedAt = (member.joinedAt ?? new Date()).toISOString();
+    await this.services.prisma.memberVerification.upsert({
+      where: { guildId_userId: { guildId: member.guild.id, userId: member.id } },
+      create: {
+        guildId: member.guild.id,
+        userId: member.id,
+        status: 'PENDING',
+        membershipScreeningCompleted: true,
+      },
+      update: { membershipScreeningCompleted: true },
+    });
+    await this.#enqueue({
+      job: 'onboarding.evaluate-member-conditions',
+      idempotencyKey: `roles:screening:${member.guild.id}:${member.id}:${joinedAt}`,
+      correlationId: `screening:${member.guild.id}:${member.id}:${joinedAt}`,
+      guildId: member.guild.id,
+      userId: member.id,
+      joinedAt,
+      reason: 'MEMBERSHIP_SCREENING',
+      deliverAt: new Date(Date.now() + config.autoRole.verifiedDelaySeconds * 1000).toISOString(),
+    });
   }
 
   public async handleMemberRemove(member: GuildMember): Promise<void> {
@@ -378,6 +453,12 @@ export class OnboardingService {
         case 'onboarding.send-welcome-dm':
           await this.#sendWelcomeDm(payload);
           return;
+        case 'onboarding.assign-join-roles':
+          await this.#assignJoinRoles(payload);
+          return;
+        case 'onboarding.evaluate-member-conditions':
+          await this.#evaluateMemberConditions(payload);
+          return;
         case 'onboarding.test-welcome-channel':
           await this.#sendTestWelcome(payload, false);
           return;
@@ -408,21 +489,26 @@ export class OnboardingService {
   async #sendWelcomeChannel(
     payload: Extract<OnboardingJob, { job: 'onboarding.send-welcome-channel' }>,
   ): Promise<void> {
-    const resolved = await this.#resolveCurrentMember(payload.guildId, payload.userId, payload.joinedAt);
+    const resolved = await this.#resolveCurrentMember(
+      payload.guildId,
+      payload.userId,
+      payload.joinedAt,
+    );
     if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
     const { guild, member } = resolved;
     const config = await this.#repository.get(guild.id);
     if (
       !config.welcomeEnabled ||
       config.welcome.channelId === null ||
-      !deliveryIncludesJoin(config.welcome.delivery) ||
+      !deliveryMatchesTrigger(config.welcome.delivery, payload.trigger) ||
       (config.welcome.ignoreBots && member.user.bot) ||
       !this.#accountAgeEligible(member, config)
     ) {
       return this.#skip(payload, 'CONFIGURATION_NOT_ELIGIBLE');
     }
     const channel = await guild.channels.fetch(config.welcome.channelId);
-    if (channel === null || !channel.isSendable()) throw new TypeError('WELCOME_CHANNEL_UNAVAILABLE');
+    if (channel === null || !channel.isSendable())
+      throw new TypeError('WELCOME_CHANNEL_UNAVAILABLE');
     this.#assertChannelPermissions(guild, channel.id, config.welcome.attachWelcomeCard);
     const locale = await this.services.localeForGuild(guild.id);
     const rendered = renderOnboardingMessage(
@@ -453,14 +539,18 @@ export class OnboardingService {
   async #sendWelcomeDm(
     payload: Extract<OnboardingJob, { job: 'onboarding.send-welcome-dm' }>,
   ): Promise<void> {
-    const resolved = await this.#resolveCurrentMember(payload.guildId, payload.userId, payload.joinedAt);
+    const resolved = await this.#resolveCurrentMember(
+      payload.guildId,
+      payload.userId,
+      payload.joinedAt,
+    );
     if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
     const { guild, member } = resolved;
     const config = await this.#repository.get(guild.id);
     if (
       !config.welcomeEnabled ||
       !config.welcome.dmEnabled ||
-      !deliveryIncludesJoin(config.welcome.dmDelivery) ||
+      !deliveryMatchesTrigger(config.welcome.dmDelivery, payload.trigger) ||
       (config.welcome.ignoreBots && member.user.bot) ||
       !this.#accountAgeEligible(member, config)
     ) {
@@ -498,7 +588,8 @@ export class OnboardingService {
       return this.#skip(payload, 'CONFIGURATION_NOT_ELIGIBLE');
     }
     const channel = await guild.channels.fetch(config.goodbye.channelId);
-    if (channel === null || !channel.isSendable()) throw new TypeError('GOODBYE_CHANNEL_UNAVAILABLE');
+    if (channel === null || !channel.isSendable())
+      throw new TypeError('GOODBYE_CHANNEL_UNAVAILABLE');
     this.#assertChannelPermissions(guild, channel.id, false);
     const locale = await this.services.localeForGuild(guild.id);
     const rendered = renderOnboardingMessage(
@@ -519,6 +610,254 @@ export class OnboardingService {
     });
     if (rendered.deleteAfterSeconds > 0) {
       await this.#enqueueDelete(payload, channel.id, sent.id, rendered.deleteAfterSeconds);
+    }
+  }
+
+  async #assignJoinRoles(
+    payload: Extract<OnboardingJob, { job: 'onboarding.assign-join-roles' }>,
+  ): Promise<void> {
+    const resolved = await this.#resolveCurrentMember(
+      payload.guildId,
+      payload.userId,
+      payload.joinedAt,
+    );
+    if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
+    const { guild, member } = resolved;
+    const config = await this.#repository.get(guild.id);
+    const configuredRoles =
+      config.autoRoleEnabled
+        ? member.user.bot
+          ? config.autoRole.joinBotRoleIds
+          : config.autoRole.joinHumanRoleIds
+        : [];
+    const roleIds = deduplicateRoleIds(
+      config.verificationEnabled &&
+        config.setupMode === 'DEDICATED_UNVERIFIED_ROLE' &&
+        config.unverifiedRoleId !== null
+        ? [config.unverifiedRoleId]
+        : [],
+      configuredRoles,
+    );
+    if (roleIds.length === 0) return this.#skip(payload, 'NO_JOIN_ROLES_CONFIGURED');
+    const result = await this.#assignRoles(member, roleIds, config, payload.correlationId);
+    await this.#completeRoleDelivery(payload, config, 'onboarding.roles.join-assigned', result, {});
+  }
+
+  async #evaluateMemberConditions(
+    payload: Extract<OnboardingJob, { job: 'onboarding.evaluate-member-conditions' }>,
+  ): Promise<void> {
+    const resolved = await this.#resolveCurrentMember(
+      payload.guildId,
+      payload.userId,
+      payload.joinedAt,
+    );
+    if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
+    const { guild, member } = resolved;
+    const [config, state] = await Promise.all([
+      this.#repository.get(guild.id),
+      this.services.prisma.memberVerification.findUnique({
+        where: { guildId_userId: { guildId: guild.id, userId: member.id } },
+      }),
+    ]);
+    if (state === null) return this.#skip(payload, 'VERIFICATION_STATE_MISSING');
+    const satisfied = isPostVerificationConditionSatisfied(config.roleGrantCondition, state);
+    const roleIds = deduplicateRoleIds(
+      state.membershipScreeningCompleted && config.autoRoleEnabled
+        ? config.autoRole.screeningCompleteRoleIds
+        : [],
+      satisfied && config.verificationEnabled && config.verifiedRoleId !== null
+        ? [config.verifiedRoleId]
+        : [],
+      satisfied && config.autoRoleEnabled ? config.autoRole.verifiedRoleIds : [],
+    );
+    const result = await this.#assignRoles(member, roleIds, config, payload.correlationId);
+    let unverifiedRoleRemoved = false;
+    if (
+      satisfied &&
+      config.unverifiedRoleId !== null &&
+      member.roles.cache.has(config.unverifiedRoleId)
+    ) {
+      const role = await guild.roles.fetch(config.unverifiedRoleId).catch(() => null);
+      if (role !== null) {
+        const decision = evaluateOnboardingRole(
+          {
+            id: role.id,
+            guildId: role.guild.id,
+            managed: role.managed,
+            position: role.position,
+            isEveryone: role.id === guild.id,
+          },
+          guild.id,
+          guild.members.me?.roles.highest.position ?? -1,
+        );
+        if (decision.assignable) {
+          await member.roles.remove(role, `SufBot onboarding ${payload.correlationId}`);
+          unverifiedRoleRemoved = true;
+        } else {
+          result.failed.push({ roleId: role.id, code: decision.code });
+        }
+      }
+    }
+    await this.#completeRoleDelivery(
+      payload,
+      config,
+      'onboarding.roles.conditions-evaluated',
+      result,
+      {
+        satisfied,
+        captchaVerified: state.captchaVerified,
+        membershipScreeningCompleted: state.membershipScreeningCompleted,
+        unverifiedRoleRemoved,
+        reason: payload.reason,
+      },
+    );
+    await this.services.prisma.memberVerification.updateMany({
+      where: { guildId: guild.id, userId: member.id },
+      data: {
+        rolesGranted: satisfied && result.failed.length === 0,
+        ...(satisfied && config.verificationEnabled
+          ? { status: 'VERIFIED' as const, verifiedAt: state.verifiedAt ?? new Date() }
+          : {}),
+        ...(satisfied && result.failed.length === 0 ? { roleGrantedAt: new Date() } : {}),
+        ...(unverifiedRoleRemoved ? { unverifiedRoleRemovedAt: new Date() } : {}),
+      },
+    });
+    if (satisfied) await this.#enqueueVerifiedWelcome(member, config, payload);
+  }
+
+  async #assignRoles(
+    member: GuildMember,
+    roleIds: readonly string[],
+    config: OnboardingConfigResponse,
+    correlationId: string,
+  ): Promise<RoleAssignmentResult> {
+    const result: RoleAssignmentResult = {
+      assigned: [],
+      alreadyAssigned: [],
+      failed: [],
+    };
+    if (roleIds.length === 0) return result;
+    const botMember = member.guild.members.me;
+    if (botMember === null || !botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      throw new TypeError('BOT_MANAGE_ROLES_PERMISSION_MISSING');
+    }
+    let retryableError: unknown;
+    for (const roleId of roleIds) {
+      if (member.roles.cache.has(roleId)) {
+        result.alreadyAssigned.push(roleId);
+        continue;
+      }
+      const role = await member.guild.roles.fetch(roleId).catch(() => null);
+      if (role === null) {
+        result.failed.push({ roleId, code: 'ROLE_NOT_FOUND' });
+        continue;
+      }
+      const decision = evaluateOnboardingRole(
+        {
+          id: role.id,
+          guildId: role.guild.id,
+          managed: role.managed,
+          position: role.position,
+          isEveryone: role.id === member.guild.id,
+        },
+        member.guild.id,
+        botMember.roles.highest.position,
+      );
+      if (!decision.assignable) {
+        result.failed.push({ roleId, code: decision.code });
+        continue;
+      }
+      try {
+        await member.roles.add(role, `SufBot onboarding ${correlationId}`);
+        result.assigned.push(roleId);
+      } catch (error) {
+        result.failed.push({ roleId, code: 'DISCORD_ROLE_ASSIGNMENT_FAILED' });
+        retryableError ??= error;
+        if (!config.autoRole.continueOnError) break;
+      }
+    }
+    if (retryableError !== undefined && config.autoRole.retryFailedAssignments) {
+      throw retryableError;
+    }
+    return result;
+  }
+
+  async #completeRoleDelivery(
+    payload: OnboardingJob,
+    config: OnboardingConfigResponse,
+    action: string,
+    result: RoleAssignmentResult,
+    context: Record<string, string | boolean>,
+  ): Promise<void> {
+    const details = {
+      assignedRoleIds: result.assigned,
+      alreadyAssignedRoleIds: result.alreadyAssigned,
+      failedRoles: result.failed,
+      ...context,
+    };
+    await this.services.prisma.$transaction(async (transaction) => {
+      await transaction.onboardingEvent.update({
+        where: { idempotencyKey: payload.idempotencyKey },
+        data: {
+          status: result.failed.length === 0 ? 'SUCCEEDED' : 'FAILED',
+          processedAt: new Date(),
+          details,
+          errorCode: result.failed.length === 0 ? null : 'ROLE_ASSIGNMENT_PARTIAL',
+          failureReason:
+            result.failed.length === 0 ? null : 'One or more configured roles were not assignable.',
+        },
+      });
+      await appendAuditLog(transaction, {
+        guildId: payload.guildId,
+        actorDiscordId: this.client.user.id,
+        action,
+        resourceType: 'OnboardingEvent',
+        resourceId: payload.idempotencyKey,
+        requestId: payload.correlationId,
+        outcome: result.failed.length === 0 ? 'SUCCESS' : 'FAILURE',
+        newValue: { ...details, configurationVersion: config.version },
+        ...(result.failed.length === 0
+          ? {}
+          : { failureReason: 'One or more configured roles were not assignable.' }),
+      });
+    });
+  }
+
+  async #enqueueVerifiedWelcome(
+    member: GuildMember,
+    config: OnboardingConfigResponse,
+    source: Extract<OnboardingJob, { job: 'onboarding.evaluate-member-conditions' }>,
+  ): Promise<void> {
+    if (!config.welcomeEnabled || (config.welcome.ignoreBots && member.user.bot)) return;
+    if (
+      config.welcome.channelId !== null &&
+      deliveryMatchesTrigger(config.welcome.delivery, 'VERIFICATION')
+    ) {
+      await this.#enqueue({
+        job: 'onboarding.send-welcome-channel',
+        idempotencyKey: `welcome:channel:${member.guild.id}:${member.id}:${source.joinedAt}:verification`,
+        correlationId: source.correlationId,
+        guildId: member.guild.id,
+        userId: member.id,
+        joinedAt: source.joinedAt,
+        trigger: 'VERIFICATION',
+        deliverAt: new Date(Date.now() + config.welcome.delaySeconds * 1000).toISOString(),
+      });
+    }
+    if (
+      config.welcome.dmEnabled &&
+      deliveryMatchesTrigger(config.welcome.dmDelivery, 'VERIFICATION')
+    ) {
+      await this.#enqueue({
+        job: 'onboarding.send-welcome-dm',
+        idempotencyKey: `welcome:dm:${member.guild.id}:${member.id}:${source.joinedAt}:verification`,
+        correlationId: source.correlationId,
+        guildId: member.guild.id,
+        userId: member.id,
+        joinedAt: source.joinedAt,
+        trigger: 'VERIFICATION',
+        deliverAt: new Date(Date.now() + config.welcome.dmDelaySeconds * 1000).toISOString(),
+      });
     }
   }
 
@@ -549,9 +888,11 @@ export class OnboardingService {
       });
       return;
     }
-    if (config.welcome.channelId === null) return this.#skip(payload, 'WELCOME_CHANNEL_NOT_CONFIGURED');
+    if (config.welcome.channelId === null)
+      return this.#skip(payload, 'WELCOME_CHANNEL_NOT_CONFIGURED');
     const channel = await guild.channels.fetch(config.welcome.channelId);
-    if (channel === null || !channel.isSendable()) throw new TypeError('WELCOME_CHANNEL_UNAVAILABLE');
+    if (channel === null || !channel.isSendable())
+      throw new TypeError('WELCOME_CHANNEL_UNAVAILABLE');
     this.#assertChannelPermissions(guild, channel.id, config.welcome.attachWelcomeCard);
     const sent = await channel.send(asDiscordTestMessage(rendered));
     await this.#completeDelivery(payload, config, 'onboarding.welcome.test-sent', {
@@ -568,9 +909,11 @@ export class OnboardingService {
     if (resolved === null) return this.#skip(payload, 'TEST_MEMBER_UNAVAILABLE');
     const { guild, member } = resolved;
     const config = await this.#repository.get(guild.id);
-    if (config.goodbye.channelId === null) return this.#skip(payload, 'GOODBYE_CHANNEL_NOT_CONFIGURED');
+    if (config.goodbye.channelId === null)
+      return this.#skip(payload, 'GOODBYE_CHANNEL_NOT_CONFIGURED');
     const channel = await guild.channels.fetch(config.goodbye.channelId);
-    if (channel === null || !channel.isSendable()) throw new TypeError('GOODBYE_CHANNEL_UNAVAILABLE');
+    if (channel === null || !channel.isSendable())
+      throw new TypeError('GOODBYE_CHANNEL_UNAVAILABLE');
     this.#assertChannelPermissions(guild, channel.id, false);
     const locale = await this.services.localeForGuild(guild.id);
     const testPayload = {
@@ -616,7 +959,8 @@ export class OnboardingService {
     const guild = this.client.guilds.cache.get(payload.guildId);
     if (guild === undefined) return this.#skip(payload, 'GUILD_UNAVAILABLE');
     const channel = await guild.channels.fetch(payload.channelId);
-    if (channel === null || !channel.isTextBased()) return this.#skip(payload, 'CHANNEL_UNAVAILABLE');
+    if (channel === null || !channel.isTextBased())
+      return this.#skip(payload, 'CHANNEL_UNAVAILABLE');
     try {
       const message = await channel.messages.fetch(payload.messageId);
       await message.delete();

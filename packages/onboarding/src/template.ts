@@ -20,8 +20,9 @@ export const neutralizeMassMentions = (value: string): string =>
 export const safeTemplateText = (value: string): string =>
   neutralizeMassMentions(value).replaceAll('`', '\u02cb');
 
-const serializeTemplateValue = (value: Exclude<OnboardingTemplateValue, null | undefined>): string =>
-  value instanceof Date ? value.toISOString() : String(value);
+const serializeTemplateValue = (
+  value: Exclude<OnboardingTemplateValue, null | undefined>,
+): string => (value instanceof Date ? value.toISOString() : String(value));
 
 export const renderOnboardingTemplate = (
   template: string,
@@ -75,11 +76,7 @@ export const renderOnboardingMessage = (
 ): RenderedOnboardingMessage => {
   const warnings: OnboardingTemplateWarning[] = [];
   const render = (template: string): string => {
-    const rendered = renderOnboardingTemplate(
-      template,
-      variables,
-      message.unknownVariablePolicy,
-    );
+    const rendered = renderOnboardingTemplate(template, variables, message.unknownVariablePolicy);
     warnings.push(...rendered.warnings);
     return rendered.value;
   };

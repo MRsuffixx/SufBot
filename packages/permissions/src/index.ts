@@ -2,10 +2,21 @@ import { AuthorizationError } from '@sufbot/shared';
 
 export const DiscordPermission = {
   Administrator: 1n << 3n,
+  ManageChannels: 1n << 4n,
   ManageGuild: 1n << 5n,
+  AddReactions: 1n << 6n,
   ViewAuditLog: 1n << 7n,
   ViewChannel: 1n << 10n,
   SendMessages: 1n << 11n,
+  ManageMessages: 1n << 13n,
+  EmbedLinks: 1n << 14n,
+  AttachFiles: 1n << 15n,
+  ReadMessageHistory: 1n << 16n,
+  ManageRoles: 1n << 28n,
+  UseApplicationCommands: 1n << 31n,
+  CreatePublicThreads: 1n << 35n,
+  CreatePrivateThreads: 1n << 36n,
+  SendMessagesInThreads: 1n << 38n,
   ModerateMembers: 1n << 40n,
 } as const;
 

@@ -59,17 +59,30 @@ export const OnboardingJobSchema = z.discriminatedUnion('job', [
   OnboardingJobBaseSchema.extend({
     job: z.literal('onboarding.send-welcome-channel'),
     joinedAt: z.iso.datetime(),
+    trigger: z.enum(['JOIN', 'VERIFICATION']),
   }).strict(),
   OnboardingJobBaseSchema.extend({
     job: z.literal('onboarding.send-welcome-dm'),
     joinedAt: z.iso.datetime(),
+    trigger: z.enum(['JOIN', 'VERIFICATION']),
   }).strict(),
   OnboardingJobBaseSchema.extend({
-    job: z.enum([
-      'onboarding.test-welcome-channel',
-      'onboarding.test-welcome-dm',
-      'onboarding.test-goodbye-channel',
-    ]),
+    job: z.literal('onboarding.assign-join-roles'),
+    joinedAt: z.iso.datetime(),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.evaluate-member-conditions'),
+    joinedAt: z.iso.datetime(),
+    reason: z.enum(['MEMBERSHIP_SCREENING', 'CAPTCHA', 'MANUAL', 'REPAIR']),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.test-welcome-channel'),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.test-welcome-dm'),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.test-goodbye-channel'),
   }).strict(),
   OnboardingJobBaseSchema.extend({
     job: z.literal('onboarding.send-goodbye-channel'),

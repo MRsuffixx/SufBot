@@ -1,5 +1,7 @@
 import { OnboardingRepository } from '@sufbot/onboarding';
+import { createId } from '@sufbot/shared';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
+import { WelcomeMessageForm } from '@/components/onboarding-message-forms';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
 
@@ -14,30 +16,12 @@ export default async function WelcomePage({ params }: { params: Promise<{ guildI
       status={config.welcomeEnabled ? 'Enabled' : 'Disabled'}
     >
       <Card>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="font-bold">Channel</dt>
-            <dd className="mt-1 text-[var(--muted)]">
-              {config.welcome.channelId ?? 'Not selected'}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-bold">Delivery</dt>
-            <dd className="mt-1 text-[var(--muted)]">{config.welcome.delivery}</dd>
-          </div>
-          <div>
-            <dt className="font-bold">Direct message</dt>
-            <dd className="mt-1 text-[var(--muted)]">
-              {config.welcome.dmEnabled ? 'Enabled' : 'Disabled'}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-bold">Welcome card</dt>
-            <dd className="mt-1 text-[var(--muted)]">
-              {config.welcome.attachWelcomeCard ? 'Attached' : 'Not attached'}
-            </dd>
-          </div>
-        </dl>
+        <WelcomeMessageForm
+          guildId={guildId}
+          version={config.version}
+          idempotencyKey={createId('mut')}
+          config={config.welcome}
+        />
       </Card>
     </OnboardingSectionShell>
   );

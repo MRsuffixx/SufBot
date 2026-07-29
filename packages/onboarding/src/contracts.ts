@@ -271,9 +271,7 @@ export const AutoRoleUpdateSchema = z
 export const WelcomeCardUpdateSchema = z
   .object({ expectedVersion: z.number().int().positive(), config: WelcomeCardConfigSchema })
   .strict();
-export const OnboardingPreviewInputSchema = z
-  .object({ message: OnboardingMessageSchema })
-  .strict();
+export const OnboardingPreviewInputSchema = z.object({ message: OnboardingMessageSchema }).strict();
 export const OnboardingTestRequestSchema = z
   .object({
     delivery: z.enum(['WELCOME_CHANNEL', 'WELCOME_DM', 'GOODBYE_CHANNEL']),
@@ -309,7 +307,47 @@ export const OnboardingConfigResponseSchema = z
   })
   .strict();
 
+export const OnboardingDiscordResourcesSchema = z
+  .object({
+    guildId: DiscordSnowflakeSchema,
+    refreshedAt: z.iso.datetime(),
+    bot: z
+      .object({
+        canManageRoles: z.boolean(),
+        canManageChannels: z.boolean(),
+        highestRolePosition: z.number().int(),
+      })
+      .strict(),
+    channels: z.array(
+      z
+        .object({
+          id: DiscordSnowflakeSchema,
+          name: z.string().min(1).max(100),
+          type: z.enum(['TEXT', 'ANNOUNCEMENT']),
+          canView: z.boolean(),
+          canSend: z.boolean(),
+          canEmbed: z.boolean(),
+          canAttach: z.boolean(),
+        })
+        .strict(),
+    ),
+    roles: z.array(
+      z
+        .object({
+          id: DiscordSnowflakeSchema,
+          name: z.string().min(1).max(100),
+          color: z.number().int().min(0).max(0xffffff),
+          position: z.number().int(),
+          managed: z.boolean(),
+          assignable: z.boolean(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
 export type OnboardingConfigResponse = z.infer<typeof OnboardingConfigResponseSchema>;
+export type OnboardingDiscordResources = z.infer<typeof OnboardingDiscordResourcesSchema>;
 export type WelcomeConfig = z.infer<typeof WelcomeConfigSchema>;
 export type GoodbyeConfig = z.infer<typeof GoodbyeConfigSchema>;
 export type VerificationConfig = z.infer<typeof VerificationConfigSchema>;

@@ -41,6 +41,7 @@ describe('BullMQ queue identity', () => {
         guildId: '12345678901234567',
         userId: '22345678901234567',
         joinedAt: '2026-07-29T00:00:00.000Z',
+        trigger: 'JOIN',
         deliverAt: '2026-07-29T00:00:10.000Z',
       }).success,
     ).toBe(true);

@@ -26,10 +26,7 @@ export type FailOnboardingEventInput = {
 export class OnboardingEventJournal {
   public constructor(private readonly prisma: PrismaClient) {}
 
-  public async claim(
-    input: ClaimOnboardingEventInput,
-    staleAfterMs = 120_000,
-  ): Promise<boolean> {
+  public async claim(input: ClaimOnboardingEventInput, staleAfterMs = 120_000): Promise<boolean> {
     const now = new Date();
     await this.prisma.onboardingEvent.createMany({
       data: [

@@ -1,4 +1,6 @@
 import { OnboardingRepository } from '@sufbot/onboarding';
+import { createId } from '@sufbot/shared';
+import { GoodbyeMessageForm } from '@/components/onboarding-message-forms';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
@@ -14,10 +16,12 @@ export default async function GoodbyePage({ params }: { params: Promise<{ guildI
       status={config.goodbyeEnabled ? 'Enabled' : 'Disabled'}
     >
       <Card>
-        <p className="text-sm text-[var(--muted)]">
-          Target channel: {config.goodbye.channelId ?? 'Not selected'} · Delay:{' '}
-          {config.goodbye.delaySeconds}s
-        </p>
+        <GoodbyeMessageForm
+          guildId={guildId}
+          version={config.version}
+          idempotencyKey={createId('mut')}
+          config={config.goodbye}
+        />
       </Card>
     </OnboardingSectionShell>
   );

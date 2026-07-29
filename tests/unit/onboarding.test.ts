@@ -9,6 +9,9 @@ import {
   renderOnboardingMessage,
   renderOnboardingTemplate,
   safeTemplateText,
+  deduplicateRoleIds,
+  evaluateOnboardingRole,
+  isPostVerificationConditionSatisfied,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -96,5 +99,35 @@ describe('onboarding contracts', () => {
       parse: [],
       repliedUser: false,
     });
+  });
+
+  it('evaluates captcha and Membership Screening role conditions centrally', () => {
+    const state = { captchaVerified: true, membershipScreeningCompleted: false };
+    expect(isPostVerificationConditionSatisfied('CAPTCHA_ONLY', state)).toBe(true);
+    expect(isPostVerificationConditionSatisfied('SCREENING_ONLY', state)).toBe(false);
+    expect(isPostVerificationConditionSatisfied('EITHER', state)).toBe(true);
+    expect(isPostVerificationConditionSatisfied('BOTH', state)).toBe(false);
+  });
+
+  it('rejects cross-guild, managed, everyone, and unreachable roles', () => {
+    const baseRole = {
+      id: '12345678901234567',
+      guildId: '22345678901234567',
+      managed: false,
+      position: 2,
+      isEveryone: false,
+    };
+    expect(evaluateOnboardingRole(baseRole, baseRole.guildId, 3)).toEqual({
+      assignable: true,
+    });
+    expect(evaluateOnboardingRole({ ...baseRole, managed: true }, baseRole.guildId, 3)).toEqual({
+      assignable: false,
+      code: 'MANAGED_ROLE',
+    });
+    expect(evaluateOnboardingRole({ ...baseRole, position: 3 }, baseRole.guildId, 3)).toEqual({
+      assignable: false,
+      code: 'BOT_ROLE_TOO_LOW',
+    });
+    expect(deduplicateRoleIds(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c']);
   });
 });

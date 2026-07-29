@@ -12,6 +12,7 @@ import {
   evaluateBotPermissionDiagnostics,
   type BotGuildRuntimeStatus,
 } from '@sufbot/discord';
+import { OnboardingDiscordResourcesSchema } from '@sufbot/onboarding';
 import type { BotServices } from './services.js';
 
 const GuildStatusRefreshSchema = z.object({
@@ -63,9 +64,10 @@ export class GuildStatusService {
       this.#stopRefreshSubscription = undefined;
     }
     await Promise.allSettled(
-      [...this.#knownGuildIds].map((guildId) =>
+      [...this.#knownGuildIds].flatMap((guildId) => [
         this.services.cache.deleteRuntimeState('bot:guild', guildId),
-      ),
+        this.services.cache.deleteRuntimeState('bot:onboarding-resources', guildId),
+      ]),
     );
     this.#knownGuildIds.clear();
   }
@@ -232,7 +234,56 @@ export class GuildStatusService {
       return !transitioned;
     });
 
-    await this.services.cache.writeRuntimeState('bot:guild', guild.id, status, 45);
+    const onboardingResources = OnboardingDiscordResourcesSchema.parse({
+      guildId: guild.id,
+      refreshedAt: now.toISOString(),
+      bot: {
+        canManageRoles: botMember.permissions.has(PermissionFlagsBits.ManageRoles),
+        canManageChannels: botMember.permissions.has(PermissionFlagsBits.ManageChannels),
+        highestRolePosition: botMember.roles.highest.position,
+      },
+      channels: guild.channels.cache
+        .filter(
+          (channel) =>
+            channel.type === ChannelType.GuildText ||
+            channel.type === ChannelType.GuildAnnouncement,
+        )
+        .map((channel) => {
+          const permissions = channel.permissionsFor(botMember);
+          return {
+            id: channel.id,
+            name: channel.name,
+            type: channel.type === ChannelType.GuildText ? 'TEXT' : 'ANNOUNCEMENT',
+            canView: permissions.has(PermissionFlagsBits.ViewChannel),
+            canSend: permissions.has(PermissionFlagsBits.SendMessages),
+            canEmbed: permissions.has(PermissionFlagsBits.EmbedLinks),
+            canAttach: permissions.has(PermissionFlagsBits.AttachFiles),
+          };
+        }),
+      roles: guild.roles.cache
+        .sort((left, right) => right.position - left.position)
+        .map((role) => ({
+          id: role.id,
+          name: role.name,
+          color: role.color,
+          position: role.position,
+          managed: role.managed,
+          assignable:
+            role.id !== guild.id &&
+            !role.managed &&
+            botMember.permissions.has(PermissionFlagsBits.ManageRoles) &&
+            role.position < botMember.roles.highest.position,
+        })),
+    });
+    await Promise.all([
+      this.services.cache.writeRuntimeState('bot:guild', guild.id, status, 45),
+      this.services.cache.writeRuntimeState(
+        'bot:onboarding-resources',
+        guild.id,
+        onboardingResources,
+        45,
+      ),
+    ]);
     this.#knownGuildIds.add(guild.id);
     if (!wasInstalled) {
       await this.services.cache.publish({

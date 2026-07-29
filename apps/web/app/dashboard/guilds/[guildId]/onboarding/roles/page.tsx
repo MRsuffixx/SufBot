@@ -1,4 +1,6 @@
 import { OnboardingRepository } from '@sufbot/onboarding';
+import { createId } from '@sufbot/shared';
+import { OnboardingRoleForm } from '@/components/onboarding-role-form';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { Card } from '@/components/ui/card';
 import { cache, prisma } from '@/lib/runtime';
@@ -14,11 +16,12 @@ export default async function RolesPage({ params }: { params: Promise<{ guildId:
       status={config.autoRoleEnabled ? 'Enabled' : 'Disabled'}
     >
       <Card>
-        <p className="text-sm text-[var(--muted)]">
-          Join roles: {config.autoRole.joinHumanRoleIds.length} · Verified roles:{' '}
-          {config.autoRole.verifiedRoleIds.length} · Screening roles:{' '}
-          {config.autoRole.screeningCompleteRoleIds.length}
-        </p>
+        <OnboardingRoleForm
+          guildId={guildId}
+          version={config.version}
+          idempotencyKey={createId('mut')}
+          config={config.autoRole}
+        />
       </Card>
     </OnboardingSectionShell>
   );
