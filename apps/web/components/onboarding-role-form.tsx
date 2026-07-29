@@ -10,11 +10,20 @@ export function OnboardingRoleForm({
   version,
   idempotencyKey,
   config,
+  roles,
 }: {
   guildId: string;
   version: number;
   idempotencyKey: string;
   config: AutoRoleConfig;
+  roles: readonly {
+    id: string;
+    name: string;
+    color: number;
+    position: number;
+    managed: boolean;
+    assignable: boolean;
+  }[];
 }) {
   const lists = [
     ['joinHumanRoleIds', 'Human roles on join', config.joinHumanRoleIds],
@@ -39,13 +48,21 @@ export function OnboardingRoleForm({
         {lists.map(([name, label, values]) => (
           <label key={name} className="text-sm font-semibold">
             {label}
-            <textarea
+            <select
               name={name}
-              rows={3}
-              defaultValue={values.join('\n')}
-              placeholder="One Discord role ID per line"
+              multiple
+              size={Math.min(8, Math.max(4, roles.length))}
+              defaultValue={[...values]}
               className={controlClass}
-            />
+            >
+              {roles.map((role) => (
+                <option key={role.id} value={role.id} disabled={!role.assignable}>
+                  {role.name} · position {role.position}
+                  {role.managed ? ' · managed' : ''}
+                  {!role.assignable ? ' · unavailable' : ''}
+                </option>
+              ))}
+            </select>
           </label>
         ))}
       </div>

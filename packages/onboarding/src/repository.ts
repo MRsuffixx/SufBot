@@ -21,6 +21,7 @@ import {
   defaultWelcomeCardConfig,
   defaultWelcomeConfig,
   type OnboardingConfigResponse,
+  type VerificationSetupRequest,
 } from './contracts.js';
 
 export type OnboardingActor = {
@@ -29,6 +30,17 @@ export type OnboardingActor = {
   requestId: string;
   source: 'dashboard' | 'api' | 'bot' | 'worker';
   userAgent?: string;
+};
+
+export type VerificationSetupResult = {
+  pendingVersion: number;
+  mode: VerificationSetupRequest['mode'];
+  verificationChannelId: string;
+  verifiedRoleId: string;
+  unverifiedRoleId: string | null;
+  verificationMessageId: string;
+  setupSnapshot: Prisma.InputJsonValue;
+  health: 'HEALTHY' | 'PARTIAL' | 'BROKEN';
 };
 
 const jsonValue = (value: unknown): Prisma.InputJsonValue =>
@@ -155,6 +167,154 @@ export class OnboardingRepository {
     );
   }
 
+  public async beginVerificationSetup(
+    request: VerificationSetupRequest,
+    guildId: string,
+    actor: OnboardingActor,
+  ): Promise<OnboardingConfigResponse> {
+    await this.#ensure(guildId);
+    const record = await this.prisma.$transaction(async (transaction) => {
+      const current = await transaction.guildOnboardingConfig.findUniqueOrThrow({
+        where: { guildId },
+      });
+      if (current.version !== request.expectedVersion || current.resourceHealth === 'PENDING') {
+        throw new ConflictError('Onboarding configuration was changed by another request.');
+      }
+      const changed = await transaction.guildOnboardingConfig.updateMany({
+        where: { guildId, version: request.expectedVersion },
+        data: {
+          resourceHealth: 'PENDING',
+          setupMode: request.mode,
+          setupSnapshot: jsonValue({
+            requestId: actor.requestId,
+            operation: request.operation,
+            requestedAt: new Date().toISOString(),
+          }),
+          version: { increment: 1 },
+        },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictError('Onboarding configuration was changed by another request.');
+      }
+      const updated = await transaction.guildOnboardingConfig.findUniqueOrThrow({
+        where: { guildId },
+      });
+      await appendAuditLog(transaction, {
+        guildId,
+        ...(actor.actorUserId === undefined ? {} : { actorUserId: actor.actorUserId }),
+        actorDiscordId: actor.actorDiscordId,
+        action: 'onboarding.verification-setup.started',
+        resourceType: 'GuildOnboardingConfig',
+        resourceId: guildId,
+        previousValue: current,
+        newValue: {
+          version: updated.version,
+          operation: request.operation,
+          mode: request.mode,
+          channelStrategy: request.channel.strategy,
+          verifiedRoleStrategy: request.verifiedRole.strategy,
+          migrationMode: request.migration.mode,
+        },
+        requestId: actor.requestId,
+        outcome: 'SUCCESS',
+        metadata: { source: actor.source },
+      });
+      return updated;
+    });
+    await this.#publish(record);
+    return toResponse(record);
+  }
+
+  public async completeVerificationSetup(
+    result: VerificationSetupResult,
+    guildId: string,
+    actor: OnboardingActor,
+  ): Promise<OnboardingConfigResponse> {
+    const record = await this.prisma.$transaction(async (transaction) => {
+      const current = await transaction.guildOnboardingConfig.findUniqueOrThrow({
+        where: { guildId },
+      });
+      if (current.version !== result.pendingVersion || current.resourceHealth !== 'PENDING') {
+        throw new ConflictError('Verification setup no longer owns the pending configuration.');
+      }
+      const updated = await transaction.guildOnboardingConfig.update({
+        where: { guildId },
+        data: {
+          verificationEnabled: true,
+          setupMode: result.mode,
+          verificationChannelId: result.verificationChannelId,
+          verifiedRoleId: result.verifiedRoleId,
+          unverifiedRoleId: result.unverifiedRoleId,
+          verificationMessageId: result.verificationMessageId,
+          setupSnapshot: result.setupSnapshot,
+          resourceHealth: result.health,
+          version: { increment: 1 },
+        },
+      });
+      await appendAuditLog(transaction, {
+        guildId,
+        actorDiscordId: actor.actorDiscordId,
+        action: 'onboarding.verification-setup.completed',
+        resourceType: 'GuildOnboardingConfig',
+        resourceId: guildId,
+        previousValue: current,
+        newValue: updated,
+        requestId: actor.requestId,
+        outcome: result.health === 'HEALTHY' ? 'SUCCESS' : 'FAILURE',
+        metadata: { source: actor.source },
+        ...(result.health === 'HEALTHY'
+          ? {}
+          : { failureReason: 'Verification setup completed with unhealthy resources.' }),
+      });
+      return updated;
+    });
+    await this.#publish(record);
+    return toResponse(record);
+  }
+
+  public async failVerificationSetup(
+    guildId: string,
+    pendingVersion: number,
+    actor: OnboardingActor,
+    reason: string,
+    partial: boolean,
+  ): Promise<void> {
+    const record = await this.prisma.$transaction(async (transaction) => {
+      const current = await transaction.guildOnboardingConfig.findUnique({
+        where: { guildId },
+      });
+      if (
+        current === null ||
+        current.version !== pendingVersion ||
+        current.resourceHealth !== 'PENDING'
+      ) {
+        return null;
+      }
+      const updated = await transaction.guildOnboardingConfig.update({
+        where: { guildId },
+        data: {
+          resourceHealth: partial ? 'PARTIAL' : 'BROKEN',
+          version: { increment: 1 },
+        },
+      });
+      await appendAuditLog(transaction, {
+        guildId,
+        actorDiscordId: actor.actorDiscordId,
+        action: 'onboarding.verification-setup.failed',
+        resourceType: 'GuildOnboardingConfig',
+        resourceId: guildId,
+        previousValue: current,
+        newValue: updated,
+        requestId: actor.requestId,
+        outcome: 'FAILURE',
+        failureReason: reason,
+        metadata: { source: actor.source },
+      });
+      return updated;
+    });
+    if (record !== null) await this.#publish(record);
+  }
+
   async #ensure(guildId: string): Promise<GuildOnboardingConfig> {
     const guild = await this.prisma.guild.findUnique({
       where: { id: guildId },
@@ -186,6 +346,9 @@ export class OnboardingRepository {
     const updated = await this.prisma.$transaction(async (transaction) => {
       const current = await transaction.guildOnboardingConfig.findUnique({ where: { guildId } });
       if (current === null) throw new NotFoundError('Onboarding configuration');
+      if (current.resourceHealth === 'PENDING') {
+        throw new ConflictError('Verification setup is currently in progress.');
+      }
       if (current.version !== expectedVersion) {
         throw new ConflictError('Onboarding configuration was changed by another request.');
       }
@@ -216,15 +379,18 @@ export class OnboardingRepository {
       return record;
     });
     const response = toResponse(updated);
-    if (this.cache !== undefined) {
-      await this.cache.publish({
-        type: 'guild.config.updated',
-        guildId,
-        module: 'onboarding',
-        version: response.version,
-        timestamp: new Date().toISOString(),
-      });
-    }
+    await this.#publish(updated);
     return response;
+  }
+
+  async #publish(record: GuildOnboardingConfig): Promise<void> {
+    if (this.cache === undefined) return;
+    await this.cache.publish({
+      type: 'guild.config.updated',
+      guildId: record.guildId,
+      module: 'onboarding',
+      version: record.version,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

@@ -33,11 +33,7 @@ export type OnboardingRoleDecision =
   | { assignable: true }
   | {
       assignable: false;
-      code:
-        | 'CROSS_GUILD_ROLE'
-        | 'EVERYONE_ROLE'
-        | 'MANAGED_ROLE'
-        | 'BOT_ROLE_TOO_LOW';
+      code: 'CROSS_GUILD_ROLE' | 'EVERYONE_ROLE' | 'MANAGED_ROLE' | 'BOT_ROLE_TOO_LOW';
     };
 
 export const evaluateOnboardingRole = (

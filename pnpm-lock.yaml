@@ -639,6 +639,9 @@ importers:
       '@sufbot/billing':
         specifier: workspace:*
         version: link:../billing
+      '@sufbot/onboarding':
+        specifier: workspace:*
+        version: link:../onboarding
       '@sufbot/shared':
         specifier: workspace:*
         version: link:../shared

@@ -1,5 +1,10 @@
+import { createHmac, randomBytes } from 'node:crypto';
 import { Queue, Worker, type Job } from 'bullmq';
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
   DiscordAPIError,
   PermissionFlagsBits,
   type APIEmbed,
@@ -7,6 +12,8 @@ import {
   type Guild,
   type GuildMember,
   type MessageCreateOptions,
+  type Role,
+  type TextChannel,
 } from 'discord.js';
 import { appendAuditLog } from '@sufbot/database';
 import {
@@ -20,6 +27,7 @@ import {
   type OnboardingConfigResponse,
   type OnboardingTemplateVariables,
   type RenderedOnboardingMessage,
+  type VerificationSetupRequest,
 } from '@sufbot/onboarding';
 import {
   DeadLetterJobSchema,
@@ -44,6 +52,19 @@ type RoleAssignmentResult = {
   failed: { roleId: string; code: string }[];
 };
 
+const buttonStyle = (style: 'PRIMARY' | 'SECONDARY' | 'SUCCESS' | 'DANGER'): ButtonStyle => {
+  switch (style) {
+    case 'PRIMARY':
+      return ButtonStyle.Primary;
+    case 'SECONDARY':
+      return ButtonStyle.Secondary;
+    case 'SUCCESS':
+      return ButtonStyle.Success;
+    case 'DANGER':
+      return ButtonStyle.Danger;
+  }
+};
+
 const eventNameForJob = (job: OnboardingJob['job']): string => {
   switch (job) {
     case 'onboarding.send-welcome-channel':
@@ -54,6 +75,10 @@ const eventNameForJob = (job: OnboardingJob['job']): string => {
       return 'roles.join.assign';
     case 'onboarding.evaluate-member-conditions':
       return 'roles.conditions.evaluate';
+    case 'onboarding.verification-setup':
+      return 'verification.setup';
+    case 'onboarding.verification-migrate-members':
+      return 'verification.member-migration';
     case 'onboarding.test-welcome-channel':
       return 'welcome.channel.test';
     case 'onboarding.test-welcome-dm':
@@ -459,6 +484,12 @@ export class OnboardingService {
         case 'onboarding.evaluate-member-conditions':
           await this.#evaluateMemberConditions(payload);
           return;
+        case 'onboarding.verification-setup':
+          await this.#setupVerification(payload);
+          return;
+        case 'onboarding.verification-migrate-members':
+          await this.#migrateVerificationMembers(payload);
+          return;
         case 'onboarding.test-welcome-channel':
           await this.#sendTestWelcome(payload, false);
           return;
@@ -624,12 +655,11 @@ export class OnboardingService {
     if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
     const { guild, member } = resolved;
     const config = await this.#repository.get(guild.id);
-    const configuredRoles =
-      config.autoRoleEnabled
-        ? member.user.bot
-          ? config.autoRole.joinBotRoleIds
-          : config.autoRole.joinHumanRoleIds
-        : [];
+    const configuredRoles = config.autoRoleEnabled
+      ? member.user.bot
+        ? config.autoRole.joinBotRoleIds
+        : config.autoRole.joinHumanRoleIds
+      : [];
     const roleIds = deduplicateRoleIds(
       config.verificationEnabled &&
         config.setupMode === 'DEDICATED_UNVERIFIED_ROLE' &&
@@ -787,7 +817,7 @@ export class OnboardingService {
     config: OnboardingConfigResponse,
     action: string,
     result: RoleAssignmentResult,
-    context: Record<string, string | boolean>,
+    context: Record<string, string | number | boolean>,
   ): Promise<void> {
     const details = {
       assignedRoleIds: result.assigned,
@@ -859,6 +889,482 @@ export class OnboardingService {
         deliverAt: new Date(Date.now() + config.welcome.dmDelaySeconds * 1000).toISOString(),
       });
     }
+  }
+
+  async #setupVerification(
+    payload: Extract<OnboardingJob, { job: 'onboarding.verification-setup' }>,
+  ): Promise<void> {
+    const guild = this.client.guilds.cache.get(payload.guildId);
+    if (guild === undefined) {
+      if (payload.request.operation !== 'DRY_RUN') {
+        await this.#repository.failVerificationSetup(
+          payload.guildId,
+          payload.pendingVersion,
+          {
+            actorDiscordId: payload.userId,
+            requestId: payload.correlationId,
+            source: 'bot',
+          },
+          'The bot is not installed in the guild.',
+          false,
+        );
+      }
+      return this.#skip(payload, 'GUILD_UNAVAILABLE');
+    }
+    const actorMember = await guild.members.fetch(payload.userId).catch(() => null);
+    if (
+      actorMember === null ||
+      (!actorMember.permissions.has(PermissionFlagsBits.ManageGuild) &&
+        !actorMember.permissions.has(PermissionFlagsBits.Administrator))
+    ) {
+      if (payload.request.operation !== 'DRY_RUN') {
+        await this.#repository.failVerificationSetup(
+          guild.id,
+          payload.pendingVersion,
+          {
+            actorDiscordId: payload.userId,
+            requestId: payload.correlationId,
+            source: 'bot',
+          },
+          'The initiating administrator no longer has Manage Guild.',
+          false,
+        );
+      }
+      throw new TypeError('VERIFICATION_SETUP_ACTOR_NOT_AUTHORIZED');
+    }
+    const botMember = guild.members.me ?? (await guild.members.fetchMe());
+    const request = payload.request;
+    const current = await this.#repository.get(guild.id);
+    if (
+      (request.operation === 'DRY_RUN' && current.version !== request.expectedVersion) ||
+      (request.operation !== 'DRY_RUN' && current.version !== payload.pendingVersion)
+    ) {
+      throw new TypeError('VERIFICATION_SETUP_VERSION_MISMATCH');
+    }
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageChannels)) {
+      throw new TypeError('BOT_MANAGE_CHANNELS_PERMISSION_MISSING');
+    }
+    if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+      throw new TypeError('BOT_MANAGE_ROLES_PERMISSION_MISSING');
+    }
+    if (request.operation === 'DRY_RUN') {
+      const preview = await this.#verificationSetupPreview(guild, request);
+      await this.#journal.complete({
+        idempotencyKey: payload.idempotencyKey,
+        details: preview,
+      });
+      return;
+    }
+
+    let createdAnyResource = false;
+    const createdResourceIds: string[] = [];
+    try {
+      const channel = await this.#resolveVerificationChannel(guild, request, payload.correlationId);
+      if (request.channel.strategy === 'CREATE') {
+        createdAnyResource = true;
+        createdResourceIds.push(channel.id);
+      }
+      const verifiedRole = await this.#resolveVerificationRole(
+        guild,
+        request.verifiedRole,
+        payload.correlationId,
+      );
+      if (request.verifiedRole.strategy === 'CREATE') {
+        createdAnyResource = true;
+        createdResourceIds.push(verifiedRole.id);
+      }
+      const unverifiedRole =
+        request.mode === 'DEDICATED_UNVERIFIED_ROLE' && request.unverifiedRole !== null
+          ? await this.#resolveVerificationRole(
+              guild,
+              request.unverifiedRole,
+              payload.correlationId,
+            )
+          : null;
+      if (request.unverifiedRole?.strategy === 'CREATE' && unverifiedRole !== null) {
+        createdAnyResource = true;
+        createdResourceIds.push(unverifiedRole.id);
+      }
+      const previousOverwrites = await this.#applyVerificationPermissions(
+        guild,
+        channel,
+        verifiedRole,
+        unverifiedRole,
+        request,
+        payload.correlationId,
+      );
+      const nonce = randomBytes(16).toString('base64url');
+      const signature = createHmac('sha256', this.services.env.DISCORD_BOT_TOKEN)
+        .update(`verify:v1:${guild.id}:${nonce}`)
+        .digest('base64url')
+        .slice(0, 22);
+      const customId = `verify:v1:${nonce}:${signature}`;
+      const locale = await this.services.localeForGuild(guild.id);
+      const rendered = renderOnboardingMessage(
+        current.verification.panelMessage,
+        {
+          ...dateVariables(new Date(), locale),
+          server: safeTemplateText(guild.name),
+          'server.name': safeTemplateText(guild.name),
+          'server.id': guild.id,
+          'server.memberCount': guild.memberCount,
+          'verification.channel': `<#${channel.id}>`,
+          'verification.role': `<@&${verifiedRole.id}>`,
+        },
+        payload.userId,
+      );
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(customId)
+          .setLabel(current.verification.buttonLabel)
+          .setStyle(buttonStyle(current.verification.buttonStyle))
+          .setDisabled(false),
+      );
+      const emoji = current.verification.buttonEmoji.trim();
+      if (emoji !== '') row.components[0]?.setEmoji(emoji);
+      const panelMessage = await channel.send({
+        ...asDiscordMessage(rendered),
+        allowedMentions: { parse: [], users: [], roles: [], repliedUser: false },
+        components: [row],
+      });
+      const previousConfig = await this.services.prisma.guildOnboardingConfig.findUnique({
+        where: { guildId: guild.id },
+        select: { setupSnapshot: true },
+      });
+      await this.#repository.completeVerificationSetup(
+        {
+          pendingVersion: payload.pendingVersion,
+          mode: request.mode,
+          verificationChannelId: channel.id,
+          verifiedRoleId: verifiedRole.id,
+          unverifiedRoleId: unverifiedRole?.id ?? null,
+          verificationMessageId: panelMessage.id,
+          health: 'HEALTHY',
+          setupSnapshot: {
+            completedAt: new Date().toISOString(),
+            operation: request.operation,
+            createdResourceIds,
+            restrictedChannelIds: request.restrictedChannelIds,
+            previousOverwrites,
+            panelNonceHash: sha256(nonce),
+            previousSetupSnapshot: previousConfig?.setupSnapshot ?? {},
+          },
+        },
+        guild.id,
+        {
+          actorDiscordId: payload.userId,
+          requestId: payload.correlationId,
+          source: 'bot',
+        },
+      );
+      await this.#journal.complete({
+        idempotencyKey: payload.idempotencyKey,
+        details: {
+          channelId: channel.id,
+          verifiedRoleId: verifiedRole.id,
+          unverifiedRoleId: unverifiedRole?.id ?? null,
+          messageId: panelMessage.id,
+          createdResourceCount: createdResourceIds.length,
+        },
+      });
+      if (request.migration.mode !== 'NONE') {
+        await this.#enqueue({
+          job: 'onboarding.verification-migrate-members',
+          idempotencyKey: `verification-migration:${guild.id}:${payload.correlationId}`,
+          correlationId: payload.correlationId,
+          guildId: guild.id,
+          userId: payload.userId,
+          deliverAt: new Date().toISOString(),
+          verifiedRoleId: verifiedRole.id,
+          unverifiedRoleId: unverifiedRole?.id ?? null,
+          migration: request.migration,
+        });
+      }
+      await this.services.guildStatus?.refreshGuild(guild, 'verification-setup');
+    } catch (error) {
+      await this.#repository.failVerificationSetup(
+        guild.id,
+        payload.pendingVersion,
+        {
+          actorDiscordId: payload.userId,
+          requestId: payload.correlationId,
+          source: 'bot',
+        },
+        'Verification setup failed while applying Discord resources.',
+        createdAnyResource,
+      );
+      throw error;
+    }
+  }
+
+  async #verificationSetupPreview(
+    guild: Guild,
+    request: VerificationSetupRequest,
+  ): Promise<Record<string, string | number | boolean | string[]>> {
+    if (
+      request.channel.strategy === 'EXISTING' &&
+      (request.channel.channelId === null ||
+        guild.channels.cache.get(request.channel.channelId)?.type !== ChannelType.GuildText)
+    ) {
+      throw new TypeError('VERIFICATION_CHANNEL_INVALID');
+    }
+    for (const selection of [request.verifiedRole, request.unverifiedRole]) {
+      if (selection === null || selection.strategy === 'CREATE') continue;
+      const role = selection.roleId === null ? null : guild.roles.cache.get(selection.roleId);
+      if (role === undefined || role === null || !role.editable || role.managed || role.id === guild.id) {
+        throw new TypeError('VERIFICATION_ROLE_INVALID');
+      }
+    }
+    const candidates = await this.#selectMigrationMembers(guild, null, request.migration);
+    return {
+      operation: request.operation,
+      mode: request.mode,
+      willCreateChannel: request.channel.strategy === 'CREATE',
+      willCreateVerifiedRole: request.verifiedRole.strategy === 'CREATE',
+      willCreateUnverifiedRole: request.unverifiedRole?.strategy === 'CREATE',
+      restrictedChannelCount: request.restrictedChannelIds.length,
+      migrationCandidateCount: candidates.length,
+      migrationPreview: candidates.slice(0, 15).map((member) => `${member.id}:${member.displayName}`),
+    };
+  }
+
+  async #resolveVerificationChannel(
+    guild: Guild,
+    request: VerificationSetupRequest,
+    correlationId: string,
+  ): Promise<TextChannel> {
+    if (request.channel.strategy === 'CREATE') {
+      return guild.channels.create({
+        name: request.channel.name,
+        type: ChannelType.GuildText,
+        ...(request.channel.categoryId === null ? {} : { parent: request.channel.categoryId }),
+        reason: `SufBot verification setup ${correlationId}`,
+      });
+    }
+    const channel =
+      request.channel.channelId === null
+        ? null
+        : await guild.channels.fetch(request.channel.channelId).catch(() => null);
+    if (channel === null || channel.type !== ChannelType.GuildText) {
+      throw new TypeError('VERIFICATION_CHANNEL_INVALID');
+    }
+    return channel;
+  }
+
+  async #resolveVerificationRole(
+    guild: Guild,
+    selection: NonNullable<VerificationSetupRequest['unverifiedRole']>,
+    correlationId: string,
+  ): Promise<Role> {
+    if (selection.strategy === 'CREATE') {
+      return guild.roles.create({
+        name: selection.name,
+        color: selection.color,
+        hoist: selection.hoist,
+        mentionable: selection.mentionable,
+        reason: `SufBot verification setup ${correlationId}`,
+      });
+    }
+    const role =
+      selection.roleId === null
+        ? null
+        : await guild.roles.fetch(selection.roleId).catch(() => null);
+    if (role === null || !role.editable || role.managed || role.id === guild.id) {
+      throw new TypeError('VERIFICATION_ROLE_INVALID');
+    }
+    return role;
+  }
+
+  async #applyVerificationPermissions(
+    guild: Guild,
+    channel: TextChannel,
+    verifiedRole: Role,
+    unverifiedRole: Role | null,
+    request: VerificationSetupRequest,
+    correlationId: string,
+  ): Promise<
+    {
+      channelId: string;
+      targetId: string;
+      existed: boolean;
+      allow: string;
+      deny: string;
+    }[]
+  > {
+    const targets = [guild.id, verifiedRole.id, this.client.user.id];
+    if (unverifiedRole !== null) targets.push(unverifiedRole.id);
+    const snapshot = targets.map((targetId) => {
+      const overwrite = channel.permissionOverwrites.cache.get(targetId);
+      return {
+        channelId: channel.id,
+        targetId,
+        existed: overwrite !== undefined,
+        allow: overwrite?.allow.bitfield.toString() ?? '0',
+        deny: overwrite?.deny.bitfield.toString() ?? '0',
+      };
+    });
+    const reason = `SufBot verification setup ${correlationId}`;
+    const denyWriting = {
+      SendMessages: false,
+      AddReactions: false,
+      CreatePublicThreads: false,
+      CreatePrivateThreads: false,
+      SendMessagesInThreads: false,
+    } as const;
+    await channel.permissionOverwrites.edit(
+      guild.id,
+      request.mode === 'EVERYONE_VISIBLE'
+        ? {
+            ViewChannel: true,
+            ReadMessageHistory: true,
+            UseApplicationCommands: true,
+            ...denyWriting,
+          }
+        : { ViewChannel: false, ...denyWriting },
+      { reason },
+    );
+    if (unverifiedRole !== null) {
+      await channel.permissionOverwrites.edit(
+        unverifiedRole,
+        {
+          ViewChannel: true,
+          ReadMessageHistory: true,
+          UseApplicationCommands: true,
+          ...denyWriting,
+        },
+        { reason },
+      );
+    }
+    await channel.permissionOverwrites.edit(verifiedRole, { ViewChannel: false }, { reason });
+    await channel.permissionOverwrites.edit(
+      this.client.user,
+      {
+        ViewChannel: true,
+        SendMessages: true,
+        EmbedLinks: true,
+        AttachFiles: true,
+        ManageMessages: true,
+        ReadMessageHistory: true,
+      },
+      { reason },
+    );
+    for (const restrictedChannelId of request.restrictedChannelIds) {
+      const restricted = await guild.channels.fetch(restrictedChannelId).catch(() => null);
+      if (restricted === null || !restricted.isTextBased() || restricted.isThread()) {
+        throw new TypeError('RESTRICTED_CHANNEL_INVALID');
+      }
+      for (const targetId of [guild.id, verifiedRole.id]) {
+        const overwrite = restricted.permissionOverwrites.cache.get(targetId);
+        snapshot.push({
+          channelId: restricted.id,
+          targetId,
+          existed: overwrite !== undefined,
+          allow: overwrite?.allow.bitfield.toString() ?? '0',
+          deny: overwrite?.deny.bitfield.toString() ?? '0',
+        });
+      }
+      await restricted.permissionOverwrites.edit(guild.id, { ViewChannel: false }, { reason });
+      await restricted.permissionOverwrites.edit(verifiedRole, { ViewChannel: true }, { reason });
+      if (unverifiedRole !== null) {
+        const overwrite = restricted.permissionOverwrites.cache.get(unverifiedRole.id);
+        snapshot.push({
+          channelId: restricted.id,
+          targetId: unverifiedRole.id,
+          existed: overwrite !== undefined,
+          allow: overwrite?.allow.bitfield.toString() ?? '0',
+          deny: overwrite?.deny.bitfield.toString() ?? '0',
+        });
+        await restricted.permissionOverwrites.edit(
+          unverifiedRole,
+          { ViewChannel: false },
+          { reason },
+        );
+      }
+    }
+    return snapshot;
+  }
+
+  async #migrateVerificationMembers(
+    payload: Extract<OnboardingJob, { job: 'onboarding.verification-migrate-members' }>,
+  ): Promise<void> {
+    const guild = this.client.guilds.cache.get(payload.guildId);
+    if (guild === undefined) return this.#skip(payload, 'GUILD_UNAVAILABLE');
+    const config = await this.#repository.get(guild.id);
+    const members = await this.#selectMigrationMembers(
+      guild,
+      payload.verifiedRoleId,
+      payload.migration,
+    );
+    const result: RoleAssignmentResult = { assigned: [], alreadyAssigned: [], failed: [] };
+    for (const member of members) {
+      const assignment = await this.#assignRoles(
+        member,
+        [payload.verifiedRoleId],
+        config,
+        payload.correlationId,
+      );
+      result.assigned.push(...assignment.assigned.map(() => member.id));
+      result.alreadyAssigned.push(...assignment.alreadyAssigned.map(() => member.id));
+      result.failed.push(
+        ...assignment.failed.map((failure) => ({
+          roleId: member.id,
+          code: failure.code,
+        })),
+      );
+      if (
+        payload.unverifiedRoleId !== null &&
+        member.roles.cache.has(payload.unverifiedRoleId)
+      ) {
+        await member.roles
+          .remove(payload.unverifiedRoleId, `SufBot verification migration ${payload.correlationId}`)
+          .catch(() => {
+            result.failed.push({ roleId: member.id, code: 'UNVERIFIED_ROLE_REMOVAL_FAILED' });
+          });
+      }
+    }
+    await this.#completeRoleDelivery(
+      payload,
+      config,
+      'onboarding.verification.members-migrated',
+      result,
+      {
+        migrationMode: payload.migration.mode,
+        candidateCount: members.length,
+      },
+    );
+  }
+
+  async #selectMigrationMembers(
+    guild: Guild,
+    verifiedRoleId: string | null,
+    migration: VerificationSetupRequest['migration'],
+  ): Promise<GuildMember[]> {
+    if (migration.mode === 'NONE') return [];
+    const botMember = guild.members.me ?? (await guild.members.fetchMe());
+    const members =
+      migration.mode === 'MANUAL'
+        ? (
+            await Promise.all(
+              migration.memberIds.map((memberId) => guild.members.fetch(memberId).catch(() => null)),
+            )
+          ).filter((member): member is GuildMember => member !== null)
+        : [...(await guild.members.fetch()).values()];
+    const eligible = members
+      .filter(
+        (member) =>
+          !member.user.bot &&
+          member.id !== this.client.user.id &&
+          (verifiedRoleId === null || !member.roles.cache.has(verifiedRoleId)) &&
+          member.roles.highest.position < botMember.roles.highest.position,
+      )
+      .sort(
+        (left, right) =>
+          (left.joinedTimestamp ?? Number.MAX_SAFE_INTEGER) -
+            (right.joinedTimestamp ?? Number.MAX_SAFE_INTEGER) || left.id.localeCompare(right.id),
+      );
+    if (migration.mode === 'ALL_ELIGIBLE') return eligible.slice(0, migration.maxCount);
+    if (migration.mode === 'MANUAL') return eligible;
+    return eligible.slice(0, migration.maxCount);
   }
 
   async #sendTestWelcome(

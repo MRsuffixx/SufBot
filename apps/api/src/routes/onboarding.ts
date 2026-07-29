@@ -8,6 +8,7 @@ import {
   OnboardingPreviewInputSchema,
   OnboardingRepository,
   OnboardingTestRequestSchema,
+  VerificationSetupRequestSchema,
   VerificationUpdateSchema,
   WelcomeCardUpdateSchema,
   WelcomeUpdateSchema,
@@ -59,9 +60,7 @@ export const registerOnboardingRoutes = async (
     }
     return resources;
   };
-  const requireValidResources = (
-    issues: readonly { code: string; message: string }[],
-  ): void => {
+  const requireValidResources = (issues: readonly { code: string; message: string }[]): void => {
     const issue = issues[0];
     if (issue !== undefined) {
       throw new AppError({
@@ -224,6 +223,163 @@ export const registerOnboardingRoutes = async (
         requestId: request.id,
       };
     },
+  });
+
+  const enqueueVerificationSetup = async (
+    request: FastifyRequest,
+    requiredOperation: 'SETUP' | 'REPAIR' | 'RESEND' | null,
+  ) => {
+    const { guildId } = GuildParamsSchema.parse(request.params);
+    const input = VerificationSetupRequestSchema.parse(request.body);
+    const context = request.authContext;
+    if (context === undefined) throw new TypeError('Authenticated route is missing auth context.');
+    if (requiredOperation !== null && input.operation !== requiredOperation) {
+      throw new AppError({
+        code: 'ONBOARDING_SETUP_OPERATION_MISMATCH',
+        message: `This endpoint requires the ${requiredOperation} operation.`,
+        statusCode: 400,
+      });
+    }
+    if (dependencies.onboardingQueue === undefined) {
+      throw new AppError({
+        code: 'ONBOARDING_QUEUE_UNAVAILABLE',
+        message: 'Verification setup is temporarily unavailable.',
+        statusCode: 503,
+      });
+    }
+    const resources = await resourcesFor(guildId);
+    if (
+      (input.channel.strategy === 'CREATE' || input.restrictedChannelIds.length > 0) &&
+      !resources.bot.canManageChannels
+    ) {
+      throw new AppError({
+        code: 'ONBOARDING_MANAGE_CHANNELS_REQUIRED',
+        message: 'The bot needs Manage Channels for this verification setup.',
+        statusCode: 409,
+      });
+    }
+    if (
+      (input.verifiedRole.strategy === 'CREATE' ||
+        input.unverifiedRole?.strategy === 'CREATE') &&
+      !resources.bot.canManageRoles
+    ) {
+      throw new AppError({
+        code: 'ONBOARDING_MANAGE_ROLES_REQUIRED',
+        message: 'The bot needs Manage Roles for this verification setup.',
+        statusCode: 409,
+      });
+    }
+    if (
+      input.channel.strategy === 'EXISTING' &&
+      !resources.channels.some(
+        (channel) => channel.id === input.channel.channelId && channel.canManage,
+      )
+    ) {
+      throw new AppError({
+        code: 'ONBOARDING_CHANNEL_NOT_MANAGEABLE',
+        message: 'The selected verification channel is unavailable or not manageable.',
+        statusCode: 409,
+      });
+    }
+    for (const role of [input.verifiedRole, input.unverifiedRole].filter(
+      (selection) => selection !== null && selection.strategy === 'EXISTING',
+    )) {
+      if (
+        role === null ||
+        !resources.roles.some(
+          (candidate) => candidate.id === role.roleId && candidate.assignable,
+        )
+      ) {
+        throw new AppError({
+          code: 'ONBOARDING_ROLE_NOT_ASSIGNABLE',
+          message: 'A selected verification role is unavailable or not assignable.',
+          statusCode: 409,
+        });
+      }
+    }
+    if (
+      input.channel.categoryId !== null &&
+      !resources.categories.some(
+        (category) => category.id === input.channel.categoryId && category.canManage,
+      )
+    ) {
+      throw new AppError({
+        code: 'ONBOARDING_CATEGORY_NOT_MANAGEABLE',
+        message: 'The selected category is unavailable or not manageable.',
+        statusCode: 409,
+      });
+    }
+    if (
+      input.restrictedChannelIds.some(
+        (channelId) =>
+          !resources.channels.some(
+            (channel) => channel.id === channelId && channel.canManage,
+          ),
+      )
+    ) {
+      throw new AppError({
+        code: 'ONBOARDING_RESTRICTED_CHANNEL_NOT_MANAGEABLE',
+        message: 'A selected restricted channel is unavailable or not manageable.',
+        statusCode: 409,
+      });
+    }
+    const pending =
+      input.operation === 'DRY_RUN'
+        ? await repository.get(guildId)
+        : await repository.beginVerificationSetup(input, guildId, actor(request));
+    try {
+      await dependencies.onboardingQueue.enqueueOnboarding({
+        job: 'onboarding.verification-setup',
+        idempotencyKey: `verification-setup:${guildId}:${request.id}`,
+        correlationId: request.id,
+        guildId,
+        userId: context.discordUserId,
+        deliverAt: new Date().toISOString(),
+        pendingVersion: pending.version,
+        request: input,
+      });
+    } catch (error) {
+      if (input.operation !== 'DRY_RUN') {
+        await repository.failVerificationSetup(
+          guildId,
+          pending.version,
+          actor(request),
+          'The verification setup job could not be queued.',
+          false,
+        );
+      }
+      throw error;
+    }
+    return {
+      success: true,
+      data: {
+        status: input.operation === 'DRY_RUN' ? 'DRY_RUN_QUEUED' : 'SETUP_QUEUED',
+        pendingVersion: pending.version,
+        referenceId: request.id,
+      },
+      requestId: request.id,
+    };
+  };
+
+  app.post('/v1/guilds/:guildId/onboarding/setup-verification', {
+    preHandler: [authenticate, write],
+    config: { rateLimit: { max: 2, timeWindow: 60_000, ban: 0 } },
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: (request) => enqueueVerificationSetup(request, null),
+  });
+
+  app.post('/v1/guilds/:guildId/onboarding/repair-verification', {
+    preHandler: [authenticate, write],
+    config: { rateLimit: { max: 2, timeWindow: 60_000, ban: 0 } },
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: (request) => enqueueVerificationSetup(request, 'REPAIR'),
+  });
+
+  app.post('/v1/guilds/:guildId/onboarding/resend-verification', {
+    preHandler: [authenticate, write],
+    config: { rateLimit: { max: 2, timeWindow: 60_000, ban: 0 } },
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: (request) => enqueueVerificationSetup(request, 'RESEND'),
   });
 
   app.patch('/v1/guilds/:guildId/onboarding', {

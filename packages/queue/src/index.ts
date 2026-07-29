@@ -2,6 +2,10 @@ import { Queue, type JobsOptions, type ConnectionOptions } from 'bullmq';
 import { z } from 'zod';
 import { sha256 } from '@sufbot/shared';
 import { BillingWorkerPayloadSchema, type BillingWorkerPayload } from '@sufbot/billing';
+import {
+  VerificationMemberMigrationSchema,
+  VerificationSetupRequestSchema,
+} from '@sufbot/onboarding';
 
 export const QueueName = {
   Audit: 'audit',
@@ -74,6 +78,17 @@ export const OnboardingJobSchema = z.discriminatedUnion('job', [
     job: z.literal('onboarding.evaluate-member-conditions'),
     joinedAt: z.iso.datetime(),
     reason: z.enum(['MEMBERSHIP_SCREENING', 'CAPTCHA', 'MANUAL', 'REPAIR']),
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.verification-setup'),
+    pendingVersion: z.number().int().positive(),
+    request: VerificationSetupRequestSchema,
+  }).strict(),
+  OnboardingJobBaseSchema.extend({
+    job: z.literal('onboarding.verification-migrate-members'),
+    verifiedRoleId: DiscordSnowflakeSchema,
+    unverifiedRoleId: DiscordSnowflakeSchema.nullable(),
+    migration: VerificationMemberMigrationSchema,
   }).strict(),
   OnboardingJobBaseSchema.extend({
     job: z.literal('onboarding.test-welcome-channel'),

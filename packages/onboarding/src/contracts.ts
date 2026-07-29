@@ -185,7 +185,7 @@ export const VerificationConfigSchema = z
     panelMessage: OnboardingMessageSchema.prefault({
       mode: 'TEXT',
       content:
-        'Welcome to {server.name}, {user.mention}! Press the button below to verify that you are human.',
+        'Welcome to {server.name}! Press the button below to verify that you are human.',
     }),
   })
   .strict();
@@ -278,6 +278,93 @@ export const OnboardingTestRequestSchema = z
   })
   .strict();
 
+const VerificationChannelSelectionSchema = z
+  .object({
+    strategy: z.enum(['CREATE', 'EXISTING']),
+    channelId: DiscordSnowflakeSchema.nullable().default(null),
+    name: z.string().trim().min(1).max(100).default('doğrulama'),
+    categoryId: DiscordSnowflakeSchema.nullable().default(null),
+  })
+  .strict()
+  .superRefine((selection, context) => {
+    if (selection.strategy === 'EXISTING' && selection.channelId === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['channelId'],
+        message: 'An existing verification channel must be selected.',
+      });
+    }
+  });
+
+const VerificationRoleSelectionSchema = z
+  .object({
+    strategy: z.enum(['CREATE', 'EXISTING']),
+    roleId: DiscordSnowflakeSchema.nullable().default(null),
+    name: z.string().trim().min(1).max(100),
+    color: ColorSchema.default(0x57f287),
+    hoist: z.boolean().default(false),
+    mentionable: z.boolean().default(false),
+  })
+  .strict()
+  .superRefine((selection, context) => {
+    if (selection.strategy === 'EXISTING' && selection.roleId === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['roleId'],
+        message: 'An existing role must be selected.',
+      });
+    }
+  });
+
+export const VerificationMemberMigrationSchema = z
+  .object({
+    mode: z.enum(['NONE', 'FIRST_ELIGIBLE', 'MANUAL', 'ALL_ELIGIBLE']).default('NONE'),
+    memberIds: z.array(DiscordSnowflakeSchema).max(100).default([]),
+    maxCount: z.number().int().min(1).max(10_000).default(15),
+  })
+  .strict()
+  .superRefine((migration, context) => {
+    if (migration.mode === 'MANUAL' && migration.memberIds.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['memberIds'],
+        message: 'Manual migration requires at least one member.',
+      });
+    }
+  });
+
+export const VerificationSetupRequestSchema = z
+  .object({
+    expectedVersion: z.number().int().positive(),
+    operation: z.enum(['SETUP', 'REPAIR', 'RESEND', 'DRY_RUN']),
+    mode: VerificationSetupModeSchema,
+    channel: VerificationChannelSelectionSchema,
+    verifiedRole: VerificationRoleSelectionSchema,
+    unverifiedRole: VerificationRoleSelectionSchema.nullable().default(null),
+    restrictedChannelIds: z.array(DiscordSnowflakeSchema).max(100).default([]),
+    migration: VerificationMemberMigrationSchema.prefault({}),
+    confirmed: z.boolean().default(false),
+  })
+  .strict()
+  .superRefine((request, context) => {
+    if (request.mode === 'DEDICATED_UNVERIFIED_ROLE' && request.unverifiedRole === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['unverifiedRole'],
+        message: 'Dedicated mode requires an unverified role.',
+      });
+    }
+    if (request.operation !== 'DRY_RUN' && !request.confirmed) {
+      context.addIssue({
+        code: 'custom',
+        path: ['confirmed'],
+        message: 'The permission-change summary must be confirmed.',
+      });
+    }
+  });
+
+export type VerificationSetupRequest = z.infer<typeof VerificationSetupRequestSchema>;
+
 export const OnboardingConfigResponseSchema = z
   .object({
     guildId: DiscordSnowflakeSchema,
@@ -328,6 +415,16 @@ export const OnboardingDiscordResourcesSchema = z
           canSend: z.boolean(),
           canEmbed: z.boolean(),
           canAttach: z.boolean(),
+          canManage: z.boolean(),
+        })
+        .strict(),
+    ),
+    categories: z.array(
+      z
+        .object({
+          id: DiscordSnowflakeSchema,
+          name: z.string().min(1).max(100),
+          canManage: z.boolean(),
         })
         .strict(),
     ),

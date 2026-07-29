@@ -1,4 +1,4 @@
-import { OnboardingRepository } from '@sufbot/onboarding';
+import { OnboardingDiscordResourcesSchema, OnboardingRepository } from '@sufbot/onboarding';
 import { createId } from '@sufbot/shared';
 import { OnboardingRoleForm } from '@/components/onboarding-role-form';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
@@ -7,7 +7,10 @@ import { cache, prisma } from '@/lib/runtime';
 
 export default async function RolesPage({ params }: { params: Promise<{ guildId: string }> }) {
   const { guildId } = await params;
-  const config = await new OnboardingRepository(prisma, cache).get(guildId);
+  const [config, resources] = await Promise.all([
+    new OnboardingRepository(prisma, cache).get(guildId),
+    cache.readRuntimeState('bot:onboarding-resources', guildId, OnboardingDiscordResourcesSchema),
+  ]);
   return (
     <OnboardingSectionShell
       guildId={guildId}
@@ -21,6 +24,7 @@ export default async function RolesPage({ params }: { params: Promise<{ guildId:
           version={config.version}
           idempotencyKey={createId('mut')}
           config={config.autoRole}
+          roles={resources?.roles ?? []}
         />
       </Card>
     </OnboardingSectionShell>

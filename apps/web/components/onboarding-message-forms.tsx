@@ -48,11 +48,13 @@ export function WelcomeMessageForm({
   version,
   idempotencyKey,
   config,
+  channels,
 }: {
   guildId: string;
   version: number;
   idempotencyKey: string;
   config: WelcomeConfig;
+  channels: readonly { id: string; name: string; canEmbed: boolean; canAttach: boolean }[];
 }) {
   return (
     <ActionForm
@@ -64,14 +66,16 @@ export function WelcomeMessageForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold">
           Discord channel ID
-          <input
-            name="channelId"
-            defaultValue={config.channelId ?? ''}
-            inputMode="numeric"
-            pattern="\d{17,20}"
-            placeholder="Sendable text channel ID"
-            className={controlClass}
-          />
+          <select name="channelId" defaultValue={config.channelId ?? ''} className={controlClass}>
+            <option value="">Not selected</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                #{channel.name}
+                {!channel.canEmbed ? ' · no embeds' : ''}
+                {!channel.canAttach ? ' · no attachments' : ''}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="text-sm font-semibold">
           Delivery
@@ -189,11 +193,13 @@ export function GoodbyeMessageForm({
   version,
   idempotencyKey,
   config,
+  channels,
 }: {
   guildId: string;
   version: number;
   idempotencyKey: string;
   config: GoodbyeConfig;
+  channels: readonly { id: string; name: string; canEmbed: boolean }[];
 }) {
   return (
     <ActionForm
@@ -205,14 +211,15 @@ export function GoodbyeMessageForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-semibold">
           Discord channel ID
-          <input
-            name="channelId"
-            defaultValue={config.channelId ?? ''}
-            inputMode="numeric"
-            pattern="\d{17,20}"
-            placeholder="Sendable text channel ID"
-            className={controlClass}
-          />
+          <select name="channelId" defaultValue={config.channelId ?? ''} className={controlClass}>
+            <option value="">Not selected</option>
+            {channels.map((channel) => (
+              <option key={channel.id} value={channel.id}>
+                #{channel.name}
+                {!channel.canEmbed ? ' · no embeds' : ''}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="text-sm font-semibold">
           Delay (seconds)

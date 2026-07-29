@@ -258,8 +258,16 @@ export class GuildStatusService {
             canSend: permissions.has(PermissionFlagsBits.SendMessages),
             canEmbed: permissions.has(PermissionFlagsBits.EmbedLinks),
             canAttach: permissions.has(PermissionFlagsBits.AttachFiles),
+            canManage: permissions.has(PermissionFlagsBits.ManageChannels),
           };
         }),
+      categories: guild.channels.cache
+        .filter((channel) => channel.type === ChannelType.GuildCategory)
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          canManage: channel.permissionsFor(botMember).has(PermissionFlagsBits.ManageChannels),
+        })),
       roles: guild.roles.cache
         .sort((left, right) => right.position - left.position)
         .map((role) => ({

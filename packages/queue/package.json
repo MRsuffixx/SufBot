@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@sufbot/billing": "workspace:*",
+    "@sufbot/onboarding": "workspace:*",
     "@sufbot/shared": "workspace:*",
     "bullmq": "5.81.2",
     "zod": "4.4.3"

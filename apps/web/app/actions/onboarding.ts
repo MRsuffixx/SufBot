@@ -27,15 +27,7 @@ const OptionalGuildResourceIdSchema = z
   .transform((value) => (value === '' ? null : value));
 const MessageModeSchema = z.enum(['TEXT', 'EMBED', 'TEXT_AND_EMBED']);
 const DeliverySchema = z.enum(['ON_JOIN', 'AFTER_VERIFICATION', 'BOTH']);
-const RoleIdListSchema = z
-  .string()
-  .transform((value) =>
-    value
-      .split(/[\s,]+/u)
-      .map((roleId) => roleId.trim())
-      .filter(Boolean),
-  )
-  .pipe(z.array(GuildIdSchema).max(25));
+const RoleIdListSchema = z.array(GuildIdSchema).max(25);
 
 const safeAction = async (operation: () => Promise<string>): Promise<ActionState> => {
   try {
@@ -228,11 +220,11 @@ export const updateAutoRoleConfigAction = async (
     const current = await repository.get(context.guildId);
     const config = AutoRoleConfigSchema.parse({
       ...current.autoRole,
-      joinHumanRoleIds: RoleIdListSchema.parse(String(formData.get('joinHumanRoleIds') ?? '')),
-      joinBotRoleIds: RoleIdListSchema.parse(String(formData.get('joinBotRoleIds') ?? '')),
-      verifiedRoleIds: RoleIdListSchema.parse(String(formData.get('verifiedRoleIds') ?? '')),
+      joinHumanRoleIds: RoleIdListSchema.parse(formData.getAll('joinHumanRoleIds').map(String)),
+      joinBotRoleIds: RoleIdListSchema.parse(formData.getAll('joinBotRoleIds').map(String)),
+      verifiedRoleIds: RoleIdListSchema.parse(formData.getAll('verifiedRoleIds').map(String)),
       screeningCompleteRoleIds: RoleIdListSchema.parse(
-        String(formData.get('screeningCompleteRoleIds') ?? ''),
+        formData.getAll('screeningCompleteRoleIds').map(String),
       ),
       joinDelaySeconds: Number(formData.get('joinDelaySeconds')),
       verifiedDelaySeconds: Number(formData.get('verifiedDelaySeconds')),

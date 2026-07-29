@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AutoRoleConfigSchema,
+  OnboardingDiscordResourcesSchema,
   OnboardingMessageSchema,
   VerificationConfigSchema,
   WelcomeCardConfigSchema,
@@ -12,6 +13,8 @@ import {
   deduplicateRoleIds,
   evaluateOnboardingRole,
   isPostVerificationConditionSatisfied,
+  validateAutoRoleResources,
+  validateWelcomeResources,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -68,9 +71,7 @@ describe('onboarding contracts', () => {
         'server.name': 'SufBot',
       },
     );
-    expect(rendered.value).toBe(
-      'Ada joined SufBot; {unknown.value}; ${process.env.SECRET}',
-    );
+    expect(rendered.value).toBe('Ada joined SufBot; {unknown.value}; ${process.env.SECRET}');
     expect(rendered.warnings).toEqual([
       { code: 'UNKNOWN_VARIABLE', variable: 'unknown.value' },
       { code: 'UNKNOWN_VARIABLE', variable: 'process.env.SECRET' },
@@ -129,5 +130,53 @@ describe('onboarding contracts', () => {
       code: 'BOT_ROLE_TOO_LOW',
     });
     expect(deduplicateRoleIds(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c']);
+  });
+
+  it('rejects dashboard resources that are absent or not executable by the bot', () => {
+    const resources = OnboardingDiscordResourcesSchema.parse({
+      guildId: '12345678901234567',
+      refreshedAt: '2026-07-29T00:00:00.000Z',
+      bot: {
+        canManageRoles: true,
+        canManageChannels: true,
+        highestRolePosition: 10,
+      },
+      channels: [
+        {
+          id: '22345678901234567',
+          name: 'welcome',
+          type: 'TEXT',
+          canView: true,
+          canSend: true,
+          canEmbed: false,
+          canAttach: false,
+          canManage: true,
+        },
+      ],
+      categories: [],
+      roles: [
+        {
+          id: '32345678901234567',
+          name: 'member',
+          color: 0,
+          position: 2,
+          managed: false,
+          assignable: false,
+        },
+      ],
+    });
+    const welcome = WelcomeConfigSchema.parse({
+      channelId: '22345678901234567',
+      message: { mode: 'EMBED', embed: { title: 'Welcome' } },
+    });
+    expect(validateWelcomeResources(welcome, resources)).toMatchObject([
+      { code: 'CHANNEL_NOT_SENDABLE' },
+    ]);
+    const roles = AutoRoleConfigSchema.parse({
+      joinHumanRoleIds: ['32345678901234567'],
+    });
+    expect(validateAutoRoleResources(roles, resources)).toMatchObject([
+      { code: 'ROLE_NOT_ASSIGNABLE' },
+    ]);
   });
 });
