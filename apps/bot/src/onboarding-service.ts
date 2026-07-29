@@ -8,10 +8,12 @@ import {
   DiscordAPIError,
   PermissionFlagsBits,
   type APIEmbed,
+  type ButtonInteraction,
   type Client,
   type Guild,
   type GuildMember,
   type MessageCreateOptions,
+  type ModalSubmitInteraction,
   type Role,
   type TextChannel,
 } from 'discord.js';
@@ -39,6 +41,7 @@ import {
 } from '@sufbot/queue';
 import { sha256 } from '@sufbot/shared';
 import type { BotServices } from './services.js';
+import { VerificationInteractionService } from './verification-interactions.js';
 
 const requiredChannelPermissions = [
   PermissionFlagsBits.ViewChannel,
@@ -255,6 +258,7 @@ export class OnboardingService {
   readonly #journal: OnboardingEventJournal;
   readonly #identity;
   readonly #deadLetterQueue: Queue;
+  readonly #verificationInteractions: VerificationInteractionService;
   #worker: Worker | undefined;
 
   public constructor(
@@ -276,6 +280,11 @@ export class OnboardingService {
       connection: queues.connection,
       prefix: deadLetterIdentity.prefix,
     });
+    this.#verificationInteractions = new VerificationInteractionService(
+      client,
+      services,
+      queues,
+    );
   }
 
   public async start(): Promise<void> {
@@ -300,7 +309,50 @@ export class OnboardingService {
   public async close(): Promise<void> {
     await this.#worker?.close();
     this.#worker = undefined;
+    await this.#verificationInteractions.close();
     await this.#deadLetterQueue.close();
+  }
+
+  public async handleVerificationStart(
+    interaction: ButtonInteraction,
+    nonce: string,
+    signature: string,
+  ): Promise<unknown> {
+    return this.#verificationInteractions.handleStart(interaction, nonce, signature);
+  }
+
+  public async handleCaptchaAnswerButton(
+    interaction: ButtonInteraction,
+    challengeId: string,
+    signature: string,
+  ): Promise<unknown> {
+    return this.#verificationInteractions.handleAnswerButton(
+      interaction,
+      challengeId,
+      signature,
+    );
+  }
+
+  public async handleCaptchaSequence(
+    interaction: ButtonInteraction,
+    challengeId: string,
+    choice: number,
+    signature: string,
+  ): Promise<unknown> {
+    return this.#verificationInteractions.handleSequence(
+      interaction,
+      challengeId,
+      choice,
+      signature,
+    );
+  }
+
+  public async handleCaptchaModal(
+    interaction: ModalSubmitInteraction,
+    challengeId: string,
+    signature: string,
+  ): Promise<unknown> {
+    return this.#verificationInteractions.handleModal(interaction, challengeId, signature);
   }
 
   public async handleMemberAdd(member: GuildMember): Promise<void> {
@@ -411,6 +463,14 @@ export class OnboardingService {
     const config = await this.#repository.get(member.guild.id);
     const leftAt = new Date().toISOString();
     const joinIdentity = member.joinedAt?.toISOString() ?? `unknown-${member.id}`;
+    await this.#verificationInteractions
+      .invalidateMember(member.guild.id, member.id)
+      .catch((error: unknown) =>
+        this.services.logger.warn(
+          { err: error, guildId: member.guild.id, userId: member.id },
+          'active captcha cleanup failed after member departure',
+        ),
+      );
     await this.services.prisma.memberVerification.updateMany({
       where: { guildId: member.guild.id, userId: member.id, closedAt: null },
       data: { closedAt: new Date(leftAt), status: 'EXPIRED' },

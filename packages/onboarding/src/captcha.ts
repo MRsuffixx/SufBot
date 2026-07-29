@@ -138,6 +138,7 @@ export class CaptchaStore {
       signingSecret: string;
       userStartCooldownSeconds?: number;
       guildStartsPerMinute?: number;
+      onError?: (error: unknown) => void;
     },
   ) {
     if (options.signingSecret.length < 32) {
@@ -151,6 +152,7 @@ export class CaptchaStore {
       commandTimeout: 2_000,
       retryStrategy: (attempt: number) => Math.min(attempt * 250, 3_000),
     });
+    this.#redis.on('error', (error) => options.onError?.(error));
   }
 
   public async create(
@@ -260,6 +262,7 @@ return {'CREATED', '0'}
       challengeId,
       state.expectedHash,
       lockoutSeconds,
+      state.mode === 'BUTTON_SEQUENCE',
     );
   }
 
@@ -285,6 +288,7 @@ return {'CREATED', '0'}
           challengeId,
           state.expectedHash,
           lockoutSeconds,
+          true,
         );
       }
       const next = `${state.progress}${choice}`;
@@ -396,11 +400,13 @@ return 1
     challengeId: string,
     expectedHash: string,
     lockoutSeconds: number,
+    resetProgress = false,
   ): Promise<CaptchaVerifyResult> {
     const result = (await this.#redis.eval(
       `
 if redis.call('HGET', KEYS[1], 'expectedHash') ~= ARGV[1] then return {'MISSING', '0'} end
 local remaining = redis.call('HINCRBY', KEYS[1], 'attemptsRemaining', -1)
+if ARGV[3] == '1' then redis.call('HSET', KEYS[1], 'progress', '') end
 if remaining <= 0 then
   redis.call('DEL', KEYS[1])
   redis.call('DEL', KEYS[2])
@@ -415,6 +421,7 @@ return {'INVALID', tostring(remaining)}
       this.#lockKey(guildId, userId),
       expectedHash,
       String(lockoutSeconds),
+      resetProgress ? '1' : '0',
     )) as [string, string];
     if (result[0] === 'LOCKED') {
       return { status: 'LOCKED', retryAfterSeconds: Number(result[1]) };

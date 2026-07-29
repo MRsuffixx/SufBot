@@ -227,6 +227,9 @@ importers:
       discord.js:
         specifier: 14.27.0
         version: 14.27.0
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@24.13.3)
       zod:
         specifier: 4.4.3
         version: 4.4.3(patch_hash=dc8218250323ff2fa43d1a1ba0129b683719ea4a568fc065734e922dc19f1790)
@@ -5214,8 +5217,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.3':
     optionalDependencies:
@@ -8319,7 +8321,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.3
       '@img/sharp-win32-x64': 0.35.3
       '@types/node': 24.13.3
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

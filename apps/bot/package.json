@@ -24,6 +24,7 @@
     "@sufbot/shared": "workspace:*",
     "bullmq": "5.81.2",
     "discord.js": "14.27.0",
+    "sharp": "0.35.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
