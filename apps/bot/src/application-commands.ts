@@ -66,7 +66,9 @@ export const applicationCommandDefinitions: readonly ApplicationCommandDefinitio
       new SlashCommandBuilder()
         .setName('onboarding')
         .setDescription('Inspect and operate member onboarding.')
-        .addSubcommand((option) => option.setName('status').setDescription('Show onboarding health.'))
+        .addSubcommand((option) =>
+          option.setName('status').setDescription('Show onboarding health.'),
+        )
         .addSubcommand((option) => option.setName('setup').setDescription('Open guided setup.'))
         .addSubcommand((option) => option.setName('repair').setDescription('Open setup repair.'))
         .addSubcommand((option) =>

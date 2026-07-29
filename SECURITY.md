@@ -15,6 +15,15 @@ reconcile against the provider before restoring access. Do not manually mark a p
 Billing architecture, incident recovery, and provider-specific controls are documented in
 `docs/billing-security.md` and `docs/billing-operations.md`.
 
+## Onboarding reports
+
+Treat cross-guild configuration access, forged/replayed captcha interactions, role hierarchy bypass,
+mass role assignment, Redis challenge disclosure, or remote-image SSRF as high severity. Do not
+include captcha answers, expected-answer hashes, bot tokens, Discord sessions, or full member
+exports in a report. Disable the affected onboarding section, preserve request/correlation IDs and
+the `OnboardingEvent`/guild audit records, and use the documented repair flow rather than deleting
+Discord resources automatically. See `docs/captcha-security.md` and `docs/onboarding-operations.md`.
+
 ## Reporting a vulnerability
 
 Do not open a public issue containing exploit details, credentials, guild data, or personal
@@ -59,6 +68,9 @@ alerts.
   secret-salted hashes in API failure audits.
 - Redis keys are namespaced and bounded by TTL. Queue payloads are validated; retryable work uses
   unique idempotency keys and dead-letter tracking.
+- Captcha challenges are user/guild-bound, single-use, HMAC-verified, attempt-bounded, and stored
+  only in Redis. Remote card images require public HTTPS destinations and bounded content,
+  redirects, bytes, decoded dimensions, output, and worker concurrency.
 - Containers run as non-root with dropped capabilities and read-only application filesystems.
   PostgreSQL and Redis share an internal network.
 - Exact package versions and a lockfile are committed. CI runs high-severity dependency audits and

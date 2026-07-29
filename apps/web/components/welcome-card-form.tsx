@@ -40,10 +40,9 @@ export function WelcomeCardForm({
       <div
         className="relative min-h-56 overflow-hidden rounded-2xl bg-cover bg-center p-8 text-white"
         style={{
-          backgroundImage:
-            config.backgroundUrl === null
-              ? `linear-gradient(#0006,#0006),linear-gradient(135deg,${hex(config.accentColor)},#111827)`
-              : `linear-gradient(#0008,#0008),url("${config.backgroundUrl}")`,
+          backgroundImage: `linear-gradient(#0006,#0006),linear-gradient(135deg,${hex(
+            config.accentColor,
+          )},#111827)`,
         }}
       >
         <p className="text-xs font-black tracking-[.35em]">{config.titleTemplate}</p>
@@ -51,7 +50,7 @@ export function WelcomeCardForm({
         <p className="mt-3">{config.bodyTemplate}</p>
         <p className="mt-5 text-sm">{config.memberCountTemplate}</p>
         <span className="absolute right-4 bottom-3 text-xs opacity-70">
-          Safe preview · variables render when sent
+          Safe preview · variables and remote background render only in the worker
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-2">

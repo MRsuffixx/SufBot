@@ -47,6 +47,12 @@ recurring without an approved merchant integration. See
 [billing architecture](docs/billing-architecture.md), [Stripe setup](docs/stripe.md), and
 [PayTR setup](docs/paytr.md).
 
+Member Onboarding is a guild-isolated domain for welcome/goodbye delivery, Discord Membership
+Screening, automatic roles, verification setup and repair, short-lived Redis captcha challenges, and
+worker-rendered welcome cards. Discord resource IDs—not names—are persisted. Read
+[the onboarding architecture](docs/onboarding.md), [verification guide](docs/verification.md), and
+[captcha security guide](docs/captcha-security.md) before enabling it.
+
 ## Technology
 
 - Node.js 24, TypeScript 6, pnpm workspaces, Turborepo
@@ -106,8 +112,9 @@ Create one Discord application and configure:
 2. The dashboard requests only `identify` and `guilds`.
 3. Under Bot, enable the Server Members privileged intent. The code requests only `Guilds` and
    `GuildMembers`.
-4. Install with the `bot` and `applications.commands` scopes. The current minimal permission integer
-   is `1099511629952` (`Moderate Members`, `View Audit Log`, and `Send Messages`).
+4. Install with the `bot` and `applications.commands` scopes. Onboarding setup additionally needs
+   Manage Roles, Manage Channels, View Channels, Send Messages, Embed Links, Attach Files, and Read
+   Message History. Runtime diagnostics still verify effective permissions and role hierarchy.
 5. Put the immutable application ID, client secret, and bot token in `.env`. Put immutable
    owner/developer Discord user IDs in the matching allowlists; never authorize by username.
 
@@ -151,7 +158,8 @@ deep-merged over `config.json`. They must never contain secrets.
 
 The General module provides `/ping`, `/help`, `/botinfo`, `/serverinfo`, `/userinfo`, `/settings`,
 `/config view`, `/config set-language`, and the restricted `/admin reload-config` flow. The
-Moderation module provides `/timeout`.
+Moderation module provides `/timeout`. Member Onboarding adds `/verify` and the Manage Server-gated
+`/onboarding` command group for health, setup/repair links, tests, and manual verification review.
 
 The examples also exercise a user context menu, autocomplete, buttons, a select menu, and a modal.
 Each command goes through centralized runtime policy checks for tenant, role, Discord user/bot

@@ -17,6 +17,11 @@ them and performs no automatic deployment.
 
 Never run `prisma migrate dev` in production.
 
+Before enabling Member Onboarding, enable Discord's Server Members privileged intent, verify the
+bot's effective Manage Roles/Manage Channels and message permissions, confirm the worker consumes
+`onboarding-images`, and run setup/captcha/role/message checks in an owned test guild. Redis must be
+private and authenticated; captcha creation intentionally fails closed during Redis outages.
+
 ## Coolify
 
 Create a Docker Compose resource from the repository and production override. Configure these
