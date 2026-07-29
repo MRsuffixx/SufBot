@@ -1,12 +1,13 @@
 import { updateOnboardingBasicsAction } from '@/app/actions/onboarding';
+import { Switch } from '@/components/ui/switch';
 import { ActionForm } from './action-form';
 
 const features = [
-  ['welcomeEnabled', 'Welcome channel messages'],
-  ['goodbyeEnabled', 'Goodbye channel messages'],
-  ['verificationEnabled', 'Human verification'],
-  ['autoRoleEnabled', 'Automatic roles'],
-  ['welcomeCardEnabled', 'Welcome cards'],
+  ['welcomeEnabled', 'Welcome channel messages', 'Send a message when members join.'],
+  ['goodbyeEnabled', 'Goodbye channel messages', 'Send a safe message when members leave.'],
+  ['verificationEnabled', 'Human verification', 'Gate access behind the verification panel.'],
+  ['autoRoleEnabled', 'Automatic roles', 'Assign configured roles at lifecycle events.'],
+  ['welcomeCardEnabled', 'Welcome cards', 'Attach generated branded welcome images.'],
 ] as const;
 
 export function OnboardingBasicsForm({
@@ -30,19 +31,14 @@ export function OnboardingBasicsForm({
       <input type="hidden" name="expectedVersion" value={version} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <div className="grid gap-3 sm:grid-cols-2">
-        {features.map(([name, label]) => (
-          <label
+        {features.map(([name, label, description]) => (
+          <Switch
             key={name}
-            className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] p-4"
-          >
-            <span className="font-semibold">{label}</span>
-            <input
-              type="checkbox"
-              name={name}
-              defaultChecked={values[name]}
-              className="size-5 accent-violet-600"
-            />
-          </label>
+            name={name}
+            label={label}
+            description={description}
+            defaultChecked={values[name]}
+          />
         ))}
       </div>
     </ActionForm>

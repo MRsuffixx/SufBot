@@ -1,5 +1,8 @@
 import { ActionForm } from './action-form';
 import { updateGuildSettingsAction } from '@/app/actions/guild';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 export function GuildSettingsForm({
   guildId,
@@ -25,39 +28,45 @@ export function GuildSettingsForm({
       <input type="hidden" name="guildId" value={guildId} />
       <input type="hidden" name="expectedVersion" value={version} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-      <label className="grid gap-2 text-sm font-medium">
-        Server language
-        <select
-          name="locale"
-          defaultValue={locale}
-          className="h-11 rounded-xl border bg-[var(--background)] px-3"
-        >
+      <Field
+        label="Server language"
+        htmlFor="guild-locale"
+        help="Controls bot responses and localized module defaults for this server."
+      >
+        <Select id="guild-locale" name="locale" defaultValue={locale}>
           <option value="en">English</option>
           <option value="tr">Türkçe</option>
-        </select>
-      </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Timezone
-        <input
+        </Select>
+      </Field>
+      <Field
+        label="Timezone"
+        htmlFor="guild-timezone"
+        help="Use an IANA timezone such as Europe/Istanbul or UTC."
+      >
+        <Input
+          id="guild-timezone"
           name="timezone"
           defaultValue={timezone}
           minLength={1}
           maxLength={64}
-          className="h-11 rounded-xl border bg-[var(--background)] px-3"
           required
         />
-      </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Legacy command prefix
-        <input
+      </Field>
+      <Field
+        label="Legacy command prefix"
+        htmlFor="guild-prefix"
+        help="Used only where legacy text commands remain enabled."
+      >
+        <Input
+          id="guild-prefix"
           name="commandPrefix"
           defaultValue={commandPrefix}
           minLength={1}
           maxLength={5}
-          className="h-11 rounded-xl border bg-[var(--background)] px-3"
+          className="max-w-28 font-mono"
           required
         />
-      </label>
+      </Field>
     </ActionForm>
   );
 }
