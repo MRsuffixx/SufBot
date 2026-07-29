@@ -22,9 +22,11 @@ import { appendAuditLog } from '@sufbot/database';
 import {
   OnboardingEventJournal,
   OnboardingRepository,
+  configuredAutoRoleIds,
   deduplicateRoleIds,
   evaluateOnboardingRole,
   isPostVerificationConditionSatisfied,
+  limitAutoRoleIds,
   renderOnboardingMessage,
   renderOnboardingTemplate,
   safeTemplateText,
@@ -366,6 +368,13 @@ export class OnboardingService {
   public async handleMemberAdd(member: GuildMember): Promise<void> {
     const config = await this.#repository.get(member.guild.id);
     const joinedAt = (member.joinedAt ?? new Date()).toISOString();
+    await this.#recordGatewayEvent(
+      member.guild.id,
+      member.id,
+      'member.joined',
+      `member-joined:${member.guild.id}:${member.id}:${joinedAt}`,
+      joinedAt,
+    );
     if (config.verificationEnabled) {
       await this.services.prisma.memberVerification.upsert({
         where: { guildId_userId: { guildId: member.guild.id, userId: member.id } },
@@ -471,6 +480,13 @@ export class OnboardingService {
     const config = await this.#repository.get(member.guild.id);
     const leftAt = new Date().toISOString();
     const joinIdentity = member.joinedAt?.toISOString() ?? `unknown-${member.id}`;
+    await this.#recordGatewayEvent(
+      member.guild.id,
+      member.id,
+      'member.left',
+      `member-left:${member.guild.id}:${member.id}:${joinIdentity}`,
+      leftAt,
+    );
     await this.#verificationInteractions
       .invalidateMember(member.guild.id, member.id)
       .catch((error: unknown) =>
@@ -571,6 +587,29 @@ export class OnboardingService {
       );
       return null;
     }
+  }
+
+  async #recordGatewayEvent(
+    guildId: string,
+    userId: string,
+    eventType: string,
+    idempotencyKey: string,
+    occurredAt: string,
+  ): Promise<void> {
+    await this.services.prisma.onboardingEvent.createMany({
+      data: {
+        guildId,
+        userId,
+        eventType,
+        status: 'SUCCEEDED',
+        idempotencyKey,
+        correlationId: idempotencyKey,
+        occurredAt: new Date(occurredAt),
+        processedAt: new Date(),
+        details: {},
+      },
+      skipDuplicates: true,
+    });
   }
 
   public async handleChannelDelete(guildId: string, channelId: string): Promise<void> {
@@ -827,10 +866,14 @@ export class OnboardingService {
     if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
     const { guild, member } = resolved;
     const config = await this.#repository.get(guild.id);
+    const plan = await this.services.entitlements.getGuildLimits(guild.id);
+    const allowedAutoRoles = new Set(
+      limitAutoRoleIds(configuredAutoRoleIds(config.autoRole), plan.limits.autoRoles),
+    );
     const configuredRoles = config.autoRoleEnabled
       ? member.user.bot
-        ? config.autoRole.joinBotRoleIds
-        : config.autoRole.joinHumanRoleIds
+        ? config.autoRole.joinBotRoleIds.filter((roleId) => allowedAutoRoles.has(roleId))
+        : config.autoRole.joinHumanRoleIds.filter((roleId) => allowedAutoRoles.has(roleId))
       : [];
     const roleIds = deduplicateRoleIds(
       config.verificationEnabled &&
@@ -855,22 +898,30 @@ export class OnboardingService {
     );
     if (resolved === null) return this.#skip(payload, 'MEMBER_NOT_CURRENT');
     const { guild, member } = resolved;
-    const [config, state] = await Promise.all([
+    const [config, state, plan] = await Promise.all([
       this.#repository.get(guild.id),
       this.services.prisma.memberVerification.findUnique({
         where: { guildId_userId: { guildId: guild.id, userId: member.id } },
       }),
+      this.services.entitlements.getGuildLimits(guild.id),
     ]);
     if (state === null) return this.#skip(payload, 'VERIFICATION_STATE_MISSING');
     const satisfied = isPostVerificationConditionSatisfied(config.roleGrantCondition, state);
+    const allowedAutoRoles = new Set(
+      limitAutoRoleIds(configuredAutoRoleIds(config.autoRole), plan.limits.autoRoles),
+    );
     const roleIds = deduplicateRoleIds(
       state.membershipScreeningCompleted && config.autoRoleEnabled
-        ? config.autoRole.screeningCompleteRoleIds
+        ? config.autoRole.screeningCompleteRoleIds.filter((roleId) =>
+            allowedAutoRoles.has(roleId),
+          )
         : [],
       satisfied && config.verificationEnabled && config.verifiedRoleId !== null
         ? [config.verifiedRoleId]
         : [],
-      satisfied && config.autoRoleEnabled ? config.autoRole.verifiedRoleIds : [],
+      satisfied && config.autoRoleEnabled
+        ? config.autoRole.verifiedRoleIds.filter((roleId) => allowedAutoRoles.has(roleId))
+        : [],
     );
     const result = await this.#assignRoles(member, roleIds, config, payload.correlationId);
     let unverifiedRoleRemoved = false;

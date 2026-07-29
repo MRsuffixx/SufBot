@@ -11,6 +11,8 @@ export function OnboardingRoleForm({
   idempotencyKey,
   config,
   roles,
+  maxAutoRoles,
+  tier,
 }: {
   guildId: string;
   version: number;
@@ -24,6 +26,8 @@ export function OnboardingRoleForm({
     managed: boolean;
     assignable: boolean;
   }[];
+  maxAutoRoles: number;
+  tier: 'free' | 'premium';
 }) {
   const lists = [
     ['joinHumanRoleIds', 'Human roles on join', config.joinHumanRoleIds],
@@ -44,6 +48,10 @@ export function OnboardingRoleForm({
       <input type="hidden" name="guildId" value={guildId} />
       <input type="hidden" name="expectedVersion" value={version} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      <p className="text-sm text-[var(--muted)]">
+        {tier === 'premium' ? 'Premium' : 'Free'} limit: {maxAutoRoles} unique automatic roles
+        across all groups. The API and bot enforce this limit.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {lists.map(([name, label, values]) => (
           <label key={name} className="text-sm font-semibold">

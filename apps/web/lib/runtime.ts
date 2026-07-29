@@ -2,6 +2,7 @@ import 'server-only';
 
 import { DistributedCache } from '@sufbot/cache';
 import {
+  EntitlementService,
   PaytrBillingProvider,
   StripeBillingProvider,
   type BillingProvider,
@@ -71,6 +72,7 @@ export const cache = new DistributedCache(webEnvironment.REDIS_URL, {
   invalidationChannel: appConfig.cache.invalidationChannel,
   logger: webLogger,
 });
+export const entitlements = new EntitlementService(prisma, appConfig, cache);
 export const onboardingQueue = new QueueRegistry(webEnvironment.REDIS_URL, appConfig.queue);
 
 let cacheConnection: Promise<void> | undefined;

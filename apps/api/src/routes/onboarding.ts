@@ -19,6 +19,7 @@ import {
   validateWelcomeResources,
 } from '@sufbot/onboarding';
 import { AppError, PaginationSchema } from '@sufbot/shared';
+import { EntitlementService } from '@sufbot/billing';
 import { createApiKeyAuthenticator, createGuildAccessGuard } from '../authentication.js';
 import type { ApiDependencies } from '../types.js';
 
@@ -44,7 +45,16 @@ export const registerOnboardingRoutes = async (
   const authenticate = createApiKeyAuthenticator(dependencies);
   const read = createGuildAccessGuard(dependencies, 'guild:read');
   const write = createGuildAccessGuard(dependencies, 'guild:write');
-  const repository = new OnboardingRepository(dependencies.prisma, dependencies.cache);
+  const entitlements = new EntitlementService(
+    dependencies.prisma,
+    dependencies.config,
+    dependencies.cache,
+  );
+  const repository = new OnboardingRepository(
+    dependencies.prisma,
+    dependencies.cache,
+    (guildId) => entitlements.getGuildLimits(guildId),
+  );
   const resourcesFor = async (guildId: string) => {
     const resources = await dependencies.cache.readRuntimeState(
       'bot:onboarding-resources',
@@ -90,6 +100,7 @@ export const registerOnboardingRoutes = async (
     handler: async (request) => {
       const { guildId } = GuildParamsSchema.parse(request.params);
       const config = await repository.get(guildId);
+      const plan = await entitlements.getGuildLimits(guildId);
       return {
         success: true,
         data: {
@@ -101,6 +112,8 @@ export const registerOnboardingRoutes = async (
             config.setupMode === 'EVERYONE_VISIBLE' || config.unverifiedRoleId !== null,
           verificationMessageConfigured: config.verificationMessageId !== null,
           version: config.version,
+          tier: plan.tier,
+          limits: plan.limits,
         },
         requestId: request.id,
       };
@@ -142,6 +155,57 @@ export const registerOnboardingRoutes = async (
         },
       });
       return { success: true, data: records, requestId: request.id };
+    },
+  });
+
+  app.get('/v1/guilds/:guildId/onboarding/analytics', {
+    preHandler: [authenticate, read],
+    schema: { tags: ['onboarding'], security: [{ apiKey: [] }] },
+    handler: async (request) => {
+      const { guildId } = GuildParamsSchema.parse(request.params);
+      const plan = await entitlements.getGuildLimits(guildId);
+      const retentionDays = plan.limits.moderationHistoryDays;
+      const since = new Date(Date.now() - retentionDays * 86_400_000);
+      const [groups, verifications] = await Promise.all([
+        dependencies.prisma.onboardingEvent.groupBy({
+          by: ['eventType', 'status'],
+          where: { guildId, occurredAt: { gte: since } },
+          _count: { _all: true },
+        }),
+        dependencies.prisma.memberVerification.findMany({
+          where: { guildId, verifiedAt: { gte: since, not: null } },
+          select: { createdAt: true, verifiedAt: true },
+          take: 10_000,
+        }),
+      ]);
+      const durations = verifications.flatMap((record) =>
+        record.verifiedAt === null
+          ? []
+          : [Math.max(0, record.verifiedAt.getTime() - record.createdAt.getTime())],
+      );
+      return {
+        success: true,
+        data: {
+          guildId,
+          tier: plan.tier,
+          retentionDays,
+          since: since.toISOString(),
+          counts: groups.map((group) => ({
+            eventType: group.eventType,
+            status: group.status,
+            count: group._count._all,
+          })),
+          averageVerificationSeconds:
+            durations.length === 0
+              ? null
+              : Math.round(
+                  durations.reduce((sum, duration) => sum + duration, 0) /
+                    durations.length /
+                    1_000,
+                ),
+        },
+        requestId: request.id,
+      };
     },
   });
 

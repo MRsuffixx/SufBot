@@ -3,7 +3,7 @@ import { createId } from '@sufbot/shared';
 import { OnboardingSectionShell } from '@/components/onboarding-section-shell';
 import { WelcomeCardForm } from '@/components/welcome-card-form';
 import { Card } from '@/components/ui/card';
-import { cache, prisma } from '@/lib/runtime';
+import { cache, entitlements, prisma } from '@/lib/runtime';
 
 export default async function WelcomeCardPage({
   params,
@@ -11,7 +11,10 @@ export default async function WelcomeCardPage({
   params: Promise<{ guildId: string }>;
 }) {
   const { guildId } = await params;
-  const config = await new OnboardingRepository(prisma, cache).get(guildId);
+  const [config, plan] = await Promise.all([
+    new OnboardingRepository(prisma, cache).get(guildId),
+    entitlements.getGuildLimits(guildId),
+  ]);
   return (
     <OnboardingSectionShell
       guildId={guildId}
@@ -25,6 +28,8 @@ export default async function WelcomeCardPage({
           version={config.version}
           idempotencyKey={createId('mut')}
           config={config.welcomeCard}
+          customBackgroundLimit={plan.limits.customCardBackgrounds}
+          tier={plan.tier}
         />
       </Card>
     </OnboardingSectionShell>

@@ -12,11 +12,15 @@ export function WelcomeCardForm({
   version,
   idempotencyKey,
   config,
+  customBackgroundLimit,
+  tier,
 }: {
   guildId: string;
   version: number;
   idempotencyKey: string;
   config: WelcomeCardConfig;
+  customBackgroundLimit: number;
+  tier: 'free' | 'premium';
 }) {
   const textFields = [
     ['titleTemplate', 'Title', config.titleTemplate],
@@ -81,7 +85,13 @@ export function WelcomeCardForm({
             name="backgroundUrl"
             defaultValue={config.backgroundUrl ?? ''}
             placeholder="https://cdn.example.com/background.jpg"
+            disabled={customBackgroundLimit === 0}
           />
+          <span className="mt-1 block text-xs text-[var(--muted)]">
+            {customBackgroundLimit === 0
+              ? 'Custom backgrounds require Premium.'
+              : `${tier === 'premium' ? 'Premium' : 'Free'} limit: ${customBackgroundLimit}.`}
+          </span>
         </label>
         <label className="text-sm font-semibold">
           Background fit

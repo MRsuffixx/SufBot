@@ -3,6 +3,7 @@ import { DistributedCache, ServiceHeartbeat } from '@sufbot/cache';
 import {
   BillingManagementService,
   BillingWorkerPayloadSchema,
+  EntitlementService,
   PaytrBillingProvider,
   SubscriptionReconciliationService,
   StripeBillingProvider,
@@ -106,6 +107,7 @@ const subscriptionReconciliation = new SubscriptionReconciliationService(
   config,
   billingCache,
 );
+const entitlementService = new EntitlementService(prisma, config, billingCache);
 const onboardingRepository = new OnboardingRepository(prisma);
 
 const auditWorker = new Worker(
@@ -499,11 +501,14 @@ const onboardingImageWorker = new Worker(
     if (!onboarding.welcomeCardEnabled || onboarding.version !== payload.configurationVersion) {
       throw new Error('WELCOME_CARD_CONFIGURATION_CHANGED');
     }
+    const plan = await entitlementService.getGuildLimits(payload.guildId);
+    const backgroundUrl =
+      plan.limits.customCardBackgrounds > 0 ? onboarding.welcomeCard.backgroundUrl : null;
     const [avatar, background, serverIcon] = await Promise.all([
       fetchSafeRemoteImage(payload.avatarUrl),
-      onboarding.welcomeCard.backgroundUrl === null
+      backgroundUrl === null
         ? Promise.resolve(undefined)
-        : fetchSafeRemoteImage(onboarding.welcomeCard.backgroundUrl),
+        : fetchSafeRemoteImage(backgroundUrl),
       onboarding.welcomeCard.showServerIcon && payload.serverIconUrl !== null
         ? fetchSafeRemoteImage(payload.serverIconUrl)
         : Promise.resolve(undefined),
