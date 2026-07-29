@@ -1,5 +1,15 @@
 {
   "commands.ping.response": "Pong! Gateway: {gateway} ms · Round trip: {roundtrip} ms",
   "commands.config.languageUpdated": "Server language changed to English.",
-  "commands.timeout.success": "{user} was timed out for {minutes} minute(s)."
+  "commands.timeout.success": "{user} was timed out for {minutes} minute(s).",
+  "onboarding.verification.unavailable": "Verification is unavailable. Ask an administrator to repair the setup.",
+  "onboarding.verification.alreadyVerified": "You are already verified.",
+  "onboarding.verification.rateLimited": "Please wait {seconds} seconds before trying again.",
+  "onboarding.verification.sequenceProgress": "Sequence progress: {step}",
+  "onboarding.verification.sequenceRetry": "That sequence was not correct. Attempts remaining: {attempts}.",
+  "onboarding.verification.processing": "Verification accepted. Your server access is being applied.",
+  "onboarding.verification.success": "Verification successful. You can now access the server.",
+  "onboarding.verification.failed": "Verification failed. Check the challenge and try again.",
+  "onboarding.verification.expired": "This verification challenge has expired.",
+  "onboarding.verification.locked": "Too many failed attempts. Please wait before trying again."
 }

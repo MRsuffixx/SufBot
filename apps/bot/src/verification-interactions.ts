@@ -22,7 +22,7 @@ import {
   type CaptchaVerifyResult,
   type OnboardingConfigResponse,
 } from '@sufbot/onboarding';
-import { sha256 } from '@sufbot/shared';
+import { sha256, translate } from '@sufbot/shared';
 import type { QueueRegistry } from '@sufbot/queue';
 import type { BotServices } from './services.js';
 
@@ -54,25 +54,20 @@ const localized = (
     | 'processing',
   value = 0,
 ): string => {
-  const messages = {
-    en: {
-      unavailable: 'Verification is unavailable. Ask an administrator to repair the setup.',
-      alreadyVerified: 'You are already verified.',
-      rateLimited: `Please wait ${value} seconds before trying again.`,
-      sequenceProgress: `Sequence progress: ${value}`,
-      sequenceRetry: `That sequence was not correct. Attempts remaining: ${value}.`,
-      processing: 'Verification accepted. Your server access is being applied.',
-    },
-    tr: {
-      unavailable: 'Doğrulama kullanılamıyor. Bir yöneticiden kurulumu onarmasını iste.',
-      alreadyVerified: 'Zaten doğrulandın.',
-      rateLimited: `Tekrar denemeden önce ${value} saniye bekle.`,
-      sequenceProgress: `Dizi ilerlemesi: ${value}`,
-      sequenceRetry: `Bu dizi doğru değildi. Kalan deneme: ${value}.`,
-      processing: 'Doğrulama kabul edildi. Sunucu erişimin uygulanıyor.',
-    },
-  } as const;
-  return messages[locale][key];
+  switch (key) {
+    case 'unavailable':
+      return translate(locale, 'onboarding.verification.unavailable');
+    case 'alreadyVerified':
+      return translate(locale, 'onboarding.verification.alreadyVerified');
+    case 'rateLimited':
+      return translate(locale, 'onboarding.verification.rateLimited', { seconds: value });
+    case 'sequenceProgress':
+      return translate(locale, 'onboarding.verification.sequenceProgress', { step: value });
+    case 'sequenceRetry':
+      return translate(locale, 'onboarding.verification.sequenceRetry', { attempts: value });
+    case 'processing':
+      return translate(locale, 'onboarding.verification.processing');
+  }
 };
 
 const captchaSvg = (code: string): Buffer => {

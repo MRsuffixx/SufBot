@@ -50,10 +50,8 @@ export const registerOnboardingRoutes = async (
     dependencies.config,
     dependencies.cache,
   );
-  const repository = new OnboardingRepository(
-    dependencies.prisma,
-    dependencies.cache,
-    (guildId) => entitlements.getGuildLimits(guildId),
+  const repository = new OnboardingRepository(dependencies.prisma, dependencies.cache, (guildId) =>
+    entitlements.getGuildLimits(guildId),
   );
   const resourcesFor = async (guildId: string) => {
     const resources = await dependencies.cache.readRuntimeState(
@@ -199,9 +197,7 @@ export const registerOnboardingRoutes = async (
             durations.length === 0
               ? null
               : Math.round(
-                  durations.reduce((sum, duration) => sum + duration, 0) /
-                    durations.length /
-                    1_000,
+                  durations.reduce((sum, duration) => sum + duration, 0) / durations.length / 1_000,
                 ),
         },
         requestId: request.id,

@@ -506,9 +506,7 @@ const onboardingImageWorker = new Worker(
       plan.limits.customCardBackgrounds > 0 ? onboarding.welcomeCard.backgroundUrl : null;
     const [avatar, background, serverIcon] = await Promise.all([
       fetchSafeRemoteImage(payload.avatarUrl),
-      backgroundUrl === null
-        ? Promise.resolve(undefined)
-        : fetchSafeRemoteImage(backgroundUrl),
+      backgroundUrl === null ? Promise.resolve(undefined) : fetchSafeRemoteImage(backgroundUrl),
       onboarding.welcomeCard.showServerIcon && payload.serverIconUrl !== null
         ? fetchSafeRemoteImage(payload.serverIconUrl)
         : Promise.resolve(undefined),

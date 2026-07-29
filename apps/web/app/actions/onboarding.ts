@@ -18,13 +18,7 @@ import {
 import { AuthorizationError, ValidationError, createId, isAppError } from '@sufbot/shared';
 import type { ActionState } from './guild';
 import { requireLiveGuildAccess } from '@/lib/discord';
-import {
-  cache,
-  ensureCacheConnection,
-  entitlements,
-  onboardingQueue,
-  prisma,
-} from '@/lib/runtime';
+import { cache, ensureCacheConnection, entitlements, onboardingQueue, prisma } from '@/lib/runtime';
 import { validateMutationOrigin } from '@/lib/server-security';
 import { requireDashboardSession } from '@/lib/session';
 
@@ -93,10 +87,8 @@ export const updateOnboardingBasicsAction = async (
     }
     const requestHeaders = await headers();
     const userAgent = requestHeaders.get('user-agent')?.slice(0, 255);
-    const updated = await new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const updated = await new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     ).updateBasics(
       {
         welcomeEnabled: formData.get('welcomeEnabled') === 'on',
@@ -152,10 +144,8 @@ export const updateWelcomeConfigAction = async (
 ): Promise<ActionState> =>
   safeAction(async () => {
     const context = await prepareMutation(formData);
-    const repository = new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const repository = new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     );
     const current = await repository.get(context.guildId);
     const config = WelcomeConfigSchema.parse({
@@ -201,10 +191,8 @@ export const updateGoodbyeConfigAction = async (
 ): Promise<ActionState> =>
   safeAction(async () => {
     const context = await prepareMutation(formData);
-    const repository = new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const repository = new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     );
     const current = await repository.get(context.guildId);
     const config = GoodbyeConfigSchema.parse({
@@ -241,10 +229,8 @@ export const updateAutoRoleConfigAction = async (
 ): Promise<ActionState> =>
   safeAction(async () => {
     const context = await prepareMutation(formData);
-    const repository = new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const repository = new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     );
     const current = await repository.get(context.guildId);
     const config = AutoRoleConfigSchema.parse({
@@ -281,10 +267,8 @@ export const updateWelcomeCardConfigAction = async (
 ): Promise<ActionState> =>
   safeAction(async () => {
     const context = await prepareMutation(formData);
-    const repository = new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const repository = new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     );
     const current = await repository.get(context.guildId);
     const parseColor = (name: string): number =>
@@ -328,10 +312,8 @@ export const setupVerificationAction = async (
 ): Promise<ActionState> =>
   safeAction(async () => {
     const context = await prepareMutation(formData);
-    const repository = new OnboardingRepository(
-      prisma,
-      cache,
-      (guildId) => entitlements.getGuildLimits(guildId),
+    const repository = new OnboardingRepository(prisma, cache, (guildId) =>
+      entitlements.getGuildLimits(guildId),
     );
     const operation = z
       .enum(['SETUP', 'REPAIR', 'RESEND', 'DRY_RUN'])

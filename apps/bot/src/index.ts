@@ -57,6 +57,8 @@ const intentMap = {
 const partialMap = {
   GuildMember: Partials.GuildMember,
   User: Partials.User,
+  Channel: Partials.Channel,
+  Message: Partials.Message,
 } as const;
 const clientOptions: ClientOptions = {
   intents: config.discord.intents.flatMap((intent) =>

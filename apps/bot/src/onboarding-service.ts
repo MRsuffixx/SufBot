@@ -365,6 +365,151 @@ export class OnboardingService {
     return this.#verificationInteractions.handleModal(interaction, challengeId, signature);
   }
 
+  public async enqueueAdministratorTest(
+    guildId: string,
+    userId: string,
+    correlationId: string,
+    delivery: 'WELCOME_CHANNEL' | 'WELCOME_DM' | 'GOODBYE_CHANNEL',
+  ): Promise<void> {
+    const job =
+      delivery === 'WELCOME_CHANNEL'
+        ? ('onboarding.test-welcome-channel' as const)
+        : delivery === 'WELCOME_DM'
+          ? ('onboarding.test-welcome-dm' as const)
+          : ('onboarding.test-goodbye-channel' as const);
+    await this.#enqueue({
+      job,
+      idempotencyKey: `command-test:${delivery}:${guildId}:${userId}:${correlationId}`,
+      correlationId,
+      guildId,
+      userId,
+      deliverAt: new Date().toISOString(),
+    });
+  }
+
+  public async setManualVerification(
+    guildId: string,
+    userId: string,
+    actorDiscordId: string,
+    verified: boolean,
+    correlationId: string,
+  ): Promise<void> {
+    const guild = this.client.guilds.cache.get(guildId);
+    if (guild === undefined) throw new TypeError('GUILD_UNAVAILABLE');
+    const [member, config] = await Promise.all([
+      guild.members.fetch(userId),
+      this.#repository.get(guildId),
+    ]);
+    if (member.user.bot) throw new TypeError('BOT_MEMBER_VERIFICATION_UNSUPPORTED');
+    if (!config.verificationEnabled || config.resourceHealth !== 'HEALTHY') {
+      throw new TypeError('VERIFICATION_SETUP_UNHEALTHY');
+    }
+    if (verified) {
+      await this.services.prisma.$transaction(async (transaction) => {
+        await transaction.memberVerification.upsert({
+          where: { guildId_userId: { guildId, userId } },
+          create: {
+            guildId,
+            userId,
+            status: 'MANUALLY_VERIFIED',
+            captchaVerified: true,
+            membershipScreeningCompleted: member.pending === false,
+            verifiedAt: new Date(),
+            verifiedBy: actorDiscordId,
+          },
+          update: {
+            status: 'MANUALLY_VERIFIED',
+            captchaVerified: true,
+            membershipScreeningCompleted: member.pending === false,
+            verifiedAt: new Date(),
+            verifiedBy: actorDiscordId,
+            failureReason: null,
+          },
+        });
+        await appendAuditLog(transaction, {
+          guildId,
+          actorDiscordId,
+          action: 'onboarding.verification.manually-verified',
+          resourceType: 'MemberVerification',
+          resourceId: userId,
+          requestId: correlationId,
+          outcome: 'SUCCESS',
+          newValue: { verified: true },
+        });
+      });
+      await this.#enqueue({
+        job: 'onboarding.evaluate-member-conditions',
+        idempotencyKey: `roles:manual:${guildId}:${userId}:${correlationId}`,
+        correlationId,
+        guildId,
+        userId,
+        joinedAt: (member.joinedAt ?? new Date()).toISOString(),
+        reason: 'MANUAL',
+        deliverAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const removable = deduplicateRoleIds(
+      config.verifiedRoleId === null ? [] : [config.verifiedRoleId],
+      config.autoRole.verifiedRoleIds,
+      config.autoRole.screeningCompleteRoleIds,
+    );
+    const botPosition = guild.members.me?.roles.highest.position ?? -1;
+    for (const roleId of removable) {
+      if (!member.roles.cache.has(roleId)) continue;
+      const role = await guild.roles.fetch(roleId).catch(() => null);
+      if (role === null) continue;
+      const decision = evaluateOnboardingRole(
+        {
+          id: role.id,
+          guildId: role.guild.id,
+          managed: role.managed,
+          position: role.position,
+          isEveryone: role.id === guild.id,
+        },
+        guild.id,
+        botPosition,
+      );
+      if (decision.assignable) {
+        await member.roles.remove(role, `SufBot manual unverify ${correlationId}`);
+      }
+    }
+    if (config.unverifiedRoleId !== null) {
+      await this.#assignRoles(member, [config.unverifiedRoleId], config, correlationId);
+    }
+    await this.#verificationInteractions.invalidateMember(guildId, userId);
+    await this.services.prisma.$transaction(async (transaction) => {
+      await transaction.memberVerification.upsert({
+        where: { guildId_userId: { guildId, userId } },
+        create: {
+          guildId,
+          userId,
+          status: 'PENDING',
+          membershipScreeningCompleted: member.pending === false,
+        },
+        update: {
+          status: 'PENDING',
+          captchaVerified: false,
+          rolesGranted: false,
+          verifiedAt: null,
+          verifiedBy: null,
+          roleGrantedAt: null,
+        },
+      });
+      await appendAuditLog(transaction, {
+        guildId,
+        actorDiscordId,
+        action: 'onboarding.verification.manually-revoked',
+        resourceType: 'MemberVerification',
+        resourceId: userId,
+        requestId: correlationId,
+        outcome: 'SUCCESS',
+        newValue: { verified: false },
+      });
+    });
+  }
+
   public async handleMemberAdd(member: GuildMember): Promise<void> {
     const config = await this.#repository.get(member.guild.id);
     const joinedAt = (member.joinedAt ?? new Date()).toISOString();
@@ -912,9 +1057,7 @@ export class OnboardingService {
     );
     const roleIds = deduplicateRoleIds(
       state.membershipScreeningCompleted && config.autoRoleEnabled
-        ? config.autoRole.screeningCompleteRoleIds.filter((roleId) =>
-            allowedAutoRoles.has(roleId),
-          )
+        ? config.autoRole.screeningCompleteRoleIds.filter((roleId) => allowedAutoRoles.has(roleId))
         : [],
       satisfied && config.verificationEnabled && config.verifiedRoleId !== null
         ? [config.verifiedRoleId]

@@ -14,9 +14,7 @@ export type OnboardingLimitSnapshot = {
   limits: OnboardingPlanLimits;
 };
 
-export type OnboardingLimitResolver = (
-  guildId: string,
-) => Promise<OnboardingLimitSnapshot>;
+export type OnboardingLimitResolver = (guildId: string) => Promise<OnboardingLimitSnapshot>;
 
 export const configuredAutoRoleIds = (config: AutoRoleConfig): readonly string[] => [
   ...new Set([
@@ -57,7 +55,5 @@ export const assertWelcomeCardLimit = (
   }
 };
 
-export const limitAutoRoleIds = (
-  roleIds: readonly string[],
-  maximum: number,
-): readonly string[] => [...new Set(roleIds)].slice(0, Math.max(0, maximum));
+export const limitAutoRoleIds = (roleIds: readonly string[], maximum: number): readonly string[] =>
+  [...new Set(roleIds)].slice(0, Math.max(0, maximum));

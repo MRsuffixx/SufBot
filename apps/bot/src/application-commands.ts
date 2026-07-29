@@ -60,9 +60,45 @@ export const applicationCommandDefinitions: readonly ApplicationCommandDefinitio
   simpleCommand('dashboard'),
   simpleCommand('diagnostics'),
   simpleCommand('help'),
+  {
+    executionName: 'onboarding',
+    build: () =>
+      new SlashCommandBuilder()
+        .setName('onboarding')
+        .setDescription('Inspect and operate member onboarding.')
+        .addSubcommand((option) => option.setName('status').setDescription('Show onboarding health.'))
+        .addSubcommand((option) => option.setName('setup').setDescription('Open guided setup.'))
+        .addSubcommand((option) => option.setName('repair').setDescription('Open setup repair.'))
+        .addSubcommand((option) =>
+          option.setName('test-welcome').setDescription('Send an audited welcome test.'),
+        )
+        .addSubcommand((option) =>
+          option.setName('test-goodbye').setDescription('Send an audited goodbye test.'),
+        )
+        .addSubcommand((option) =>
+          option.setName('test-verification').setDescription('Inspect the verification panel.'),
+        )
+        .addSubcommand((option) =>
+          option
+            .setName('verify-user')
+            .setDescription('Manually verify a member.')
+            .addUserOption((user) =>
+              user.setName('member').setDescription('Member to verify').setRequired(true),
+            ),
+        )
+        .addSubcommand((option) =>
+          option
+            .setName('unverify-user')
+            .setDescription('Revoke onboarding verification from a member.')
+            .addUserOption((user) =>
+              user.setName('member').setDescription('Member to unverify').setRequired(true),
+            ),
+        ),
+  },
   simpleCommand('ping'),
   simpleCommand('serverinfo'),
   simpleCommand('settings'),
+  simpleCommand('verify'),
   {
     executionName: 'timeout',
     build: () =>

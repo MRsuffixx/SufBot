@@ -19,6 +19,9 @@ import {
   createCaptchaMaterial,
   generateWelcomeCard,
   validateRemoteImageUrl,
+  assertAutoRoleLimit,
+  assertWelcomeCardLimit,
+  limitAutoRoleIds,
 } from '@sufbot/onboarding';
 
 describe('onboarding contracts', () => {
@@ -250,5 +253,36 @@ describe('onboarding contracts', () => {
     expect(generated.filename).toBe('welcome-card.png');
     expect(generated.buffer.subarray(1, 4).toString()).toBe('PNG');
     expect(generated.buffer.length).toBeLessThan(8 * 1024 * 1024);
+  });
+
+  it('enforces onboarding limits centrally and clamps stale runtime role sets', () => {
+    const free = {
+      tier: 'free' as const,
+      limits: {
+        welcomeConfigurations: 1,
+        goodbyeConfigurations: 1,
+        autoRoles: 3,
+        verificationPanels: 1,
+        customCardBackgrounds: 0,
+      },
+    };
+    const roles = AutoRoleConfigSchema.parse({
+      joinHumanRoleIds: [
+        '12345678901234567',
+        '12345678901234568',
+        '12345678901234569',
+        '12345678901234570',
+      ],
+    });
+    expect(() => assertAutoRoleLimit(roles, free)).toThrow(/at most 3/u);
+    expect(limitAutoRoleIds(['a', 'b', 'a', 'c', 'd'], free.limits.autoRoles)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+    const card = WelcomeCardConfigSchema.parse({
+      backgroundUrl: 'https://cdn.example.test/background.png',
+    });
+    expect(() => assertWelcomeCardLimit(card, free)).toThrow(/does not include/u);
   });
 });

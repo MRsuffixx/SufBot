@@ -19,7 +19,7 @@
     "developmentGuildIds": [],
     "requiredInvitePermissions": ["Administrator"],
     "intents": ["Guilds", "GuildMembers"],
-    "partials": ["GuildMember", "User"],
+    "partials": ["GuildMember", "User", "Channel", "Message"],
     "sharding": {
       "enabled": false,
       "mode": "auto",
