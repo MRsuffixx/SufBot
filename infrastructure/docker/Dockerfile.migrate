@@ -1,4 +1,4 @@
-FROM node:24.13.0-alpine AS build
+FROM node:26.6.0-alpine AS build
 
 ENV CI=true
 WORKDIR /workspace
@@ -20,7 +20,7 @@ RUN cp packages/database/prisma.config.ts /output/prisma.config.ts \
     && cp packages/database/environment.ts /output/environment.ts \
     && cp -r packages/database/prisma /output/prisma
 
-FROM node:24.13.0-alpine
+FROM node:26.6.0-alpine
 
 ENV NODE_ENV=production
 WORKDIR /app

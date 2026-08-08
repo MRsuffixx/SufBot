@@ -1,4 +1,4 @@
-FROM node:24.13.0-alpine AS build
+FROM node:26.6.0-alpine AS build
 
 ENV CI=true \
     NODE_ENV=production \
@@ -36,7 +36,7 @@ RUN DATABASE_URL=postgresql://build:build@127.0.0.1:5432/build \
     PLATFORM_ADMIN_DISCORD_IDS= \
     pnpm --filter @sufbot/web build
 
-FROM node:24.13.0-alpine AS runtime
+FROM node:26.6.0-alpine AS runtime
 
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
